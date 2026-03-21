@@ -36,7 +36,7 @@ router.post('/register', auth, async (req, res) => {
       await produce.save();
     }
 
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify/${produce._id}`;
+    const verifyUrl = `${"https://farmtrace-bay.vercel.app"}/verify/${produce._id}`;
     const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl);
 
     res.json({
@@ -153,7 +153,7 @@ router.get('/:id/qr', async (req, res) => {
   try {
     const produce = await Produce.findById(req.params.id);
     if (!produce) return res.status(404).json({ message: 'Nahi mila' });
-    const verifyUrl = `${process.env.FRONTEND_URL}/verify/${produce._id}`;
+    const verifyUrl = `${"https://farmtrace-bay.vercel.app"}/verify/${produce._id}`;
     const qr = await QRCode.toDataURL(verifyUrl, { width: 400 });
     res.json({ qrCodeDataUrl: qr, verifyUrl });
   } catch (err) {
