@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import api from '../lib/api';
 
 export default function Dashboard() {
@@ -39,10 +40,12 @@ export default function Dashboard() {
     alert('ID copy ho gayi!');
   };
 
+  // QR frontend se generate karo — backend pe depend mat karo
   const showQR = async (produceId) => {
     try {
-      const res = await api.get(`/api/produce/${produceId}/qr`);
-      setQrModal({ qr: res.data.qrCodeDataUrl, url: res.data.verifyUrl });
+      const verifyUrl = `${window.location.origin}/verify/${produceId}`;
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300 });
+      setQrModal({ qr: qrDataUrl, url: verifyUrl });
     } catch (err) {
       alert('QR load nahi hua');
     }
@@ -107,7 +110,7 @@ export default function Dashboard() {
       ) : (
         <div style={styles.grid}>
 
-          {/* FARMER — apne produces */}
+          {/* FARMER */}
           {user.role === 'FARMER' && myProduces.length === 0 && (
             <div style={styles.empty}>
               <p>Abhi koi fasal register nahi ki</p>
@@ -130,16 +133,12 @@ export default function Dashboard() {
               <p style={styles.detail}>Maatra: {p.quantity} kg</p>
               <p style={styles.detail}>Grade: {p.qualityGrade}</p>
               <p style={styles.price}>₹{p.farmPrice}/kg</p>
-
-              {/* QR Button */}
               <button onClick={() => showQR(p._id)} style={styles.qrBtn}>
                 QR Code Dekho / Print Karo
               </button>
-
               <button onClick={() => copyId(p._id)} style={styles.copyBtn}>
                 ID Copy Karo
               </button>
-
               {p.txHash && (
                 <a href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
                   target="_blank" rel="noreferrer" style={styles.ethLink}>
@@ -153,7 +152,7 @@ export default function Dashboard() {
             </div>
           ))}
 
-          {/* DISTRIBUTOR / RETAILER — received produces */}
+          {/* DISTRIBUTOR / RETAILER */}
           {user.role !== 'FARMER' && receivedProduces.length === 0 && (
             <div style={styles.empty}>
               <p>Abhi koi produce receive nahi hua</p>
@@ -175,7 +174,6 @@ export default function Dashboard() {
               <p style={styles.detail}>Mool: {p.origin}</p>
               <p style={styles.detail}>Maatra: {p.quantity} kg</p>
               <p style={styles.detail}>Grade: {p.qualityGrade}</p>
-
               <div style={styles.priceRow}>
                 <div>
                   <p style={styles.priceLabel}>Farm price</p>
@@ -186,16 +184,12 @@ export default function Dashboard() {
                   <p style={styles.receivedPrice}>₹{p.receivedPrice}/kg</p>
                 </div>
               </div>
-
-              {/* QR Button — yahi main cheez hai */}
               <button onClick={() => showQR(p._id)} style={styles.qrBtn}>
                 QR Code Dekho / Print Karo
               </button>
-
               <button onClick={() => copyId(p._id)} style={styles.copyBtn}>
                 ID Copy Karo (Aage transfer ke liye)
               </button>
-
               <button onClick={() => navigate(`/verify/${p._id}`)}
                 style={styles.verifyBtn}>
                 Poori Journey Dekho
