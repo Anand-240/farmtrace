@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import api from '../lib/api';
 
 export default function Register() {
@@ -8,6 +9,7 @@ export default function Register() {
     quantity: '', qualityGrade: 'A', farmPrice: ''
   });
   const [result, setResult] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -24,7 +26,13 @@ export default function Register() {
         quantity: Number(form.quantity),
         farmPrice: Number(form.farmPrice)
       });
+
+      // Frontend se QR generate karo — window.location use karo
+      const verifyUrl = `${window.location.origin}/verify/${res.data.produce._id}`;
+      const qr = await QRCode.toDataURL(verifyUrl, { width: 300 });
+
       setResult(res.data);
+      setQrDataUrl(qr);
     } catch (err) {
       setError(err.response?.data?.message || 'Kuch galat hua');
     }
@@ -35,13 +43,16 @@ export default function Register() {
     return (
       <div style={styles.container}>
         <div style={styles.card}>
-          <h2 style={{color: '#27500A', textAlign: 'center'}}>
+          <h2 style={{color:'#27500A', textAlign:'center'}}>
             Blockchain pe Register Ho Gaya!
           </h2>
           <div style={styles.qrBox}>
-            <img src={result.qrCodeDataUrl} alt="QR Code"
-              style={{width: '200px', height: '200px'}} />
+            <img src={qrDataUrl} alt="QR Code"
+              style={{width:'220px', height:'220px'}} />
           </div>
+          <p style={styles.verifyUrl}>
+            {window.location.origin}/verify/{result.produce._id}
+          </p>
           <p style={styles.detail}>
             TX: <span style={styles.hash}>{result.txHash?.slice(0,25)}...</span>
           </p>
@@ -127,19 +138,20 @@ export default function Register() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' },
-  card: { background: 'white', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '450px' },
-  title: { color: '#27500A', marginBottom: '1.5rem' },
-  label: { display: 'block', color: '#444', marginBottom: '0.25rem', fontSize: '0.9rem', fontWeight: 'bold' },
-  input: { width: '100%', padding: '0.75rem', marginBottom: '1rem', border: '1px solid #ddd', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' },
-  button: { width: '100%', padding: '0.75rem', background: '#27500A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', marginTop: '0.5rem' },
-  backBtn: { background: 'none', border: 'none', color: '#27500A', cursor: 'pointer', marginBottom: '1rem', fontSize: '0.9rem' },
-  error: { color: 'red', marginBottom: '1rem' },
-  loading: { color: '#854F0B', background: '#FAEEDA', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.9rem' },
-  gradeRow: { display: 'flex', gap: '0.5rem', marginBottom: '1rem' },
-  gradeBtn: { flex: 1, padding: '0.5rem', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' },
-  qrBox: { display: 'flex', justifyContent: 'center', margin: '1.5rem 0' },
-  detail: { color: '#666', fontSize: '0.9rem' },
-  hash: { fontFamily: 'monospace', color: '#27500A' },
-  ethLink: { display: 'block', color: '#085041', marginBottom: '1rem' }
+  container: { minHeight:'100vh', background:'#f0f4f0', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
+  card: { background:'white', padding:'2rem', borderRadius:'12px', width:'100%', maxWidth:'450px' },
+  title: { color:'#27500A', marginBottom:'1.5rem' },
+  label: { display:'block', color:'#444', marginBottom:'0.25rem', fontSize:'0.9rem', fontWeight:'bold' },
+  input: { width:'100%', padding:'0.75rem', marginBottom:'1rem', border:'1px solid #ddd', borderRadius:'8px', fontSize:'1rem', boxSizing:'border-box' },
+  button: { width:'100%', padding:'0.75rem', background:'#27500A', color:'white', border:'none', borderRadius:'8px', fontSize:'1rem', cursor:'pointer', marginTop:'0.5rem' },
+  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem' },
+  error: { color:'red', marginBottom:'1rem' },
+  loading: { color:'#854F0B', background:'#FAEEDA', padding:'0.75rem', borderRadius:'8px', marginBottom:'1rem', fontSize:'0.9rem' },
+  gradeRow: { display:'flex', gap:'0.5rem', marginBottom:'1rem' },
+  gradeBtn: { flex:1, padding:'0.5rem', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold' },
+  qrBox: { display:'flex', justifyContent:'center', margin:'1.5rem 0' },
+  verifyUrl: { color:'#888', fontSize:'0.75rem', textAlign:'center', margin:'0 0 1rem', wordBreak:'break-all' },
+  detail: { color:'#666', fontSize:'0.9rem' },
+  hash: { fontFamily:'monospace', color:'#27500A' },
+  ethLink: { display:'block', color:'#085041', marginBottom:'1rem' }
 };
