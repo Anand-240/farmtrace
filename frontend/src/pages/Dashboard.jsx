@@ -7,6 +7,7 @@ export default function Dashboard() {
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [qrModal, setQrModal] = useState(null);
   const navigate = useNavigate();
@@ -21,10 +22,11 @@ export default function Dashboard() {
         } else {
           const res = await api.get('/api/produce/received/my');
           setReceivedProduces(res.data);
-          // Pending payments count
           const pending = await api.get('/api/payment/pending');
           setPendingCount(pending.data.length);
         }
+        const notifRes = await api.get('/api/payment/notifications');
+        setUnreadNotifs(notifRes.data.filter(n => !n.isRead).length);
       } catch (err) {
         console.error(err);
       } finally {
@@ -59,7 +61,6 @@ export default function Dashboard() {
   return (
     <div style={styles.container}>
 
-      {/* QR Modal */}
       {qrModal && (
         <div style={styles.modalOverlay} onClick={() => setQrModal(null)}>
           <div style={styles.modalCard} onClick={e => e.stopPropagation()}>
@@ -75,7 +76,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>FarmTrace</h1>
@@ -89,7 +89,6 @@ export default function Dashboard() {
         <button onClick={logout} style={styles.logoutBtn}>Logout</button>
       </div>
 
-      {/* Action buttons */}
       <div style={styles.btnRow}>
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/register-produce')} style={styles.addBtn}>
@@ -106,6 +105,12 @@ export default function Dashboard() {
             Pending Payments {pendingCount > 0 && `(${pendingCount})`}
           </button>
         )}
+        <button onClick={() => navigate('/transactions')} style={styles.historyBtn}>
+          History & Notifications
+          {unreadNotifs > 0 && (
+            <span style={styles.notifBadge}>{unreadNotifs}</span>
+          )}
+        </button>
       </div>
 
       {loading ? (
@@ -113,7 +118,6 @@ export default function Dashboard() {
       ) : (
         <div style={styles.grid}>
 
-          {/* FARMER */}
           {user.role === 'FARMER' && myProduces.length === 0 && (
             <div style={styles.empty}><p>Abhi koi fasal register nahi ki</p></div>
           )}
@@ -152,7 +156,6 @@ export default function Dashboard() {
             </div>
           ))}
 
-          {/* DISTRIBUTOR / RETAILER */}
           {user.role !== 'FARMER' && receivedProduces.length === 0 && (
             <div style={styles.empty}>
               <p>Abhi koi produce receive nahi hua</p>
@@ -218,6 +221,8 @@ const styles = {
   addBtn: { flex:1, padding:'1rem', background:'#27500A', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
   transferBtn: { flex:1, padding:'1rem', background:'#085041', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
   paymentBtn: { flex:1, padding:'1rem', background:'#854F0B', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
+  historyBtn: { flex:1, padding:'1rem', background:'#534AB7', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' },
+  notifBadge: { background:'#E24B4A', color:'white', borderRadius:'50%', width:'20px', height:'20px', fontSize:'11px', display:'flex', alignItems:'center', justifyContent:'center' },
   loading: { textAlign:'center', color:'#666', marginTop:'2rem' },
   empty: { textAlign:'center', color:'#666', marginTop:'2rem', padding:'2rem', background:'white', borderRadius:'12px', gridColumn:'1/-1' },
   grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'1rem' },

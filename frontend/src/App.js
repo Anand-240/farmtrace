@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Transfer from './pages/Transfer';
 import Payment from './pages/Payment';
+import Transactions from './pages/Transactions';
 import Verify from './pages/Verify';
 
 function PrivateRoute({ children }) {
@@ -28,6 +29,9 @@ function App() {
         } />
         <Route path="/payment" element={
           <PrivateRoute><Payment /></PrivateRoute>
+        } />
+        <Route path="/transactions" element={
+          <PrivateRoute><Transactions /></PrivateRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

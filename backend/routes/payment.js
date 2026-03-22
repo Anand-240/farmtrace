@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const auth = require('../middleware/authMiddleware');
 const Transfer = require('../models/Transfer');
 const Produce = require('../models/Produce');
+const Transaction = require('../models/Transaction');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 const { transferOnChain } = require('../blockchain/blockchainService');
 
 const razorpay = new Razorpay({
@@ -12,17 +15,17 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// Step 1: Transfer request banao
+// Transfer request banao
 router.post('/request', auth, async (req, res) => {
   try {
     const { produceMongoId, toPhone, pricePerKg, location, transferType } = req.body;
 
     const produce = await Produce.findById(produceMongoId);
-    if (!produce) {
-      return res.status(404).json({ message: 'Produce nahi mila' });
-    }
+    if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
-    // Transfer request save karo — PENDING status
+    const toUser = await User.findOne({ phone: toPhone });
+    if (!toUser) return res.status(404).json({ message: 'Receiver nahi mila — phone check karo' });
+
     const transfer = await Transfer.create({
       produceId: produceMongoId,
       fromPhone: req.user.phone,
@@ -34,11 +37,16 @@ router.post('/request', auth, async (req, res) => {
       paymentStatus: 'PENDING'
     });
 
-    res.json({
-      success: true,
-      transfer,
-      message: 'Transfer request bheji gayi!'
+    // Receiver ko notification bhejo
+    await Notification.create({
+      userPhone: toPhone,
+      title: 'Naya Transfer Request',
+      message: `${req.user.name} ne ${produce.cropType} transfer karne ki request bheji hai — ₹${pricePerKg}/kg`,
+      type: 'REQUEST_RECEIVED',
+      data: { transferId: transfer._id, produceId: produceMongoId }
     });
+
+    res.json({ success: true, transfer, message: 'Transfer request bheji gayi!' });
 
   } catch (err) {
     console.error('Request error:', err);
@@ -46,7 +54,7 @@ router.post('/request', auth, async (req, res) => {
   }
 });
 
-// Step 2: Pending requests fetch karo (distributor/retailer ke liye)
+// Pending requests
 router.get('/pending', auth, async (req, res) => {
   try {
     const transfers = await Transfer.find({
@@ -54,40 +62,30 @@ router.get('/pending', auth, async (req, res) => {
       paymentStatus: 'PENDING'
     }).sort({ createdAt: -1 });
 
-    // Har transfer ka produce fetch karo
     const results = [];
     for (const t of transfers) {
       const produce = await Produce.findById(t.produceId);
       if (produce) {
-        results.push({
-          ...t.toObject(),
-          produce: produce.toObject()
-        });
+        results.push({ ...t.toObject(), produce: produce.toObject() });
       }
     }
-
     res.json(results);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Step 3: Razorpay order create karo
+// Razorpay order create
 router.post('/create-order', auth, async (req, res) => {
   try {
     const { transferId } = req.body;
 
     const transfer = await Transfer.findById(transferId);
-    if (!transfer) {
-      return res.status(404).json({ message: 'Transfer nahi mila' });
-    }
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
 
     const produce = await Produce.findById(transfer.produceId);
-    if (!produce) {
-      return res.status(404).json({ message: 'Produce nahi mila' });
-    }
+    if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
-    // Total amount calculate karo (paise mein — 1 rupee = 100 paise)
     const totalAmount = transfer.price * produce.quantity * 100;
 
     const order = await razorpay.orders.create({
@@ -117,7 +115,7 @@ router.post('/create-order', auth, async (req, res) => {
   }
 });
 
-// Step 4: Payment verify karo aur blockchain pe transfer karo
+// Payment verify + blockchain transfer
 router.post('/verify', auth, async (req, res) => {
   try {
     const {
@@ -127,7 +125,7 @@ router.post('/verify', auth, async (req, res) => {
       transferId
     } = req.body;
 
-    // Signature verify karo
+    // Signature verify
     const body = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -138,52 +136,145 @@ router.post('/verify', auth, async (req, res) => {
       return res.status(400).json({ message: 'Payment invalid hai' });
     }
 
-    // Transfer fetch karo
     const transfer = await Transfer.findById(transferId);
     const produce = await Produce.findById(transfer.produceId);
+    const fromUser = await User.findOne({ phone: transfer.fromPhone });
+    const toUser = await User.findOne({ phone: transfer.toPhone });
 
-    // Payment status update karo
+    const totalAmount = transfer.price * produce.quantity;
+
+    // Payment status update
     transfer.paymentStatus = 'PAID';
     transfer.razorpayPaymentId = razorpay_payment_id;
     transfer.razorpayOrderId = razorpay_order_id;
 
-    // Blockchain pe transfer karo
+    // Blockchain pe transfer
+    let txHash = null;
     if (produce.produceId) {
-      const toAddress = process.env.PLATFORM_PRIVATE_KEY
-        ? new (require('ethers').Wallet)(process.env.PLATFORM_PRIVATE_KEY).address
-        : '0x0000000000000000000000000000000000000001';
+      const toAddress = new (require('ethers').Wallet)(
+        process.env.PLATFORM_PRIVATE_KEY
+      ).address;
 
       const result = await transferOnChain(
-        produce.produceId,
-        toAddress,
-        transfer.price,
-        transfer.location
+        produce.produceId, toAddress, transfer.price, transfer.location
       );
 
       if (result.success) {
         transfer.txHash = result.txHash;
         transfer.blockchainStatus = 'CONFIRMED';
+        txHash = result.txHash;
       }
     }
 
     await transfer.save();
 
-    // Produce ka current owner update karo
+    // Produce owner update
     produce.currentOwner = transfer.toPhone;
     await produce.save();
+
+    // Transaction history — sender ke liye (SENT)
+    await Transaction.create({
+      produceId: transfer.produceId,
+      cropType: produce.cropType,
+      fromPhone: transfer.toPhone,
+      fromName: toUser?.name,
+      toPhone: transfer.fromPhone,
+      toName: fromUser?.name,
+      amount: totalAmount,
+      pricePerKg: transfer.price,
+      quantity: produce.quantity,
+      transferType: transfer.transferType,
+      paymentId: razorpay_payment_id,
+      txHash,
+      status: 'COMPLETED',
+      type: 'SENT'
+    });
+
+    // Transaction history — receiver ke liye (RECEIVED)
+    await Transaction.create({
+      produceId: transfer.produceId,
+      cropType: produce.cropType,
+      fromPhone: transfer.toPhone,
+      fromName: toUser?.name,
+      toPhone: transfer.fromPhone,
+      toName: fromUser?.name,
+      amount: totalAmount,
+      pricePerKg: transfer.price,
+      quantity: produce.quantity,
+      transferType: transfer.transferType,
+      paymentId: razorpay_payment_id,
+      txHash,
+      status: 'COMPLETED',
+      type: 'RECEIVED'
+    });
+
+    // Farmer ko payment notification
+    await Notification.create({
+      userPhone: transfer.fromPhone,
+      title: 'Payment Mil Gayi!',
+      message: `${toUser?.name} ne ${produce.cropType} ke liye ₹${totalAmount.toLocaleString()} payment ki!`,
+      type: 'PAYMENT_RECEIVED',
+      data: { transferId, amount: totalAmount, txHash }
+    });
+
+    // Distributor ko confirmation notification
+    await Notification.create({
+      userPhone: transfer.toPhone,
+      title: 'Transfer Complete!',
+      message: `${produce.cropType} blockchain pe transfer ho gaya. TX: ${txHash?.slice(0,20)}...`,
+      type: 'TRANSFER_COMPLETE',
+      data: { transferId, txHash }
+    });
 
     res.json({
       success: true,
       transfer,
-      txHash: transfer.txHash,
-      etherscanUrl: transfer.txHash
-        ? `https://sepolia.etherscan.io/tx/${transfer.txHash}`
-        : null,
+      txHash,
+      etherscanUrl: txHash ? `https://sepolia.etherscan.io/tx/${txHash}` : null,
       message: 'Payment ho gayi aur blockchain pe transfer ho gaya!'
     });
 
   } catch (err) {
     console.error('Verify error:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Transaction history
+router.get('/transactions', auth, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({
+      $or: [
+        { fromPhone: req.user.phone },
+        { toPhone: req.user.phone }
+      ]
+    }).sort({ createdAt: -1 });
+
+    res.json(transactions);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Notifications
+router.get('/notifications', auth, async (req, res) => {
+  try {
+    const notifications = await Notification.find({
+      userPhone: req.user.phone
+    }).sort({ createdAt: -1 }).limit(20);
+
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Notification read mark karo
+router.put('/notifications/:id/read', auth, async (req, res) => {
+  try {
+    await Notification.findByIdAndUpdate(req.params.id, { isRead: true });
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
