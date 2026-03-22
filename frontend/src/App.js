@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Register from './pages/Register';
 import Transfer from './pages/Transfer';
+import Payment from './pages/Payment';
 import Verify from './pages/Verify';
 
 function PrivateRoute({ children }) {
@@ -24,6 +25,9 @@ function App() {
         } />
         <Route path="/transfer" element={
           <PrivateRoute><Transfer /></PrivateRoute>
+        } />
+        <Route path="/payment" element={
+          <PrivateRoute><Payment /></PrivateRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

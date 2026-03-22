@@ -6,6 +6,7 @@ import api from '../lib/api';
 export default function Dashboard() {
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [qrModal, setQrModal] = useState(null);
   const navigate = useNavigate();
@@ -20,6 +21,9 @@ export default function Dashboard() {
         } else {
           const res = await api.get('/api/produce/received/my');
           setReceivedProduces(res.data);
+          // Pending payments count
+          const pending = await api.get('/api/payment/pending');
+          setPendingCount(pending.data.length);
         }
       } catch (err) {
         console.error(err);
@@ -40,7 +44,6 @@ export default function Dashboard() {
     alert('ID copy ho gayi!');
   };
 
-  // QR frontend se generate karo — backend pe depend mat karo
   const showQR = async (produceId) => {
     try {
       const verifyUrl = `${window.location.origin}/verify/${produceId}`;
@@ -61,9 +64,7 @@ export default function Dashboard() {
         <div style={styles.modalOverlay} onClick={() => setQrModal(null)}>
           <div style={styles.modalCard} onClick={e => e.stopPropagation()}>
             <h3 style={styles.modalTitle}>QR Code — Scan Karo</h3>
-            <p style={styles.modalSub}>
-              Yeh QR scan karne par poori supply chain history dikhegi
-            </p>
+            <p style={styles.modalSub}>Yeh QR scan karne par poori supply chain history dikhegi</p>
             <img src={qrModal.qr} alt="QR Code"
               style={{width:'220px', height:'220px', display:'block', margin:'0 auto'}} />
             <p style={styles.modalUrl}>{qrModal.url}</p>
@@ -80,10 +81,7 @@ export default function Dashboard() {
           <h1 style={styles.title}>FarmTrace</h1>
           <p style={styles.welcome}>
             Namaste, {user.name}
-            <span style={{
-              ...styles.roleBadge,
-              background: roleColor[user.role] || '#27500A'
-            }}>
+            <span style={{...styles.roleBadge, background: roleColor[user.role] || '#27500A'}}>
               {user.role}
             </span>
           </p>
@@ -100,7 +98,12 @@ export default function Dashboard() {
         )}
         {user.role !== 'CONSUMER' && (
           <button onClick={() => navigate('/transfer')} style={styles.transferBtn}>
-            Aage Transfer Karo
+            Transfer Request Bhejo
+          </button>
+        )}
+        {user.role !== 'FARMER' && (
+          <button onClick={() => navigate('/payment')} style={styles.paymentBtn}>
+            Pending Payments {pendingCount > 0 && `(${pendingCount})`}
           </button>
         )}
       </div>
@@ -112,9 +115,7 @@ export default function Dashboard() {
 
           {/* FARMER */}
           {user.role === 'FARMER' && myProduces.length === 0 && (
-            <div style={styles.empty}>
-              <p>Abhi koi fasal register nahi ki</p>
-            </div>
+            <div style={styles.empty}><p>Abhi koi fasal register nahi ki</p></div>
           )}
 
           {user.role === 'FARMER' && myProduces.map(p => (
@@ -145,8 +146,7 @@ export default function Dashboard() {
                   Blockchain pe dekho →
                 </a>
               )}
-              <button onClick={() => navigate(`/verify/${p._id}`)}
-                style={styles.verifyBtn}>
+              <button onClick={() => navigate(`/verify/${p._id}`)} style={styles.verifyBtn}>
                 Poori Journey Dekho
               </button>
             </div>
@@ -157,7 +157,7 @@ export default function Dashboard() {
             <div style={styles.empty}>
               <p>Abhi koi produce receive nahi hua</p>
               <p style={{fontSize:'0.85rem', color:'#888'}}>
-                Jab transfer hoga tab yahan dikhega
+                Jab payment complete hogi tab yahan dikhega
               </p>
             </div>
           )}
@@ -188,10 +188,9 @@ export default function Dashboard() {
                 QR Code Dekho / Print Karo
               </button>
               <button onClick={() => copyId(p._id)} style={styles.copyBtn}>
-                ID Copy Karo (Aage transfer ke liye)
+                ID Copy Karo
               </button>
-              <button onClick={() => navigate(`/verify/${p._id}`)}
-                style={styles.verifyBtn}>
+              <button onClick={() => navigate(`/verify/${p._id}`)} style={styles.verifyBtn}>
                 Poori Journey Dekho
               </button>
             </div>
@@ -215,9 +214,10 @@ const styles = {
   welcome: { color:'#666', margin:0, fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'0.5rem' },
   roleBadge: { color:'white', padding:'0.15rem 0.6rem', borderRadius:'20px', fontSize:'0.75rem', fontWeight:'bold' },
   logoutBtn: { background:'none', border:'1px solid #ddd', padding:'0.5rem 1rem', borderRadius:'8px', cursor:'pointer' },
-  btnRow: { display:'flex', gap:'1rem', marginBottom:'1rem' },
-  addBtn: { flex:1, padding:'1rem', background:'#27500A', color:'white', border:'none', borderRadius:'12px', fontSize:'1rem', cursor:'pointer' },
-  transferBtn: { flex:1, padding:'1rem', background:'#085041', color:'white', border:'none', borderRadius:'12px', fontSize:'1rem', cursor:'pointer' },
+  btnRow: { display:'flex', gap:'0.75rem', marginBottom:'1rem', flexWrap:'wrap' },
+  addBtn: { flex:1, padding:'1rem', background:'#27500A', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
+  transferBtn: { flex:1, padding:'1rem', background:'#085041', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
+  paymentBtn: { flex:1, padding:'1rem', background:'#854F0B', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
   loading: { textAlign:'center', color:'#666', marginTop:'2rem' },
   empty: { textAlign:'center', color:'#666', marginTop:'2rem', padding:'2rem', background:'white', borderRadius:'12px', gridColumn:'1/-1' },
   grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'1rem' },

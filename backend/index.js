@@ -17,6 +17,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/produce', require('./routes/produce'));
 app.use('/api/transfer', require('./routes/transfer'));
+app.use('/api/payment', require('./routes/payment'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'FarmTrace backend chal raha hai' });
