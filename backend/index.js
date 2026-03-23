@@ -1,16 +1,26 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
 const app = express();
+let mongoState = 'connecting';
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error('CORS blocked for this origin'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 app.use(express.json());
 
@@ -21,7 +31,16 @@ app.use('/api/ai', require('./routes/ai'));
 app.use('/api/payment', require('./routes/payment'));
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'FarmTrace backend chal raha hai' });
+  const isMongoConnected = mongoose.connection.readyState === 1;
+  res.status(isMongoConnected ? 200 : 503).json({
+    status: isMongoConnected ? 'ok' : 'degraded',
+    database: mongoState,
+    message: 'FarmTrace backend chal raha hai'
+  });
+});
+
+app.listen(process.env.PORT || 4000, '0.0.0.0', () => {
+  console.log(`Server port ${process.env.PORT || 4000} pe chal raha hai`);
 });
 
 mongoose.connect(process.env.MONGO_URI, {
@@ -30,9 +49,10 @@ mongoose.connect(process.env.MONGO_URI, {
   serverSelectionTimeoutMS: 10000,
 })
   .then(() => {
+    mongoState = 'connected';
     console.log('MongoDB connected!');
-    app.listen(process.env.PORT || 4000, '0.0.0.0', () => {
-      console.log(`Server port ${process.env.PORT || 4000} pe chal raha hai`);
-    });
   })
-  .catch(err => console.error('MongoDB error:', err.message));
+  .catch(err => {
+    mongoState = 'disconnected';
+    console.error('MongoDB error:', err.message);
+  });

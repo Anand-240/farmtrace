@@ -7,6 +7,10 @@ const Produce = require('../models/Produce');
 const Transfer = require('../models/Transfer');
 const { registerOnChain, getHistoryFromChain } = require('../blockchain/blockchainService');
 
+function getFrontendBaseUrl(req) {
+  return (process.env.FRONTEND_URL || req.get('origin') || 'http://localhost:3000').trim();
+}
+
 // BigInt ko string mein convert karo
 function serializeBlockchain(obj) {
   return JSON.parse(JSON.stringify(obj, (key, value) =>
@@ -36,7 +40,7 @@ router.post('/register', auth, async (req, res) => {
       await produce.save();
     }
 
-    const verifyUrl = `${"https://farmtrace-bay.vercel.app"}/verify/${produce._id}`;
+    const verifyUrl = `${getFrontendBaseUrl(req)}/verify/${produce._id}`;
     const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl);
 
     res.json({
@@ -153,7 +157,7 @@ router.get('/:id/qr', async (req, res) => {
   try {
     const produce = await Produce.findById(req.params.id);
     if (!produce) return res.status(404).json({ message: 'Nahi mila' });
-    const verifyUrl = `${"https://farmtrace-bay.vercel.app"}/verify/${produce._id}`;
+    const verifyUrl = `${getFrontendBaseUrl(req)}/verify/${produce._id}`;
     const qr = await QRCode.toDataURL(verifyUrl, { width: 400 });
     res.json({ qrCodeDataUrl: qr, verifyUrl });
   } catch (err) {

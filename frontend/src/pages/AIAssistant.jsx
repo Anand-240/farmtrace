@@ -54,9 +54,14 @@ export default function AIAssistant() {
       }]);
 
     } catch (err) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        'Kuch galat hua. Dobara try karo.';
+
       setMessages(prev => [...prev, {
         role: 'ai',
-        text: 'Kuch galat hua. Dobara try karo.'
+        text: errorMessage
       }]);
     } finally {
       setLoading(false);
@@ -85,9 +90,14 @@ export default function AIAssistant() {
       }]);
 
     } catch (err) {
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        'Request bhejne mein error aaya.';
+
       setMessages(prev => [...prev, {
         role: 'ai',
-        text: 'Request bhejne mein error aaya: ' + err.message
+        text: errorMessage
       }]);
     } finally {
       setLoading(false);
@@ -222,7 +232,7 @@ const styles = {
   backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', fontSize:'0.9rem' },
   title: { color:'#27500A', margin:0, fontSize:'1.2rem' },
   subtitle: { color:'#888', margin:0, fontSize:'0.8rem' },
-  chatBox: { flex:1, padding:'1rem', overflowY:'auto', display:'flex', flexDirection:'column', gap:'1rem', maxHeight:'calc(100vh - 160px)', overflowY:'auto' },
+  chatBox: { flex:1, padding:'1rem', overflowY:'auto', display:'flex', flexDirection:'column', gap:'1rem', maxHeight:'calc(100vh - 160px)' },
   msgRow: { display:'flex', gap:'0.5rem', alignItems:'flex-end' },
   aiAvatar: { width:'32px', height:'32px', borderRadius:'50%', background:'#27500A', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:'bold', flexShrink:0 },
   userAvatar: { width:'32px', height:'32px', borderRadius:'50%', background:'#085041', color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.85rem', fontWeight:'bold', flexShrink:0 },
