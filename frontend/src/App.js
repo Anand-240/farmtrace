@@ -5,6 +5,7 @@ import Register from './pages/Register';
 import Transfer from './pages/Transfer';
 import Payment from './pages/Payment';
 import Transactions from './pages/Transactions';
+import AIAssistant from './pages/AIAssistant';
 import Verify from './pages/Verify';
 
 function PrivateRoute({ children }) {
@@ -32,6 +33,9 @@ function App() {
         } />
         <Route path="/transactions" element={
           <PrivateRoute><Transactions /></PrivateRoute>
+        } />
+        <Route path="/ai" element={
+          <PrivateRoute><AIAssistant /></PrivateRoute>
         } />
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>

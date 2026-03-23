@@ -111,6 +111,11 @@ export default function Dashboard() {
             <span style={styles.notifBadge}>{unreadNotifs}</span>
           )}
         </button>
+        {user.role === 'FARMER' && (
+          <button onClick={() => navigate('/ai')} style={styles.aiBtn}>
+            AI Assistant
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -223,6 +228,7 @@ const styles = {
   paymentBtn: { flex:1, padding:'1rem', background:'#854F0B', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
   historyBtn: { flex:1, padding:'1rem', background:'#534AB7', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' },
   notifBadge: { background:'#E24B4A', color:'white', borderRadius:'50%', width:'20px', height:'20px', fontSize:'11px', display:'flex', alignItems:'center', justifyContent:'center' },
+  aiBtn: { flex:1, padding:'1rem', background:'#1D9E75', color:'white', border:'none', borderRadius:'12px', fontSize:'0.95rem', cursor:'pointer', minWidth:'150px' },
   loading: { textAlign:'center', color:'#666', marginTop:'2rem' },
   empty: { textAlign:'center', color:'#666', marginTop:'2rem', padding:'2rem', background:'white', borderRadius:'12px', gridColumn:'1/-1' },
   grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:'1rem' },
