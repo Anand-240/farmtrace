@@ -9,6 +9,85 @@ const Notification = require('../models/Notification');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+async function buildFarmerGreeting(user, produceCount, distributorCount) {
+  if (!process.env.GROQ_API_KEY) {
+    return `Namaste ${user.name}! Main aapka FarmTrace AI assistant hoon. Aap yahan nayi fasal register kar sakte ho ya apni confirmed fasal distributor ko bech sakte ho.`;
+  }
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a concise Hindi assistant for Indian farmers using FarmTrace.
+Write one short greeting in simple Hindi.
+Mention that the farmer can either register a new crop or sell to a distributor.
+Keep it under 35 words. No markdown.`
+        },
+        {
+          role: 'user',
+          content: `Farmer name: ${user.name}
+Confirmed produce count: ${produceCount}
+Distributor count: ${distributorCount}`
+        }
+      ],
+      temperature: 0.4,
+      max_tokens: 80
+    });
+
+    return completion.choices?.[0]?.message?.content?.trim()
+      || `Namaste ${user.name}! Main aapki madad karunga. Aap nayi fasal register kar sakte ho ya distributor ko bech sakte ho.`;
+  } catch (err) {
+    console.error('Greeting AI error:', err.message);
+    return `Namaste ${user.name}! Main aapka FarmTrace AI assistant hoon. Aap yahan nayi fasal register kar sakte ho ya apni confirmed fasal distributor ko bech sakte ho.`;
+  }
+}
+
+router.get('/farmer-assistant/bootstrap', auth, async (req, res) => {
+  try {
+    const produces = await Produce.find({
+      farmerPhone: req.user.phone,
+      blockchainStatus: 'CONFIRMED'
+    })
+      .sort({ createdAt: -1 })
+      .select('_id cropType origin quantity qualityGrade farmPrice createdAt');
+
+    const distributors = await User.find({ role: 'DISTRIBUTOR' })
+      .sort({ name: 1 })
+      .select('name phone village district state');
+
+    const greeting = await buildFarmerGreeting(
+      req.user,
+      produces.length,
+      distributors.length
+    );
+
+    res.json({
+      success: true,
+      greeting,
+      produces: produces.map((produce) => ({
+        _id: produce._id,
+        cropType: produce.cropType,
+        origin: produce.origin,
+        quantity: produce.quantity,
+        qualityGrade: produce.qualityGrade,
+        farmPrice: produce.farmPrice
+      })),
+      distributors: distributors.map((distributor) => ({
+        name: distributor.name,
+        phone: distributor.phone,
+        location: [distributor.village, distributor.district, distributor.state]
+          .filter(Boolean)
+          .join(', ')
+      }))
+    });
+  } catch (err) {
+    console.error('Farmer assistant bootstrap error:', err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 router.post('/parse-transfer', auth, async (req, res) => {
   try {
     const { message } = req.body;
