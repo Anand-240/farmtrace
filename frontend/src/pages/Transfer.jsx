@@ -6,7 +6,7 @@ export default function Transfer() {
   const [produceId, setProduceId] = useState('');
   const [produce, setProduce] = useState(null);
   const [form, setForm] = useState({
-    toPhone: '', price: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR'
+    toEmail: '', price: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR'
   });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export default function Transfer() {
     try {
       const res = await api.post('/api/payment/request', {
         produceMongoId: produceId.trim(),
-        toPhone: form.toPhone,
+        toEmail: form.toEmail,
         pricePerKg: Number(form.price),
         location: form.location,
         transferType: form.transferType
@@ -61,7 +61,7 @@ export default function Transfer() {
           <div style={styles.successBox}>
             <p style={styles.successText}>{produce?.cropType} — {produce?.origin}</p>
             <p style={styles.successDetail}>Price: ₹{form.price}/kg</p>
-            <p style={styles.successDetail}>Ko: {form.toPhone}</p>
+            <p style={styles.successDetail}>Ko: {form.toEmail}</p>
             <p style={styles.successDetail}>
               Jab woh payment karega tab blockchain pe transfer hoga
             </p>
@@ -126,11 +126,11 @@ export default function Transfer() {
 
               <label style={styles.label}>
                 {user.role === 'FARMER' ? 'Distributor' :
-                 user.role === 'DISTRIBUTOR' ? 'Retailer' : 'Consumer'} ka Phone
+                 user.role === 'DISTRIBUTOR' ? 'Retailer' : 'Consumer'} ka Email
               </label>
-              <input style={styles.input} placeholder="Phone number"
-                value={form.toPhone}
-                onChange={e => setForm({...form, toPhone: e.target.value})} required />
+              <input style={styles.input} type="email" placeholder="Email address"
+                value={form.toEmail}
+                onChange={e => setForm({...form, toEmail: e.target.value})} required />
 
               <label style={styles.label}>Aapka Price (₹/kg)</label>
               <input style={styles.input} type="number"

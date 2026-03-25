@@ -18,18 +18,23 @@ const razorpay = new Razorpay({
 // Transfer request banao
 router.post('/request', auth, async (req, res) => {
   try {
-    const { produceMongoId, toPhone, pricePerKg, location, transferType } = req.body;
+    const { produceMongoId, toPhone, toEmail, pricePerKg, location, transferType } = req.body;
 
     const produce = await Produce.findById(produceMongoId);
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
-    const toUser = await User.findOne({ phone: toPhone });
-    if (!toUser) return res.status(404).json({ message: 'Receiver nahi mila — phone check karo' });
+    const normalizedEmail = toEmail?.trim().toLowerCase();
+    const toUser = await User.findOne(
+      normalizedEmail ? { email: normalizedEmail } : { phone: toPhone?.trim() }
+    );
+    if (!toUser) {
+      return res.status(404).json({ message: normalizedEmail ? 'Receiver nahi mila — email check karo' : 'Receiver nahi mila — phone check karo' });
+    }
 
     const transfer = await Transfer.create({
       produceId: produceMongoId,
       fromPhone: req.user.phone,
-      toPhone,
+      toPhone: toUser.phone,
       price: pricePerKg,
       location,
       transferType,
@@ -39,7 +44,7 @@ router.post('/request', auth, async (req, res) => {
 
     // Receiver ko notification bhejo
     await Notification.create({
-      userPhone: toPhone,
+      userPhone: toUser.phone,
       title: 'Naya Transfer Request',
       message: `${req.user.name} ne ${produce.cropType} transfer karne ki request bheji hai — ₹${pricePerKg}/kg`,
       type: 'REQUEST_RECEIVED',

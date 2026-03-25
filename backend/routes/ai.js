@@ -55,7 +55,7 @@ router.get('/farmer-assistant/bootstrap', auth, async (req, res) => {
 
     const distributors = await User.find({ role: 'DISTRIBUTOR' })
       .sort({ name: 1 })
-      .select('name phone village city district state');
+      .select('name email phone village city district state');
 
     const greeting = await buildFarmerGreeting(
       req.user,
@@ -76,6 +76,7 @@ router.get('/farmer-assistant/bootstrap', auth, async (req, res) => {
       })),
       distributors: distributors.map((distributor) => ({
         name: distributor.name,
+        email: distributor.email,
         phone: distributor.phone,
         location: [distributor.village, distributor.city || distributor.district, distributor.state]
           .filter(Boolean)
@@ -99,14 +100,14 @@ router.post('/parse-transfer', auth, async (req, res) => {
 
     const receivers = await User.find({
       role: { $in: ['DISTRIBUTOR', 'RETAILER'] }
-    }).select('name phone role village city district');
+    }).select('name email phone role village city district');
 
     const produceList = myProduces.map(p =>
       `ID: ${p._id}, Crop: ${p.cropType}, Quantity: ${p.quantity}kg, FarmPrice: ₹${p.farmPrice}/kg`
     ).join('\n');
 
     const receiverList = receivers.map(r =>
-      `Name: ${r.name}, Phone: ${r.phone}, Role: ${r.role}, Location: ${r.village || ''} ${r.city || r.district || ''}`
+      `Name: ${r.name}, Email: ${r.email}, Phone: ${r.phone}, Role: ${r.role}, Location: ${r.village || ''} ${r.city || r.district || ''}`
     ).join('\n');
 
     const completion = await groq.chat.completions.create({
@@ -137,7 +138,7 @@ Respond ONLY with this JSON:
   "cropType": "crop name",
   "quantity": number or null,
   "pricePerKg": number or null,
-  "receiverPhone": "matched phone or null",
+  "receiverEmail": "matched email or null",
   "receiverName": "matched name or null",
   "location": "location or null",
   "transferType": "FARM_TO_DISTRIBUTOR or DISTRIBUTOR_TO_RETAILER",
@@ -164,18 +165,21 @@ Respond ONLY with this JSON:
 
 router.post('/confirm-transfer', auth, async (req, res) => {
   try {
-    const { produceId, receiverPhone, pricePerKg, location, transferType } = req.body;
+    const { produceId, receiverPhone, receiverEmail, pricePerKg, location, transferType } = req.body;
 
     const produce = await Produce.findById(produceId);
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
-    const receiver = await User.findOne({ phone: receiverPhone });
+    const normalizedEmail = receiverEmail?.trim().toLowerCase();
+    const receiver = await User.findOne(
+      normalizedEmail ? { email: normalizedEmail } : { phone: receiverPhone?.trim() }
+    );
     if (!receiver) return res.status(404).json({ message: 'Receiver nahi mila' });
 
     const transfer = await Transfer.create({
       produceId,
       fromPhone: req.user.phone,
-      toPhone: receiverPhone,
+      toPhone: receiver.phone,
       price: pricePerKg,
       location: location || receiver.city || receiver.district || 'India',
       transferType: transferType || 'FARM_TO_DISTRIBUTOR',
@@ -184,7 +188,7 @@ router.post('/confirm-transfer', auth, async (req, res) => {
     });
 
     await Notification.create({
-      userPhone: receiverPhone,
+      userPhone: receiver.phone,
       title: 'Naya Transfer Request',
       message: `${req.user.name} ne ${produce.cropType} transfer karne ki request bheji — ₹${pricePerKg}/kg`,
       type: 'REQUEST_RECEIVED',

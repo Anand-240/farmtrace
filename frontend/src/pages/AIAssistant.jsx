@@ -48,9 +48,9 @@ export default function AIAssistant() {
 
   const distributorOptions = useMemo(
     () => bootstrapData.distributors.map((distributor) => ({
-      value: distributor.phone,
+      value: distributor.email,
       label: distributor.name,
-      meta: distributor.location || distributor.phone
+      meta: distributor.location ? `${distributor.email} • ${distributor.location}` : distributor.email
     })),
     [bootstrapData.distributors]
   );
@@ -132,7 +132,7 @@ export default function AIAssistant() {
     }
 
     setFlow('sell');
-    setForm({ produceId: '', receiverPhone: '', pricePerKg: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR' });
+    setForm({ produceId: '', receiverEmail: '', pricePerKg: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR' });
     setPrompt({
       key: 'produceId',
       type: 'option',
@@ -230,9 +230,9 @@ export default function AIAssistant() {
       return;
     }
 
-    if (!nextForm.receiverPhone) {
+    if (!nextForm.receiverEmail) {
       setPrompt({
-        key: 'receiverPhone',
+        key: 'receiverEmail',
         type: 'option',
         text: 'Kis distributor ko bechna hai?',
         options: distributorOptions
@@ -251,7 +251,7 @@ export default function AIAssistant() {
 
     if (!nextForm.location) {
       const selectedDistributor = bootstrapData.distributors.find(
-        (distributor) => distributor.phone === nextForm.receiverPhone
+        (distributor) => distributor.email === nextForm.receiverEmail
       );
       const suggestedLocation = selectedDistributor?.location;
 
@@ -273,13 +273,13 @@ export default function AIAssistant() {
 
     const selectedProduce = bootstrapData.produces.find((produce) => produce._id === nextForm.produceId);
     const selectedDistributor = bootstrapData.distributors.find(
-      (distributor) => distributor.phone === nextForm.receiverPhone
+      (distributor) => distributor.email === nextForm.receiverEmail
     );
 
     setPrompt({
       key: 'sellConfirm',
       type: 'option',
-      text: `Ye transfer bhej du?\nFasal: ${selectedProduce?.cropType || '-'}\nMaatra: ${selectedProduce?.quantity || '-'} kg\nDistributor: ${selectedDistributor?.name || nextForm.receiverPhone}\nPrice: ₹${nextForm.pricePerKg}/kg\nLocation: ${nextForm.location}`,
+      text: `Ye transfer bhej du?\nFasal: ${selectedProduce?.cropType || '-'}\nMaatra: ${selectedProduce?.quantity || '-'} kg\nDistributor: ${selectedDistributor?.name || nextForm.receiverEmail}\nEmail: ${selectedDistributor?.email || nextForm.receiverEmail}\nPrice: ₹${nextForm.pricePerKg}/kg\nLocation: ${nextForm.location}`,
       options: [
         { value: 'confirm_sell', label: 'Haan, bhejo' },
         { value: 'restart_sell', label: 'Dobara bharo' }
@@ -444,7 +444,7 @@ export default function AIAssistant() {
       nextForm.produceId = selected.value;
     }
 
-    if (currentPrompt.key === 'receiverPhone') {
+    if (currentPrompt.key === 'receiverEmail') {
       const selected = distributorOptions.find(
         (item) => item.value === value || item.label.toLowerCase() === String(value).toLowerCase()
       );
@@ -453,7 +453,7 @@ export default function AIAssistant() {
         setPrompt({ ...currentPrompt });
         return;
       }
-      nextForm.receiverPhone = selected.value;
+      nextForm.receiverEmail = selected.value;
     }
 
     if (currentPrompt.key === 'pricePerKg') {
@@ -543,7 +543,7 @@ export default function AIAssistant() {
     try {
       const res = await api.post('/api/ai/confirm-transfer', {
         produceId: form.produceId,
-        receiverPhone: form.receiverPhone,
+        receiverEmail: form.receiverEmail,
         pricePerKg: Number(form.pricePerKg),
         location: form.location,
         transferType: 'FARM_TO_DISTRIBUTOR'

@@ -3,13 +3,15 @@ const router = express.Router();
 const auth = require('../middleware/authMiddleware');
 const Transfer = require('../models/Transfer');
 const Produce = require('../models/Produce');
+const User = require('../models/User');
 const { transferOnChain } = require('../blockchain/blockchainService');
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { produceMongoId, toPhone, price, location, transferType } = req.body;
+    const { produceMongoId, toPhone, toEmail, price, location, transferType } = req.body;
+    const normalizedEmail = toEmail?.trim().toLowerCase();
 
-    if (!produceMongoId || !toPhone || !price || !location || !transferType) {
+    if (!produceMongoId || (!toPhone && !normalizedEmail) || !price || !location || !transferType) {
       return res.status(400).json({ message: 'Sab fields required hain' });
     }
 
@@ -18,11 +20,18 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ message: 'Produce nahi mila' });
     }
 
+    const receiver = await User.findOne(
+      normalizedEmail ? { email: normalizedEmail } : { phone: toPhone?.trim() }
+    );
+    if (!receiver) {
+      return res.status(404).json({ message: normalizedEmail ? 'Receiver nahi mila — email check karo' : 'Receiver nahi mila — phone check karo' });
+    }
+
     // MongoDB mein transfer save karo
     const transfer = await Transfer.create({
       produceId: produce.produceId || produceMongoId,
       fromPhone: req.user.phone,
-      toPhone,
+      toPhone: receiver.phone,
       price,
       location,
       transferType,
@@ -47,7 +56,7 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Current owner update karo
-    produce.currentOwner = toPhone;
+    produce.currentOwner = receiver.phone;
     await produce.save();
 
     res.json({
