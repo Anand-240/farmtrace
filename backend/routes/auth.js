@@ -6,24 +6,38 @@ const User = require('../models/User');
 
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, role, village, district, state } = req.body;
+    const { name, email, phone, password, role, village, city, district, state } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const normalizedPhone = phone?.trim();
+    const resolvedCity = city?.trim() || district?.trim();
 
-    if (!name || !phone || !password || !role) {
-      return res.status(400).json({ message: 'Name, phone, password, role required hai' });
+    if (!name || !normalizedEmail || !normalizedPhone || !password || !role) {
+      return res.status(400).json({ message: 'Name, email, phone, password, role required hai' });
     }
 
-    const exists = await User.findOne({ phone });
+    const exists = await User.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        { email: normalizedEmail }
+      ]
+    });
     if (exists) {
-      return res.status(400).json({ message: 'Phone already registered hai' });
+      return res.status(400).json({ message: 'Email ya phone already registered hai' });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = new User({
-      name, phone,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       password: hashedPassword,
-      role, village, district, state
+      role,
+      village: village?.trim(),
+      city: resolvedCity,
+      district: resolvedCity,
+      state: state?.trim()
     });
 
     await user.save();
@@ -36,7 +50,15 @@ router.post('/register', async (req, res) => {
 
     res.json({
       token,
-      user: { name: user.name, phone: user.phone, role: user.role }
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        village: user.village,
+        city: user.city,
+        state: user.state
+      }
     });
 
   } catch (err) {
@@ -47,13 +69,14 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    if (!phone || !password) {
-      return res.status(400).json({ message: 'Phone aur password required hai' });
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({ message: 'Email aur password required hai' });
     }
 
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(400).json({ message: 'User nahi mila' });
     }
@@ -71,7 +94,15 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { name: user.name, phone: user.phone, role: user.role }
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        village: user.village,
+        city: user.city || user.district,
+        state: user.state
+      }
     });
 
   } catch (err) {

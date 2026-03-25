@@ -55,7 +55,7 @@ router.get('/farmer-assistant/bootstrap', auth, async (req, res) => {
 
     const distributors = await User.find({ role: 'DISTRIBUTOR' })
       .sort({ name: 1 })
-      .select('name phone village district state');
+      .select('name phone village city district state');
 
     const greeting = await buildFarmerGreeting(
       req.user,
@@ -77,7 +77,7 @@ router.get('/farmer-assistant/bootstrap', auth, async (req, res) => {
       distributors: distributors.map((distributor) => ({
         name: distributor.name,
         phone: distributor.phone,
-        location: [distributor.village, distributor.district, distributor.state]
+        location: [distributor.village, distributor.city || distributor.district, distributor.state]
           .filter(Boolean)
           .join(', ')
       }))
@@ -99,14 +99,14 @@ router.post('/parse-transfer', auth, async (req, res) => {
 
     const receivers = await User.find({
       role: { $in: ['DISTRIBUTOR', 'RETAILER'] }
-    }).select('name phone role village district');
+    }).select('name phone role village city district');
 
     const produceList = myProduces.map(p =>
       `ID: ${p._id}, Crop: ${p.cropType}, Quantity: ${p.quantity}kg, FarmPrice: ₹${p.farmPrice}/kg`
     ).join('\n');
 
     const receiverList = receivers.map(r =>
-      `Name: ${r.name}, Phone: ${r.phone}, Role: ${r.role}, Location: ${r.village || ''} ${r.district || ''}`
+      `Name: ${r.name}, Phone: ${r.phone}, Role: ${r.role}, Location: ${r.village || ''} ${r.city || r.district || ''}`
     ).join('\n');
 
     const completion = await groq.chat.completions.create({
@@ -177,7 +177,7 @@ router.post('/confirm-transfer', auth, async (req, res) => {
       fromPhone: req.user.phone,
       toPhone: receiverPhone,
       price: pricePerKg,
-      location: location || receiver.district || 'India',
+      location: location || receiver.city || receiver.district || 'India',
       transferType: transferType || 'FARM_TO_DISTRIBUTOR',
       blockchainStatus: 'PENDING',
       paymentStatus: 'PENDING'
