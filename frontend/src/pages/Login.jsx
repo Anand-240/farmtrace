@@ -216,12 +216,48 @@ export default function Login() {
 
   return (
     <div style={styles.container}>
+      <div style={styles.backgroundGlowTop} />
+      <div style={styles.backgroundGlowBottom} />
       <div style={styles.card}>
-        <h1 style={styles.title}>FarmTrace</h1>
-        <p style={styles.subtitle}>Kisan se Grahak tak — Poori Sachai</p>
-        <h2 style={styles.formTitle}>
-          {isRegister ? 'Naya Account Banao' : 'Login Karo'}
-        </h2>
+        <div style={styles.hero}>
+          <span style={styles.badge}>Traceable Supply Chain</span>
+          <h1 style={styles.title}>FarmTrace</h1>
+          <p style={styles.subtitle}>Kisan se grahak tak har step ko verify karo, trust build karo.</p>
+        </div>
+
+        <div style={styles.modeSwitch}>
+          <button
+            type="button"
+            style={{
+              ...styles.modeButton,
+              ...(isRegister ? null : styles.modeButtonActive)
+            }}
+            onClick={() => setIsRegister(false)}
+          >
+            Login
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.modeButton,
+              ...(isRegister ? styles.modeButtonActive : null)
+            }}
+            onClick={() => setIsRegister(true)}
+          >
+            Register
+          </button>
+        </div>
+
+        <div style={styles.formHeader}>
+          <h2 style={styles.formTitle}>
+            {isRegister ? 'Naya Account Banao' : 'Wapas Swagat Hai'}
+          </h2>
+          <p style={styles.formCopy}>
+            {isRegister
+              ? 'Basic profile bharo ya Google se instant onboarding karo.'
+              : 'Apna account access karo aur dashboard se kaam continue karo.'}
+          </p>
+        </div>
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmit}>
           {isRegister && (
@@ -342,23 +378,133 @@ export default function Login() {
 }
 
 const styles = {
-  container: { minHeight: '100vh', background: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  card: { background: 'white', padding: '2rem', borderRadius: '12px', width: '100%', maxWidth: '400px', boxShadow: '0 2px 20px rgba(0,0,0,0.1)' },
-  title: { color: '#27500A', textAlign: 'center', fontSize: '2rem', margin: '0 0 0.5rem' },
-  subtitle: { color: '#666', textAlign: 'center', marginBottom: '1.5rem', fontSize: '0.9rem' },
-  formTitle: { color: '#333', marginBottom: '1rem', fontSize: '1.2rem' },
-  input: { width: '100%', padding: '0.75rem', marginBottom: '0.75rem', border: '1px solid #ddd', borderRadius: '8px', fontSize: '1rem', boxSizing: 'border-box' },
+  container: {
+    minHeight: '100vh',
+    background: 'linear-gradient(180deg, #f4efe2 0%, #e6f0dc 52%, #d9ead2 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '32px 16px',
+    position: 'relative',
+    overflow: 'hidden'
+  },
+  backgroundGlowTop: {
+    position: 'absolute',
+    width: '340px',
+    height: '340px',
+    borderRadius: '999px',
+    background: 'radial-gradient(circle, rgba(205,121,55,0.22) 0%, rgba(205,121,55,0) 68%)',
+    top: '-90px',
+    left: '-80px'
+  },
+  backgroundGlowBottom: {
+    position: 'absolute',
+    width: '420px',
+    height: '420px',
+    borderRadius: '999px',
+    background: 'radial-gradient(circle, rgba(39,80,10,0.18) 0%, rgba(39,80,10,0) 70%)',
+    right: '-120px',
+    bottom: '-120px'
+  },
+  card: {
+    background: 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(14px)',
+    padding: '28px',
+    borderRadius: '28px',
+    width: '100%',
+    maxWidth: '460px',
+    boxShadow: '0 28px 80px rgba(58, 74, 37, 0.16)',
+    border: '1px solid rgba(255,255,255,0.55)',
+    position: 'relative',
+    zIndex: 1
+  },
+  hero: { marginBottom: '20px' },
+  badge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '7px 12px',
+    borderRadius: '999px',
+    background: '#eef4e5',
+    color: '#27500A',
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    marginBottom: '14px'
+  },
+  title: { color: '#17330A', fontSize: '2.4rem', lineHeight: 1, margin: '0 0 0.6rem', fontWeight: 800 },
+  subtitle: { color: '#5e6b57', margin: 0, fontSize: '0.98rem', lineHeight: 1.55 },
+  modeSwitch: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '8px',
+    background: '#edf1e8',
+    padding: '6px',
+    borderRadius: '16px',
+    marginBottom: '20px'
+  },
+  modeButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#61705b',
+    padding: '10px 14px',
+    borderRadius: '12px',
+    fontSize: '0.95rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  modeButtonActive: {
+    background: '#ffffff',
+    color: '#17330A',
+    boxShadow: '0 8px 20px rgba(23, 51, 10, 0.08)'
+  },
+  formHeader: { marginBottom: '14px' },
+  formTitle: { color: '#223119', margin: '0 0 0.35rem', fontSize: '1.35rem' },
+  formCopy: { color: '#6a7564', margin: 0, fontSize: '0.92rem', lineHeight: 1.45 },
+  input: {
+    width: '100%',
+    padding: '0.92rem 1rem',
+    marginBottom: '0.85rem',
+    border: '1px solid #d7dfcf',
+    borderRadius: '14px',
+    fontSize: '0.98rem',
+    boxSizing: 'border-box',
+    background: 'rgba(255,255,255,0.92)',
+    color: '#1d2718',
+    outline: 'none'
+  },
   phoneRow: { display: 'flex', gap: '0.75rem', alignItems: 'flex-start' },
   codeInput: { width: '42%', flexShrink: 0 },
   phoneInput: { marginBottom: 0 },
-  hint: { margin: '0 0 0.75rem', color: '#666', fontSize: '0.85rem' },
-  button: { width: '100%', padding: '0.75rem', background: '#27500A', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer', marginTop: '0.5rem' },
-  error: { color: 'red', marginBottom: '1rem', fontSize: '0.9rem' },
-  toggle: { textAlign: 'center', marginTop: '1rem', color: '#666' },
+  hint: { margin: '0 0 0.85rem', color: '#6d7668', fontSize: '0.84rem' },
+  button: {
+    width: '100%',
+    padding: '0.95rem',
+    background: 'linear-gradient(135deg, #27500A 0%, #3f6c14 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '14px',
+    fontSize: '1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    marginTop: '0.65rem',
+    boxShadow: '0 16px 30px rgba(39, 80, 10, 0.22)'
+  },
+  error: {
+    color: '#9f2121',
+    marginBottom: '1rem',
+    fontSize: '0.9rem',
+    background: '#fdecec',
+    border: '1px solid #f2c8c8',
+    padding: '12px 14px',
+    borderRadius: '12px'
+  },
+  toggle: { textAlign: 'center', marginTop: '1rem', color: '#5e6b57', fontSize: '0.94rem' },
   link: { color: '#27500A', cursor: 'pointer', fontWeight: 'bold' },
-  divider: { display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' },
-  dividerLine: { flex: 1, height: '1px', background: '#ddd' },
-  dividerText: { color: '#777', fontSize: '0.85rem', textTransform: 'uppercase' },
+  divider: { display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.2rem 0 1rem' },
+  dividerLine: { flex: 1, height: '1px', background: '#d9e0d3' },
+  dividerText: { color: '#7b8574', fontSize: '0.82rem', textTransform: 'uppercase', fontWeight: 700 },
   googleButtonSlot: { display: 'flex', justifyContent: 'center', minHeight: '44px' },
-  googleHint: { color: '#666', textAlign: 'center', marginTop: '0.75rem', fontSize: '0.85rem' }
+  googleHint: { color: '#66705f', textAlign: 'center', marginTop: '0.85rem', fontSize: '0.85rem', lineHeight: 1.45 }
 };
