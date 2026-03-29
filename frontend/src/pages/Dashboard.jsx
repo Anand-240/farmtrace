@@ -4,6 +4,13 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import './Dashboard.css';
 
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'priceHigh', label: 'Highest Price' },
+  { value: 'priceLow', label: 'Lowest Price' }
+];
+
 export default function Dashboard() {
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
@@ -11,6 +18,13 @@ export default function Dashboard() {
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [qrModal, setQrModal] = useState(null);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -60,6 +74,92 @@ export default function Dashboard() {
   const roleColor = { FARMER: '#27500A', DISTRIBUTOR: '#085041', RETAILER: '#854F0B' };
 
   const roleLabel = user.role || 'USER';
+
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const getPrice = (item) => {
+    if (user.role === 'FARMER') return Number(item.farmPrice) || 0;
+    return Number(item.receivedPrice ?? item.farmPrice) || 0;
+  };
+
+  const baseList = user.role === 'FARMER' ? myProduces : receivedProduces;
+
+  const filteredList = baseList
+    .filter((item) => {
+      const searchValue = searchText.trim().toLowerCase();
+      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      if (searchValue && !searchableText.includes(searchValue)) {
+        return false;
+      }
+
+      if (statusFilter !== 'ALL') {
+        const statusValue = item.blockchainStatus === 'CONFIRMED' ? 'VERIFIED' : 'PENDING';
+        if (statusValue !== statusFilter) return false;
+      }
+
+      const createdAtDate = normalizeDate(item.createdAt);
+      const from = normalizeDate(dateFrom);
+      const to = normalizeDate(dateTo);
+
+      if (from && (!createdAtDate || createdAtDate < from)) {
+        return false;
+      }
+
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        if (!createdAtDate || createdAtDate > end) {
+          return false;
+        }
+      }
+
+      const price = getPrice(item);
+      const min = minPrice === '' ? null : Number(minPrice);
+      const max = maxPrice === '' ? null : Number(maxPrice);
+
+      if (min !== null && !Number.isNaN(min) && price < min) {
+        return false;
+      }
+
+      if (max !== null && !Number.isNaN(max) && price > max) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'oldest') {
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      }
+
+      if (sortBy === 'priceHigh') {
+        return getPrice(b) - getPrice(a);
+      }
+
+      if (sortBy === 'priceLow') {
+        return getPrice(a) - getPrice(b);
+      }
+
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+  const resetFilters = () => {
+    setSearchText('');
+    setStatusFilter('ALL');
+    setDateFrom('');
+    setDateTo('');
+    setMinPrice('');
+    setMaxPrice('');
+    setSortBy('newest');
+  };
 
   return (
     <div className="dashboard-page">
@@ -123,6 +223,76 @@ export default function Dashboard() {
         )}
       </div>
 
+      {!loading && (
+        <div className="dashboard-filter-card">
+          <div className="dashboard-filter-top">
+            <h3 className="dashboard-filter-title">Search, Filter & Sort</h3>
+            <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
+              Clear
+            </button>
+          </div>
+
+          <div className="dashboard-filter-grid">
+            <input
+              className="dashboard-filter-input"
+              placeholder="Search crop, origin, grade..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+
+            <select
+              className="dashboard-filter-input"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="ALL">All Status</option>
+              <option value="VERIFIED">Verified</option>
+              <option value="PENDING">Pending</option>
+            </select>
+
+            <select
+              className="dashboard-filter-input"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              className="dashboard-filter-input"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+
+            <input
+              type="date"
+              className="dashboard-filter-input"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+
+            <input
+              type="number"
+              className="dashboard-filter-input"
+              placeholder="Min price"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+            />
+
+            <input
+              type="number"
+              className="dashboard-filter-input"
+              placeholder="Max price"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="dashboard-loading">Load ho raha hai...</p>
       ) : (
@@ -132,7 +302,11 @@ export default function Dashboard() {
             <div className="dashboard-empty"><p>Abhi koi fasal register nahi ki</p></div>
           )}
 
-          {user.role === 'FARMER' && myProduces.map(p => (
+          {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
+            <div className="dashboard-empty"><p>Filter ke hisaab se koi result nahi mila</p></div>
+          )}
+
+          {user.role === 'FARMER' && filteredList.map(p => (
             <div key={p._id} className="produce-card">
               <div className="produce-card-header">
                 <h3 className="produce-name">{p.cropType}</h3>
@@ -171,7 +345,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          {user.role !== 'FARMER' && receivedProduces.map(p => (
+          {user.role !== 'FARMER' && receivedProduces.length > 0 && filteredList.length === 0 && (
+            <div className="dashboard-empty"><p>Filter ke hisaab se koi result nahi mila</p></div>
+          )}
+
+          {user.role !== 'FARMER' && filteredList.map(p => (
             <div key={p._id} className="produce-card">
               <div className="produce-card-header">
                 <h3 className="produce-name">{p.cropType}</h3>
