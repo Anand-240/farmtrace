@@ -1,0 +1,41 @@
+:root {
+  --ft-bg: #f5f8f4;
+  --ft-surface: #ffffff;
+  --ft-border: #dbe5d8;
+  --ft-text: #1f2f26;
+  --ft-muted: #637269;
+  --ft-primary: #27500a;
+  --ft-primary-soft: #e8f2df;
+  --ft-info: #0a5a79;
+  --ft-warning: #9b5a1d;
+  --ft-danger: #a22929;
+  --ft-shadow: 0 8px 24px rgba(26, 44, 33, 0.09);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  color: var(--ft-text);
+  background: var(--ft-bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}

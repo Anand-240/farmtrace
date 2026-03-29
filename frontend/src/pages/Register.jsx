@@ -138,20 +138,20 @@ export default function Register() {
 }
 
 const styles = {
-  container: { minHeight:'100vh', background:'#f0f4f0', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
-  card: { background:'white', padding:'2rem', borderRadius:'12px', width:'100%', maxWidth:'450px' },
-  title: { color:'#27500A', marginBottom:'1.5rem' },
-  label: { display:'block', color:'#444', marginBottom:'0.25rem', fontSize:'0.9rem', fontWeight:'bold' },
-  input: { width:'100%', padding:'0.75rem', marginBottom:'1rem', border:'1px solid #ddd', borderRadius:'8px', fontSize:'1rem', boxSizing:'border-box' },
-  button: { width:'100%', padding:'0.75rem', background:'#27500A', color:'white', border:'none', borderRadius:'8px', fontSize:'1rem', cursor:'pointer', marginTop:'0.5rem' },
-  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem' },
-  error: { color:'red', marginBottom:'1rem' },
-  loading: { color:'#854F0B', background:'#FAEEDA', padding:'0.75rem', borderRadius:'8px', marginBottom:'1rem', fontSize:'0.9rem' },
+  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
+  card: { background:'#fff', padding:'1.5rem', borderRadius:'16px', width:'100%', maxWidth:'480px', border:'1px solid #dbe5d8', boxShadow:'0 10px 24px rgba(26, 44, 33, 0.09)' },
+  title: { color:'#1f3320', marginBottom:'1.2rem' },
+  label: { display:'block', color:'#3f5346', marginBottom:'0.32rem', fontSize:'0.9rem', fontWeight:'700' },
+  input: { width:'100%', padding:'0.78rem 0.85rem', marginBottom:'0.95rem', border:'1px solid #d3dfd0', borderRadius:'10px', fontSize:'0.98rem', boxSizing:'border-box', background:'#fbfdfb' },
+  button: { width:'100%', padding:'0.8rem', background:'#27500A', color:'white', border:'none', borderRadius:'10px', fontSize:'0.98rem', cursor:'pointer', marginTop:'0.4rem', fontWeight:'700' },
+  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem', padding:0 },
+  error: { color:'#a22929', marginBottom:'1rem', background:'#fdecec', border:'1px solid #f4cfcf', borderRadius:'10px', padding:'0.6rem 0.75rem' },
+  loading: { color:'#8b5318', background:'#fff1df', padding:'0.72rem', borderRadius:'10px', marginBottom:'1rem', fontSize:'0.9rem' },
   gradeRow: { display:'flex', gap:'0.5rem', marginBottom:'1rem' },
-  gradeBtn: { flex:1, padding:'0.5rem', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'bold' },
+  gradeBtn: { flex:1, padding:'0.6rem', border:'1px solid #d3dfd0', borderRadius:'10px', cursor:'pointer', fontWeight:'700' },
   qrBox: { display:'flex', justifyContent:'center', margin:'1.5rem 0' },
-  verifyUrl: { color:'#888', fontSize:'0.75rem', textAlign:'center', margin:'0 0 1rem', wordBreak:'break-all' },
-  detail: { color:'#666', fontSize:'0.9rem' },
+  verifyUrl: { color:'#6f7d74', fontSize:'0.75rem', textAlign:'center', margin:'0 0 1rem', wordBreak:'break-all' },
+  detail: { color:'#526259', fontSize:'0.9rem' },
   hash: { fontFamily:'monospace', color:'#27500A' },
-  ethLink: { display:'block', color:'#085041', marginBottom:'1rem' }
+  ethLink: { display:'block', color:'#0a5a79', marginBottom:'1rem', fontWeight:'700' }
 };

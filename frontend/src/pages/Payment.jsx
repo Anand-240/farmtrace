@@ -143,21 +143,21 @@ export default function Payment() {
 }
 
 const styles = {
-  container: { minHeight:'100vh', background:'#f0f4f0', padding:'1rem' },
-  header: { display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem', background:'white', padding:'1rem 1.5rem', borderRadius:'12px' },
-  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', fontSize:'0.9rem' },
-  title: { color:'#27500A', margin:0, fontSize:'1.3rem' },
-  loading: { textAlign:'center', color:'#666', marginTop:'2rem' },
-  empty: { textAlign:'center', color:'#666', marginTop:'3rem', padding:'2rem', background:'white', borderRadius:'12px' },
+  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', padding:'1rem' },
+  header: { display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1rem', background:'#fff', padding:'1rem 1.2rem', borderRadius:'14px', border:'1px solid #dbe5d8', boxShadow:'0 8px 22px rgba(26, 44, 33, 0.08)' },
+  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', fontSize:'0.9rem', padding:0 },
+  title: { color:'#1f3320', margin:0, fontSize:'1.2rem' },
+  loading: { textAlign:'center', color:'#5f7167', marginTop:'2rem' },
+  empty: { textAlign:'center', color:'#5f7167', marginTop:'2.4rem', padding:'1.5rem', background:'#fff', borderRadius:'14px', border:'1px solid #dbe5d8' },
   grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(300px, 1fr))', gap:'1rem' },
-  card: { background:'white', padding:'1.5rem', borderRadius:'12px', boxShadow:'0 2px 8px rgba(0,0,0,0.08)' },
+  card: { background:'#fff', padding:'1.2rem', borderRadius:'14px', border:'1px solid #dbe5d8', boxShadow:'0 8px 22px rgba(26, 44, 33, 0.08)' },
   cardHeader: { display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' },
-  cropName: { margin:0, color:'#27500A', fontSize:'1.2rem' },
-  pendingBadge: { background:'#FAEEDA', color:'#854F0B', padding:'0.25rem 0.75rem', borderRadius:'20px', fontSize:'0.8rem', fontWeight:'bold' },
-  detail: { color:'#666', fontSize:'0.9rem', margin:'0.2rem 0' },
-  priceBox: { display:'flex', justifyContent:'space-between', background:'#EAF3DE', padding:'0.75rem', borderRadius:'8px', margin:'1rem 0' },
-  priceLabel: { color:'#666', fontSize:'0.75rem', margin:'0 0 0.25rem' },
+  cropName: { margin:0, color:'#1f3320', fontSize:'1.1rem' },
+  pendingBadge: { background:'#fff1df', color:'#8b5318', padding:'0.25rem 0.7rem', borderRadius:'20px', fontSize:'0.78rem', fontWeight:'700' },
+  detail: { color:'#54645b', fontSize:'0.9rem', margin:'0.2rem 0' },
+  priceBox: { display:'flex', justifyContent:'space-between', background:'#eef5e9', padding:'0.72rem', borderRadius:'10px', margin:'1rem 0', border:'1px solid #dbe5d8' },
+  priceLabel: { color:'#61726a', fontSize:'0.75rem', margin:'0 0 0.25rem' },
   price: { color:'#27500A', fontWeight:'bold', fontSize:'1rem', margin:0 },
-  totalPrice: { color:'#27500A', fontWeight:'bold', fontSize:'1.2rem', margin:0 },
-  payBtn: { width:'100%', padding:'0.75rem', background:'#27500A', color:'white', border:'none', borderRadius:'8px', fontSize:'1rem', cursor:'pointer', fontWeight:'bold' }
+  totalPrice: { color:'#27500A', fontWeight:'bold', fontSize:'1.1rem', margin:0 },
+  payBtn: { width:'100%', padding:'0.78rem', background:'#27500A', color:'white', border:'none', borderRadius:'10px', fontSize:'0.97rem', cursor:'pointer', fontWeight:'700' }
 };

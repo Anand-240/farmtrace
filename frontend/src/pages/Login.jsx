@@ -380,7 +380,7 @@ export default function Login() {
 const styles = {
   container: {
     minHeight: '100vh',
-    background: 'linear-gradient(180deg, #f4efe2 0%, #e6f0dc 52%, #d9ead2 100%)',
+    background: 'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -390,31 +390,30 @@ const styles = {
   },
   backgroundGlowTop: {
     position: 'absolute',
-    width: '340px',
-    height: '340px',
+    width: '260px',
+    height: '260px',
     borderRadius: '999px',
-    background: 'radial-gradient(circle, rgba(205,121,55,0.22) 0%, rgba(205,121,55,0) 68%)',
+    background: 'radial-gradient(circle, rgba(39,80,10,0.12) 0%, rgba(39,80,10,0) 68%)',
     top: '-90px',
     left: '-80px'
   },
   backgroundGlowBottom: {
     position: 'absolute',
-    width: '420px',
-    height: '420px',
+    width: '300px',
+    height: '300px',
     borderRadius: '999px',
-    background: 'radial-gradient(circle, rgba(39,80,10,0.18) 0%, rgba(39,80,10,0) 70%)',
+    background: 'radial-gradient(circle, rgba(10,90,121,0.12) 0%, rgba(10,90,121,0) 70%)',
     right: '-120px',
     bottom: '-120px'
   },
   card: {
-    background: 'rgba(255,255,255,0.88)',
-    backdropFilter: 'blur(14px)',
-    padding: '28px',
-    borderRadius: '28px',
+    background: '#ffffff',
+    padding: '24px',
+    borderRadius: '16px',
     width: '100%',
     maxWidth: '460px',
-    boxShadow: '0 28px 80px rgba(58, 74, 37, 0.16)',
-    border: '1px solid rgba(255,255,255,0.55)',
+    boxShadow: '0 10px 24px rgba(26, 44, 33, 0.09)',
+    border: '1px solid #dbe5d8',
     position: 'relative',
     zIndex: 1
   },
@@ -424,7 +423,7 @@ const styles = {
     alignItems: 'center',
     padding: '7px 12px',
     borderRadius: '999px',
-    background: '#eef4e5',
+    background: '#eef5e9',
     color: '#27500A',
     fontSize: '0.75rem',
     fontWeight: '700',
@@ -433,14 +432,14 @@ const styles = {
     marginBottom: '14px'
   },
   title: { color: '#17330A', fontSize: '2.4rem', lineHeight: 1, margin: '0 0 0.6rem', fontWeight: 800 },
-  subtitle: { color: '#5e6b57', margin: 0, fontSize: '0.98rem', lineHeight: 1.55 },
+  subtitle: { color: '#5e6b57', margin: 0, fontSize: '0.95rem', lineHeight: 1.5 },
   modeSwitch: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: '8px',
     background: '#edf1e8',
     padding: '6px',
-    borderRadius: '16px',
+    borderRadius: '12px',
     marginBottom: '20px'
   },
   modeButton: {
@@ -448,7 +447,7 @@ const styles = {
     background: 'transparent',
     color: '#61705b',
     padding: '10px 14px',
-    borderRadius: '12px',
+    borderRadius: '10px',
     fontSize: '0.95rem',
     fontWeight: 700,
     cursor: 'pointer',
@@ -457,7 +456,7 @@ const styles = {
   modeButtonActive: {
     background: '#ffffff',
     color: '#17330A',
-    boxShadow: '0 8px 20px rgba(23, 51, 10, 0.08)'
+    boxShadow: '0 4px 10px rgba(23, 51, 10, 0.08)'
   },
   formHeader: { marginBottom: '14px' },
   formTitle: { color: '#223119', margin: '0 0 0.35rem', fontSize: '1.35rem' },
@@ -467,10 +466,10 @@ const styles = {
     padding: '0.92rem 1rem',
     marginBottom: '0.85rem',
     border: '1px solid #d7dfcf',
-    borderRadius: '14px',
+    borderRadius: '10px',
     fontSize: '0.98rem',
     boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.92)',
+    background: '#fbfdfb',
     color: '#1d2718',
     outline: 'none'
   },
@@ -481,15 +480,15 @@ const styles = {
   button: {
     width: '100%',
     padding: '0.95rem',
-    background: 'linear-gradient(135deg, #27500A 0%, #3f6c14 100%)',
+    background: '#27500A',
     color: 'white',
     border: 'none',
-    borderRadius: '14px',
+    borderRadius: '10px',
     fontSize: '1rem',
     fontWeight: 700,
     cursor: 'pointer',
     marginTop: '0.65rem',
-    boxShadow: '0 16px 30px rgba(39, 80, 10, 0.22)'
+    boxShadow: 'none'
   },
   error: {
     color: '#9f2121',

@@ -155,20 +155,20 @@ export default function Transfer() {
 }
 
 const styles = {
-  container: { minHeight:'100vh', background:'#f0f4f0', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
-  card: { background:'white', padding:'2rem', borderRadius:'12px', width:'100%', maxWidth:'450px' },
-  title: { color:'#27500A', marginBottom:'0.5rem' },
-  roleText: { color:'#666', fontSize:'0.85rem', marginBottom:'1.5rem' },
-  label: { display:'block', color:'#444', marginBottom:'0.25rem', fontSize:'0.9rem', fontWeight:'bold' },
-  input: { width:'100%', padding:'0.75rem', marginBottom:'1rem', border:'1px solid #ddd', borderRadius:'8px', fontSize:'1rem', boxSizing:'border-box' },
-  button: { width:'100%', padding:'0.75rem', background:'#27500A', color:'white', border:'none', borderRadius:'8px', fontSize:'1rem', cursor:'pointer', marginTop:'0.5rem' },
-  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem' },
-  error: { color:'red', marginBottom:'1rem', fontSize:'0.9rem' },
-  loadingText: { color:'#854F0B', background:'#FAEEDA', padding:'0.75rem', borderRadius:'8px', marginBottom:'1rem', fontSize:'0.9rem' },
-  produceBox: { background:'#EAF3DE', padding:'1rem', borderRadius:'8px', marginBottom:'1.5rem' },
+  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
+  card: { background:'#fff', padding:'1.5rem', borderRadius:'16px', width:'100%', maxWidth:'500px', border:'1px solid #dbe5d8', boxShadow:'0 10px 24px rgba(26, 44, 33, 0.09)' },
+  title: { color:'#1f3320', marginBottom:'0.4rem' },
+  roleText: { color:'#5f7167', fontSize:'0.85rem', marginBottom:'1.2rem' },
+  label: { display:'block', color:'#3f5346', marginBottom:'0.32rem', fontSize:'0.9rem', fontWeight:'700' },
+  input: { width:'100%', padding:'0.78rem 0.85rem', marginBottom:'0.95rem', border:'1px solid #d3dfd0', borderRadius:'10px', fontSize:'0.98rem', boxSizing:'border-box', background:'#fbfdfb' },
+  button: { width:'100%', padding:'0.8rem', background:'#27500A', color:'white', border:'none', borderRadius:'10px', fontSize:'0.98rem', cursor:'pointer', marginTop:'0.4rem', fontWeight:'700' },
+  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem', padding:0 },
+  error: { color:'#a22929', marginBottom:'1rem', fontSize:'0.9rem', background:'#fdecec', border:'1px solid #f4cfcf', borderRadius:'10px', padding:'0.6rem 0.75rem' },
+  loadingText: { color:'#8b5318', background:'#fff1df', padding:'0.72rem', borderRadius:'10px', marginBottom:'1rem', fontSize:'0.9rem' },
+  produceBox: { background:'#eef5e9', padding:'0.95rem', borderRadius:'10px', marginBottom:'1.2rem', border:'1px solid #dbe5d8' },
   cropName: { color:'#27500A', margin:'0 0 0.5rem' },
-  detail: { color:'#555', fontSize:'0.9rem', margin:'0.2rem 0' },
-  successBox: { background:'#EAF3DE', padding:'1rem', borderRadius:'8px', margin:'1rem 0' },
+  detail: { color:'#4f6057', fontSize:'0.9rem', margin:'0.2rem 0' },
+  successBox: { background:'#eef5e9', padding:'1rem', borderRadius:'10px', margin:'1rem 0', border:'1px solid #dbe5d8' },
   successText: { color:'#27500A', fontWeight:'bold', margin:'0 0 0.5rem' },
-  successDetail: { color:'#555', fontSize:'0.9rem', margin:'0.2rem 0' }
+  successDetail: { color:'#4f6057', fontSize:'0.9rem', margin:'0.2rem 0' }
 };
