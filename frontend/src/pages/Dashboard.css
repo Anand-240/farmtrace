@@ -102,6 +102,53 @@
   margin-bottom: 1.1rem;
 }
 
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-stat-card {
+  background: #ffffff;
+  border: 1px solid #dbe5d8;
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--dash-shadow);
+}
+
+.dashboard-stat-label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5a6f62;
+  font-weight: 700;
+}
+
+.dashboard-stat-value {
+  margin: 0.35rem 0 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #173223;
+}
+
+.stat-produce {
+  border-left: 4px solid #27500a;
+}
+
+.stat-payments {
+  border-left: 4px solid #914f18;
+}
+
+.stat-notifications {
+  border-left: 4px solid #203f8f;
+}
+
+.stat-sales {
+  border-left: 4px solid #1d9e75;
+}
+
 .dashboard-filter-card {
   background: #ffffff;
   border: 1px solid #dbe5d8;
@@ -463,5 +510,9 @@
 
   .dashboard-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-stats-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

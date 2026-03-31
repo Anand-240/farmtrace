@@ -88,6 +88,36 @@ export default function Dashboard() {
 
   const baseList = user.role === 'FARMER' ? myProduces : receivedProduces;
 
+  const totalProduce = baseList.length;
+  const totalSales = baseList.reduce((sum, item) => {
+    const quantity = Number(item.quantity) || 0;
+    const price = getPrice(item);
+    return sum + (quantity * price);
+  }, 0);
+
+  const quickStats = [
+    {
+      label: 'Total Produce',
+      value: totalProduce,
+      tone: 'produce'
+    },
+    {
+      label: 'Pending Payments',
+      value: pendingCount,
+      tone: 'payments'
+    },
+    {
+      label: 'Unread Notifications',
+      value: unreadNotifs,
+      tone: 'notifications'
+    },
+    {
+      label: 'Total Sales',
+      value: `Rs ${Math.round(totalSales).toLocaleString('en-IN')}`,
+      tone: 'sales'
+    }
+  ];
+
   const filteredList = baseList
     .filter((item) => {
       const searchValue = searchText.trim().toLowerCase();
@@ -225,6 +255,17 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {!loading && (
+        <div className="dashboard-stats-grid">
+          {quickStats.map((stat) => (
+            <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`}>
+              <p className="dashboard-stat-label">{stat.label}</p>
+              <p className="dashboard-stat-value">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!loading && (
         <div className="dashboard-filter-card">
