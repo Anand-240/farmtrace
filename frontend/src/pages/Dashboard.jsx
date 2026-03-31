@@ -255,6 +255,9 @@ export default function Dashboard() {
         <button onClick={() => navigate('/profile')} className="btn btn-solid btn-profile">
           {t('dash_action_profile')}
         </button>
+        <button onClick={() => navigate('/lot-ops')} className="btn btn-solid btn-lot">
+          Lot Split / Merge
+        </button>
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
             {t('dash_action_ai')}

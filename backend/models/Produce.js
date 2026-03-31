@@ -15,14 +15,30 @@ const produceSchema = new mongoose.Schema({
   farmerPhone: { type: String, required: true },
   currentOwner: { type: String },
 
-  // Blockchain data
-  produceId: { type: String },        // bytes32 blockchain ID
-  txHash:    { type: String },        // deployment transaction
+  
+  produceId: { type: String },        
+  txHash:    { type: String },        
   blockchainStatus: {
     type: String,
     enum: ['PENDING', 'CONFIRMED', 'FAILED'],
     default: 'PENDING'
-  }
+  },
+
+ 
+  lotCode: { type: String, unique: true, sparse: true },
+  lotStatus: {
+    type: String,
+    enum: ['ACTIVE', 'SPLIT', 'MERGED'],
+    default: 'ACTIVE'
+  },
+  sourceType: {
+    type: String,
+    enum: ['REGISTER', 'SPLIT', 'MERGE'],
+    default: 'REGISTER'
+  },
+  rootLotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Produce' },
+  parentLots: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Produce' }],
+  childLots: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Produce' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Produce', produceSchema);

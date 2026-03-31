@@ -12,6 +12,7 @@ import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import { LanguageProvider } from './lib/language';
+import LotOperations from './pages/LotOperations';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -35,6 +36,9 @@ function App() {
           } />
           <Route path="/change-password" element={
             <PrivateRoute><ChangePassword /></PrivateRoute>
+          } />
+          <Route path="/lot-ops" element={
+            <PrivateRoute><LotOperations /></PrivateRoute>
           } />
           <Route path="/register-produce" element={
             <PrivateRoute><Register /></PrivateRoute>
