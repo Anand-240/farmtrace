@@ -5,12 +5,28 @@ import api from '../lib/api';
 export default function Transfer() {
   const [produceId, setProduceId] = useState('');
   const [produce, setProduce] = useState(null);
+  
+  // Split state
+  const [showSplitForm, setShowSplitForm] = useState(false);
+  const [splitQuantities, setSplitQuantities] = useState('');
+  const [splitError, setSplitError] = useState('');
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitResult, setSplitResult] = useState(null);
+  
+  // Transfer form state
   const [form, setForm] = useState({
     toEmail: '', price: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR'
   });
+  const [transferLotId, setTransferLotId] = useState('');
+  
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+    const [error, setError] = useState('');
+    const parseNumbers = (value) =>
+      value
+        .split(',')
+        .map((item) => Number(item.trim()))
+        .filter((num) => Number.isFinite(num) && num > 0);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -24,11 +40,45 @@ export default function Transfer() {
     if (!produceId.trim()) { setError('ID daalo pehle'); return; }
     try {
       setError('');
+      setSplitResult(null);
+      setShowSplitForm(false);
+      setTransferLotId('');
       const res = await api.get(`/api/produce/${produceId.trim()}`);
       setProduce(res.data);
+      setTransferLotId(res.data._id);
       setForm(f => ({...f, transferType: getDefaultTransferType()}));
     } catch (err) {
       setError('Produce nahi mila — sahi ID daalo');
+    }
+  };
+  const runSplit = async () => {
+    setError('');
+    setSplitError('');
+    
+    const quantities = parseNumbers(splitQuantities);
+    if (quantities.length < 2) {
+      setSplitError('Kam se kam 2 quantities dalni hain');
+      return;
+    }
+    
+    const totalQty = quantities.reduce((a, b) => a + b, 0);
+    if (totalQty > produce.quantity) {
+      setSplitError(`Total ${totalQty} kg hai, par available ${produce.quantity} kg hai`);
+      return;
+    }
+    
+    setSplitLoading(true);
+    try {
+      const res = await api.post(`/api/produce/${produce._id}/split`, {
+        splits: quantities.map((quantity) => ({ quantity }))
+      });
+      setSplitResult(res.data);
+      setSplitQuantities('');
+      setProduce(prev => ({ ...prev, lotStatus: 'SPLIT' }));
+    } catch (err) {
+      setSplitError(err.response?.data?.message || 'Split fail ho gaya');
+    } finally {
+      setSplitLoading(false);
     }
   };
 
@@ -38,7 +88,7 @@ export default function Transfer() {
     setError('');
     try {
       const res = await api.post('/api/payment/request', {
-        produceMongoId: produceId.trim(),
+        produceMongoId: splitResult?.childLots?.[0]?._id || transferLotId,
         toEmail: form.toEmail,
         pricePerKg: Number(form.price),
         location: form.location,
@@ -59,7 +109,7 @@ export default function Transfer() {
             Transfer Request Bheji Gayi!
           </h2>
           <div style={styles.successBox}>
-            <p style={styles.successText}>{produce?.cropType} — {produce?.origin}</p>
+            <p style={styles.successText}>{produce?.cropType} — {produce?.origin}{splitResult ? ' (SPLIT)' : ''}</p>
             <p style={styles.successDetail}>Price: ₹{form.price}/kg</p>
             <p style={styles.successDetail}>Ko: {form.toEmail}</p>
             <p style={styles.successDetail}>
@@ -108,6 +158,49 @@ export default function Transfer() {
 
             {error && <p style={styles.error}>{error}</p>}
             {loading && <p style={styles.loadingText}>Request bheji ja rahi hai...</p>}
+              {/* ===== SPLIT SECTION ===== */}
+              {!splitResult && (
+                <div style={styles.splitSection}>
+                  <button
+                    type="button"
+                    onClick={() => setShowSplitForm(!showSplitForm)}
+                    style={{...styles.splitToggle, ...(showSplitForm ? {background:'#5a3f86'} : {})}}
+                  >
+                    {showSplitForm ? '✓ Split करने दो' : '🔀 Split करना है? (Optional)'}
+                  </button>
+
+                  {showSplitForm && (
+                    <div style={styles.splitForm}>
+                      <p style={styles.splitDesc}>Multiple buyers को भेजना है? पहले split कर दो</p>
+                      <label style={styles.label}>Quantities (comma separated)</label>
+                      <input
+                        style={styles.input}
+                        placeholder="e.g. 120, 80, 60"
+                        value={splitQuantities}
+                        onChange={(e) => setSplitQuantities(e.target.value)}
+                      />
+                      {splitError && <p style={styles.error}>{splitError}</p>}
+                      <button
+                        type="button"
+                        onClick={runSplit}
+                        style={styles.splitBtn}
+                        disabled={splitLoading || !splitQuantities.trim()}
+                      >
+                        {splitLoading ? 'Split ho raha hai...' : '✓ Split करो और Transfer करो'}
+                      </button>
+                    </div>
+                  )}
+
+                  {splitResult && (
+                    <div style={styles.splitSuccess}>
+                      <p style={styles.successMsg}>✅ Split successful! {splitResult.childLots.length} lots बन गए</p>
+                        <p style={{...styles.successMsg, fontSize:'0.85rem', marginTop:'0.3rem'}}>
+                        अब सभी को transfer करो (सबके लिए same buyer email के साथ):
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
             <form onSubmit={handleRequest}>
               <label style={styles.label}>Transfer Type</label>
@@ -168,6 +261,13 @@ const styles = {
   produceBox: { background:'#eef5e9', padding:'0.95rem', borderRadius:'10px', marginBottom:'1.2rem', border:'1px solid #dbe5d8' },
   cropName: { color:'#27500A', margin:'0 0 0.5rem' },
   detail: { color:'#4f6057', fontSize:'0.9rem', margin:'0.2rem 0' },
+  splitSection: { background:'#f9fcf7', border:'2px solid #5a3f86', borderRadius:'12px', padding:'0.8rem', marginBottom:'1.2rem' },
+  splitToggle: { width:'100%', padding:'0.7rem', background:'#e8dff5', color:'#5a3f86', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'0.9rem', transition:'all 0.2s ease' },
+  splitForm: { marginTop:'0.8rem' },
+  splitDesc: { color:'#5a3f86', fontSize:'0.85rem', marginBottom:'0.6rem', margin:'0 0 0.6rem' },
+  splitBtn: { width:'100%', padding:'0.7rem', background:'#5a3f86', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'600', fontSize:'0.9rem' },
+  splitSuccess: { marginTop:'0.8rem', background:'#e8f5e9', border:'1px solid #27500A', borderRadius:'8px', padding:'0.7rem' },
+  successMsg: { color:'#27500A', fontSize:'0.9rem', fontWeight:'600', margin:'0' },
   successBox: { background:'#eef5e9', padding:'1rem', borderRadius:'10px', margin:'1rem 0', border:'1px solid #dbe5d8' },
   successText: { color:'#27500A', fontWeight:'bold', margin:'0 0 0.5rem' },
   successDetail: { color:'#4f6057', fontSize:'0.9rem', margin:'0.2rem 0' }
