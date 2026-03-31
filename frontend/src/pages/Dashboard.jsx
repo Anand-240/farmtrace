@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
+import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../lib/language';
 import './Dashboard.css';
 
 const SORT_OPTIONS = [
@@ -12,6 +14,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -97,22 +100,22 @@ export default function Dashboard() {
 
   const quickStats = [
     {
-      label: 'Total Produce',
+      label: t('dash_stat_total_produce'),
       value: totalProduce,
       tone: 'produce'
     },
     {
-      label: 'Pending Payments',
+      label: t('dash_stat_pending_payments'),
       value: pendingCount,
       tone: 'payments'
     },
     {
-      label: 'Unread Notifications',
+      label: t('dash_stat_unread'),
       value: unreadNotifs,
       tone: 'notifications'
     },
     {
-      label: 'Total Sales',
+      label: t('dash_stat_total_sales'),
       value: `Rs ${Math.round(totalSales).toLocaleString('en-IN')}`,
       tone: 'sales'
     }
@@ -199,13 +202,13 @@ export default function Dashboard() {
       {qrModal && (
         <div className="dashboard-modal-overlay" onClick={() => setQrModal(null)}>
           <div className="dashboard-modal-card" onClick={e => e.stopPropagation()}>
-            <h3 className="dashboard-modal-title">QR Code - Scan Karo</h3>
-            <p className="dashboard-modal-sub">Yeh QR scan karne par poori supply chain history dikhegi</p>
+            <h3 className="dashboard-modal-title">{t('dash_qr_title')}</h3>
+            <p className="dashboard-modal-sub">{t('dash_qr_sub')}</p>
             <img src={qrModal.qr} alt="QR Code"
               className="dashboard-modal-qr" />
             <p className="dashboard-modal-url">{qrModal.url}</p>
             <button onClick={() => setQrModal(null)} className="btn btn-solid btn-full">
-              Band Karo
+              {t('dash_close')}
             </button>
           </div>
         </div>
@@ -213,45 +216,48 @@ export default function Dashboard() {
 
       <div className="dashboard-header">
         <div>
-          <h1 className="dashboard-title">FarmTrace Control Hub</h1>
+          <h1 className="dashboard-title">{t('dash_title')}</h1>
           <p className="dashboard-welcome">
-            Namaste, {user.name}
+            {t('dash_welcome')}, {user.name}
             <span className="dashboard-role-badge" style={{ background: roleColor[user.role] || '#27500A' }}>
               {roleLabel}
             </span>
           </p>
         </div>
-        <button onClick={logout} className="btn btn-ghost">Logout</button>
+        <div className="dashboard-header-actions">
+          <LanguageToggle />
+          <button onClick={logout} className="btn btn-ghost">{t('dash_logout')}</button>
+        </div>
       </div>
 
       <div className="dashboard-actions-row">
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/register-produce')} className="btn btn-solid btn-farmer">
-            + Nayi Fasal Register Karo
+            {t('dash_action_register')}
           </button>
         )}
         {user.role !== 'CONSUMER' && (
           <button onClick={() => navigate('/transfer')} className="btn btn-solid btn-transfer">
-            Transfer Request Bhejo
+            {t('dash_action_transfer')}
           </button>
         )}
         {user.role !== 'FARMER' && (
           <button onClick={() => navigate('/payment')} className="btn btn-solid btn-payment">
-            Pending Payments {pendingCount > 0 && `(${pendingCount})`}
+            {t('dash_action_pending')} {pendingCount > 0 && `(${pendingCount})`}
           </button>
         )}
         <button onClick={() => navigate('/transactions')} className="btn btn-solid btn-history">
-          History & Notifications
+          {t('dash_action_history')}
           {unreadNotifs > 0 && (
             <span className="notif-badge">{unreadNotifs}</span>
           )}
         </button>
         <button onClick={() => navigate('/profile')} className="btn btn-solid btn-profile">
-          Edit Profile
+          {t('dash_action_profile')}
         </button>
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
-            AI Assistant
+            {t('dash_action_ai')}
           </button>
         )}
       </div>
@@ -270,16 +276,16 @@ export default function Dashboard() {
       {!loading && (
         <div className="dashboard-filter-card">
           <div className="dashboard-filter-top">
-            <h3 className="dashboard-filter-title">Search, Filter & Sort</h3>
+            <h3 className="dashboard-filter-title">{t('dash_filter_title')}</h3>
             <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
-              Clear
+              {t('dash_filter_clear')}
             </button>
           </div>
 
           <div className="dashboard-filter-grid">
             <input
               className="dashboard-filter-input"
-              placeholder="Search crop, origin, grade..."
+              placeholder={t('dash_filter_search_placeholder')}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
@@ -289,9 +295,9 @@ export default function Dashboard() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
-              <option value="ALL">All Status</option>
-              <option value="VERIFIED">Verified</option>
-              <option value="PENDING">Pending</option>
+              <option value="ALL">{t('dash_filter_all_status')}</option>
+              <option value="VERIFIED">{t('dash_filter_verified')}</option>
+              <option value="PENDING">{t('dash_filter_pending')}</option>
             </select>
 
             <select
@@ -321,7 +327,7 @@ export default function Dashboard() {
             <input
               type="number"
               className="dashboard-filter-input"
-              placeholder="Min price"
+              placeholder={t('dash_filter_min_price')}
               value={minPrice}
               onChange={(e) => setMinPrice(e.target.value)}
             />
@@ -329,7 +335,7 @@ export default function Dashboard() {
             <input
               type="number"
               className="dashboard-filter-input"
-              placeholder="Max price"
+              placeholder={t('dash_filter_max_price')}
               value={maxPrice}
               onChange={(e) => setMaxPrice(e.target.value)}
             />
@@ -338,27 +344,27 @@ export default function Dashboard() {
       )}
 
       {loading ? (
-        <p className="dashboard-loading">Load ho raha hai...</p>
+        <p className="dashboard-loading">{t('dash_loading')}</p>
       ) : (
         <div className="dashboard-grid">
 
           {user.role === 'FARMER' && myProduces.length === 0 && (
             <div className="dashboard-empty">
-              <p>Abhi koi fasal register nahi ki</p>
+              <p>{t('dash_empty_farmer')}</p>
               <p className="dashboard-empty-sub">
-                Shuruaat karne ke liye pehli fasal register karo.
+                {t('dash_empty_farmer_sub')}
               </p>
               <button
                 onClick={() => navigate('/register-produce')}
                 className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-farmer"
               >
-                + Register Produce
+                {t('dash_empty_register_cta')}
               </button>
             </div>
           )}
 
           {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
-            <div className="dashboard-empty"><p>Filter ke hisaab se koi result nahi mila</p></div>
+            <div className="dashboard-empty"><p>{t('dash_empty_filter')}</p></div>
           )}
 
           {user.role === 'FARMER' && filteredList.map(p => (
@@ -393,23 +399,23 @@ export default function Dashboard() {
 
           {user.role !== 'FARMER' && receivedProduces.length === 0 && (
             <div className="dashboard-empty">
-              <p>Abhi koi produce receive nahi hua</p>
+              <p>{t('dash_empty_received')}</p>
               <p className="dashboard-empty-sub">
-                Jab payment complete hogi tab yahan dikhega
+                {t('dash_empty_received_sub')}
               </p>
               {user.role !== 'CONSUMER' && (
                 <button
                   onClick={() => navigate('/transfer')}
                   className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-transfer"
                 >
-                  Send Transfer
+                  {t('dash_empty_transfer_cta')}
                 </button>
               )}
             </div>
           )}
 
           {user.role !== 'FARMER' && receivedProduces.length > 0 && filteredList.length === 0 && (
-            <div className="dashboard-empty"><p>Filter ke hisaab se koi result nahi mila</p></div>
+            <div className="dashboard-empty"><p>{t('dash_empty_filter')}</p></div>
           )}
 
           {user.role !== 'FARMER' && filteredList.map(p => (

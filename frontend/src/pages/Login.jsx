@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { countryPhoneConfigs, locationData } from '../data/locationData';
+import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../lib/language';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
@@ -91,6 +93,7 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
 }
 
 export default function Login() {
+  const { t } = useLanguage();
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({
     name: '',
@@ -219,10 +222,13 @@ export default function Login() {
       <div style={styles.backgroundGlowTop} />
       <div style={styles.backgroundGlowBottom} />
       <div style={styles.card}>
+        <div style={styles.langWrap}>
+          <LanguageToggle />
+        </div>
         <div style={styles.hero}>
-          <span style={styles.badge}>Traceable Supply Chain</span>
+          <span style={styles.badge}>{t('login_badge')}</span>
           <h1 style={styles.title}>FarmTrace</h1>
-          <p style={styles.subtitle}>Kisan se grahak tak har step ko verify karo, trust build karo.</p>
+          <p style={styles.subtitle}>{t('login_subtitle')}</p>
         </div>
 
         <div style={styles.modeSwitch}>
@@ -234,7 +240,7 @@ export default function Login() {
             }}
             onClick={() => setIsRegister(false)}
           >
-            Login
+            {t('login_mode_login')}
           </button>
           <button
             type="button"
@@ -244,34 +250,34 @@ export default function Login() {
             }}
             onClick={() => setIsRegister(true)}
           >
-            Register
+            {t('login_mode_register')}
           </button>
         </div>
 
         <div style={styles.formHeader}>
           <h2 style={styles.formTitle}>
-            {isRegister ? 'Naya Account Banao' : 'Wapas Swagat Hai'}
+            {isRegister ? t('login_title_register') : t('login_title_login')}
           </h2>
           <p style={styles.formCopy}>
             {isRegister
-              ? 'Basic profile bharo ya Google se instant onboarding karo.'
-              : 'Apna account access karo aur dashboard se kaam continue karo.'}
+              ? t('login_copy_register')
+              : t('login_copy_login')}
           </p>
         </div>
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmit}>
           {isRegister && (
             <>
-              <input style={styles.input} placeholder="Poora Naam"
+              <input style={styles.input} placeholder={t('login_name')}
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)} required />
               <select style={styles.input} value={form.role}
                 onChange={e => updateField('role', e.target.value)}>
-                <option value="FARMER">Kisan</option>
-                <option value="DISTRIBUTOR">Distributor</option>
-                <option value="RETAILER">Retailer</option>
+                <option value="FARMER">{t('login_role_farmer')}</option>
+                <option value="DISTRIBUTOR">{t('login_role_distributor')}</option>
+                <option value="RETAILER">{t('login_role_retailer')}</option>
               </select>
-              <input style={styles.input} type="email" placeholder="Email Address"
+              <input style={styles.input} type="email" placeholder={t('login_email')}
                 value={form.email}
                 onChange={e => updateField('email', e.target.value)} required />
               <select style={styles.input} value={form.state}
@@ -283,7 +289,7 @@ export default function Login() {
                   village: ''
                 }))}
                 required={form.role === 'FARMER'}>
-                <option value="">Rajya select karo</option>
+                <option value="">{t('login_state_select')}</option>
                 {states.map((state) => (
                   <option key={state} value={state}>{state}</option>
                 ))}
@@ -297,7 +303,7 @@ export default function Login() {
                 }))}
                 disabled={!form.state}
                 required={form.role === 'FARMER'}>
-                <option value="">{form.state ? 'City select karo' : 'Pehle state select karo'}</option>
+                <option value="">{form.state ? t('login_city_select') : t('login_city_select_first')}</option>
                 {cities.map((city) => (
                   <option key={city} value={city}>{city}</option>
                 ))}
@@ -306,7 +312,7 @@ export default function Login() {
                 onChange={e => updateField('village', e.target.value)}
                 disabled={!form.city}
                 required={form.role === 'FARMER'}>
-                <option value="">{form.city ? 'Gaon select karo' : 'Pehle city select karo'}</option>
+                <option value="">{form.city ? t('login_village_select') : t('login_village_select_first')}</option>
                 {villages.map((village) => (
                   <option key={village} value={village}>{village}</option>
                 ))}
@@ -325,33 +331,33 @@ export default function Login() {
                   onChange={e => updateField('phone', e.target.value.replace(/\D/g, ''))} required />
               </div>
               <p style={styles.hint}>
-                Number format: {form.countryCode} + {selectedPhoneConfig.placeholder}
+                {t('login_number_format')} {form.countryCode} + {selectedPhoneConfig.placeholder}
               </p>
             </>
           )}
           {!isRegister && (
-            <input style={styles.input} type="email" placeholder="Email Address"
+            <input style={styles.input} type="email" placeholder={t('login_email')}
               value={form.email}
               onChange={e => updateField('email', e.target.value)} required />
           )}
-          <input style={styles.input} type="password" placeholder="Password"
+          <input style={styles.input} type="password" placeholder={t('login_password')}
             value={form.password}
             onChange={e => updateField('password', e.target.value)} required />
           {!isRegister && (
             <div style={styles.forgotWrap}>
               <span style={styles.forgotLink} onClick={() => navigate('/forgot-password')}>
-                Password bhool gaye?
+                {t('login_forgot_password')}
               </span>
             </div>
           )}
           <button style={styles.button} type="submit" disabled={loading}>
-            {loading ? 'Wait karo...' : (isRegister ? 'Register Karo' : 'Login Karo')}
+            {loading ? t('login_wait') : (isRegister ? t('login_register_action') : t('login_login_action'))}
           </button>
         </form>
 
         <div style={styles.divider}>
           <span style={styles.dividerLine} />
-          <span style={styles.dividerText}>ya</span>
+          <span style={styles.dividerText}>{t('login_or')}</span>
           <span style={styles.dividerLine} />
         </div>
 
@@ -363,20 +369,20 @@ export default function Login() {
           />
         ) : (
           <p style={styles.hint}>
-            Google OAuth enable karne ke liye `REACT_APP_GOOGLE_CLIENT_ID` set karo.
+            {t('login_google_missing')}
           </p>
         )}
 
         <p style={styles.googleHint}>
           {isRegister
-            ? 'Google se register karne se yahi role aur location details save hongi.'
-            : 'Existing Google account se seedha login kar sakte ho.'}
+            ? t('login_google_register_hint')
+            : t('login_google_login_hint')}
         </p>
 
         <p style={styles.toggle}>
-          {isRegister ? 'Pehle se account hai?' : 'Naya user ho?'}
+          {isRegister ? t('login_have_account') : t('login_new_user')}
           <span style={styles.link} onClick={() => setIsRegister(!isRegister)}>
-            {isRegister ? ' Login Karo' : ' Register Karo'}
+            {isRegister ? ` ${t('login_login_action')}` : ` ${t('login_register_action')}`}
           </span>
         </p>
       </div>
@@ -423,6 +429,11 @@ const styles = {
     border: '1px solid #dbe5d8',
     position: 'relative',
     zIndex: 1
+  },
+  langWrap: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: '0.9rem'
   },
   hero: { marginBottom: '20px' },
   badge: {

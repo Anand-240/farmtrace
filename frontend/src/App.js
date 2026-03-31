@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import { LanguageProvider } from './lib/language';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -19,39 +20,41 @@ function PrivateRoute({ children }) {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
-        <Route path="/verify/:id" element={<Verify />} />
-        <Route path="/dashboard" element={
-          <PrivateRoute><Dashboard /></PrivateRoute>
-        } />
-        <Route path="/profile" element={
-          <PrivateRoute><Profile /></PrivateRoute>
-        } />
-        <Route path="/change-password" element={
-          <PrivateRoute><ChangePassword /></PrivateRoute>
-        } />
-        <Route path="/register-produce" element={
-          <PrivateRoute><Register /></PrivateRoute>
-        } />
-        <Route path="/transfer" element={
-          <PrivateRoute><Transfer /></PrivateRoute>
-        } />
-        <Route path="/payment" element={
-          <PrivateRoute><Payment /></PrivateRoute>
-        } />
-        <Route path="/transactions" element={
-          <PrivateRoute><Transactions /></PrivateRoute>
-        } />
-        <Route path="/ai" element={
-          <PrivateRoute><AIAssistant /></PrivateRoute>
-        } />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-      </Routes>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/verify/:id" element={<Verify />} />
+          <Route path="/dashboard" element={
+            <PrivateRoute><Dashboard /></PrivateRoute>
+          } />
+          <Route path="/profile" element={
+            <PrivateRoute><Profile /></PrivateRoute>
+          } />
+          <Route path="/change-password" element={
+            <PrivateRoute><ChangePassword /></PrivateRoute>
+          } />
+          <Route path="/register-produce" element={
+            <PrivateRoute><Register /></PrivateRoute>
+          } />
+          <Route path="/transfer" element={
+            <PrivateRoute><Transfer /></PrivateRoute>
+          } />
+          <Route path="/payment" element={
+            <PrivateRoute><Payment /></PrivateRoute>
+          } />
+          <Route path="/transactions" element={
+            <PrivateRoute><Transactions /></PrivateRoute>
+          } />
+          <Route path="/ai" element={
+            <PrivateRoute><AIAssistant /></PrivateRoute>
+          } />
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   );
 }
 

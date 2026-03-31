@@ -71,6 +71,12 @@
   animation: riseUp 500ms ease;
 }
 
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .dashboard-title {
   margin: 0;
   font-family: 'Sora', sans-serif;
@@ -519,6 +525,11 @@
   .dashboard-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .dashboard-header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .btn-ghost {
