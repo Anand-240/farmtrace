@@ -12,7 +12,9 @@ const userSchema = new mongoose.Schema({
   village: String,
   city: String,
   district: String,
-  state: String
+  state: String,
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

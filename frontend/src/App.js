@@ -7,6 +7,10 @@ import Payment from './pages/Payment';
 import Transactions from './pages/Transactions';
 import AIAssistant from './pages/AIAssistant';
 import Verify from './pages/Verify';
+import Profile from './pages/Profile';
+import ChangePassword from './pages/ChangePassword';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -18,9 +22,17 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify/:id" element={<Verify />} />
         <Route path="/dashboard" element={
           <PrivateRoute><Dashboard /></PrivateRoute>
+        } />
+        <Route path="/profile" element={
+          <PrivateRoute><Profile /></PrivateRoute>
+        } />
+        <Route path="/change-password" element={
+          <PrivateRoute><ChangePassword /></PrivateRoute>
         } />
         <Route path="/register-produce" element={
           <PrivateRoute><Register /></PrivateRoute>

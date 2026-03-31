@@ -193,6 +193,10 @@
   gap: 0.45rem;
 }
 
+.btn-profile {
+  background: #425c4a;
+}
+
 .btn-ai {
   background: #1d9e75;
 }

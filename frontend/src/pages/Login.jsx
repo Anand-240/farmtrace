@@ -337,6 +337,13 @@ export default function Login() {
           <input style={styles.input} type="password" placeholder="Password"
             value={form.password}
             onChange={e => updateField('password', e.target.value)} required />
+          {!isRegister && (
+            <div style={styles.forgotWrap}>
+              <span style={styles.forgotLink} onClick={() => navigate('/forgot-password')}>
+                Password bhool gaye?
+              </span>
+            </div>
+          )}
           <button style={styles.button} type="submit" disabled={loading}>
             {loading ? 'Wait karo...' : (isRegister ? 'Register Karo' : 'Login Karo')}
           </button>
@@ -477,6 +484,8 @@ const styles = {
   codeInput: { width: '42%', flexShrink: 0 },
   phoneInput: { marginBottom: 0 },
   hint: { margin: '0 0 0.85rem', color: '#6d7668', fontSize: '0.84rem' },
+  forgotWrap: { display: 'flex', justifyContent: 'flex-end', marginTop: '-0.2rem', marginBottom: '0.5rem' },
+  forgotLink: { color: '#27500A', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' },
   button: {
     width: '100%',
     padding: '0.95rem',

@@ -216,6 +216,9 @@ export default function Dashboard() {
             <span className="notif-badge">{unreadNotifs}</span>
           )}
         </button>
+        <button onClick={() => navigate('/profile')} className="btn btn-solid btn-profile">
+          Edit Profile
+        </button>
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
             AI Assistant
