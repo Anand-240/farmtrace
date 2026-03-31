@@ -6,6 +6,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('transactions');
+  const [notifFilter, setNotifFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -37,6 +38,22 @@ export default function Transactions() {
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const filteredNotifications = notifications.filter((n) => {
+    if (notifFilter === 'UNREAD') {
+      return !n.isRead;
+    }
+
+    if (notifFilter === 'PAYMENTS') {
+      return n.type === 'PAYMENT_RECEIVED';
+    }
+
+    if (notifFilter === 'TRANSFER') {
+      return n.type === 'TRANSFER_COMPLETE' || n.type === 'REQUEST_RECEIVED';
+    }
+
+    return true;
+  });
 
   const notifColor = {
     PAYMENT_RECEIVED: { bg: '#EAF3DE', color: '#27500A', icon: '₹' },
@@ -131,12 +148,39 @@ export default function Transactions() {
           {/* Notifications */}
           {activeTab === 'notifications' && (
             <div>
-              {notifications.length === 0 ? (
+              <div style={styles.notifFilters}>
+                <button
+                  style={{ ...styles.notifFilterBtn, ...(notifFilter === 'ALL' ? styles.notifFilterBtnActive : {}) }}
+                  onClick={() => setNotifFilter('ALL')}
+                >
+                  All
+                </button>
+                <button
+                  style={{ ...styles.notifFilterBtn, ...(notifFilter === 'UNREAD' ? styles.notifFilterBtnActive : {}) }}
+                  onClick={() => setNotifFilter('UNREAD')}
+                >
+                  Unread only
+                </button>
+                <button
+                  style={{ ...styles.notifFilterBtn, ...(notifFilter === 'PAYMENTS' ? styles.notifFilterBtnActive : {}) }}
+                  onClick={() => setNotifFilter('PAYMENTS')}
+                >
+                  Payments only
+                </button>
+                <button
+                  style={{ ...styles.notifFilterBtn, ...(notifFilter === 'TRANSFER' ? styles.notifFilterBtnActive : {}) }}
+                  onClick={() => setNotifFilter('TRANSFER')}
+                >
+                  Transfer only
+                </button>
+              </div>
+
+              {filteredNotifications.length === 0 ? (
                 <div style={styles.empty}>
-                  <p>Koi notification nahi</p>
+                  <p>Is filter me koi notification nahi</p>
                 </div>
               ) : (
-                notifications.map(n => {
+                filteredNotifications.map(n => {
                   const style = notifColor[n.type] || { bg: '#f0f4f0', color: '#444', icon: '•' };
                   return (
                     <div key={n._id}
@@ -190,5 +234,26 @@ const styles = {
   notifTitle: { color:'#2a3b31', fontWeight:'bold', margin:'0 0 0.25rem', fontSize:'0.95rem' },
   notifMsg: { color:'#55655d', fontSize:'0.85rem', margin:'0 0 0.25rem', lineHeight:1.4 },
   notifDate: { color:'#aaa', fontSize:'0.75rem', margin:0 },
-  unreadDot: { width:'10px', height:'10px', borderRadius:'50%', background:'#27500A', flexShrink:0, marginTop:'4px' }
+  unreadDot: { width:'10px', height:'10px', borderRadius:'50%', background:'#27500A', flexShrink:0, marginTop:'4px' },
+  notifFilters: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.45rem',
+    marginBottom: '0.8rem'
+  },
+  notifFilterBtn: {
+    border: '1px solid #d4e0d1',
+    background: '#f5f9f4',
+    color: '#3e5547',
+    padding: '0.38rem 0.6rem',
+    borderRadius: '999px',
+    fontSize: '0.76rem',
+    fontWeight: 700,
+    cursor: 'pointer'
+  },
+  notifFilterBtnActive: {
+    background: '#27500A',
+    borderColor: '#27500A',
+    color: '#fff'
+  }
 };
