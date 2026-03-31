@@ -302,6 +302,23 @@
   color: #7c8d83;
 }
 
+.dashboard-empty-cta {
+  margin-top: 0.9rem;
+  min-width: 220px;
+  padding: 0.68rem 0.95rem;
+  border-radius: 10px;
+}
+
+.dashboard-empty-cta-farmer {
+  background: #27500a;
+  color: #fff;
+}
+
+.dashboard-empty-cta-transfer {
+  background: #0a5a79;
+  color: #fff;
+}
+
 .produce-card {
   background: #ffffff;
   border-radius: 14px;

@@ -343,7 +343,18 @@ export default function Dashboard() {
         <div className="dashboard-grid">
 
           {user.role === 'FARMER' && myProduces.length === 0 && (
-            <div className="dashboard-empty"><p>Abhi koi fasal register nahi ki</p></div>
+            <div className="dashboard-empty">
+              <p>Abhi koi fasal register nahi ki</p>
+              <p className="dashboard-empty-sub">
+                Shuruaat karne ke liye pehli fasal register karo.
+              </p>
+              <button
+                onClick={() => navigate('/register-produce')}
+                className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-farmer"
+              >
+                + Register Produce
+              </button>
+            </div>
           )}
 
           {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
@@ -386,6 +397,14 @@ export default function Dashboard() {
               <p className="dashboard-empty-sub">
                 Jab payment complete hogi tab yahan dikhega
               </p>
+              {user.role !== 'CONSUMER' && (
+                <button
+                  onClick={() => navigate('/transfer')}
+                  className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-transfer"
+                >
+                  Send Transfer
+                </button>
+              )}
             </div>
           )}
 
