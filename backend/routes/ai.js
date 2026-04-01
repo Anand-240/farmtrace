@@ -215,7 +215,15 @@ router.post('/confirm-transfer', auth, async (req, res) => {
   }
 });
 
-router.post('/disease-detect', auth, upload.single('image'), async (req, res) => {
+router.post('/disease-detect', auth, (req, res, next) => {
+  upload.single('image')(req, res, function (err) {
+    if (err) {
+      console.error('Multer error:', err);
+      return res.status(400).json({ message: err.message || 'Image upload fail ho gaya.' });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'Koi image upload nahi hui.' });
@@ -225,7 +233,10 @@ router.post('/disease-detect', auth, upload.single('image'), async (req, res) =>
       return res.status(500).json({ message: 'GEMINI_API_KEY server par set nahi hai.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-flash-latest',
+      generationConfig: { responseMimeType: 'application/json' }
+    });
 
     const prompt = `You are an expert AI agricultural assistant for Indian farmers. 
 Analyze the provided image of a crop leaf.

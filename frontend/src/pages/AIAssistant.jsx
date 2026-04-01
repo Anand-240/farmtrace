@@ -596,9 +596,7 @@ export default function AIAssistant() {
       const formData = new FormData();
       formData.append('image', file);
 
-      const res = await api.post('/api/ai/disease-detect', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const res = await api.post('/api/ai/disease-detect', formData);
 
       const data = res.data.data;
       const remedyHtml = `
