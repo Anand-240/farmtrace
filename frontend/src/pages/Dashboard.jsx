@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [mandiRates, setMandiRates] = useState([]);
   const [mandiLoading, setMandiLoading] = useState(false);
   const [cropFilter, setCropFilter] = useState('');
+  const [liveState, setLiveState] = useState(null);
 
   useEffect(() => {
     const fetchWeatherByCity = async (city) => {
@@ -95,6 +96,9 @@ export default function Dashboard() {
                 const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                 const titleData = await titleRes.json();
                 locationName = titleData.city || titleData.locality || "Live GPS Location";
+                if (titleData.principalSubdivision) {
+                  setLiveState(titleData.principalSubdivision);
+                }
               } catch (e) {
                 console.error("Reverse geo error", e);
               }
@@ -128,7 +132,8 @@ export default function Dashboard() {
       setMandiLoading(true);
       try {
         const apiKey = process.env.REACT_APP_DATA_GOV_API_KEY;
-        const stateQuery = user.state ? `&filters[state]=${encodeURIComponent(user.state)}` : '';
+        const targetState = liveState || user.state;
+        const stateQuery = targetState ? `&filters[state]=${encodeURIComponent(targetState)}` : '';
         const cropQuery = cropFilter ? `&filters[commodity]=${encodeURIComponent(cropFilter)}` : '';
         
         let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}${cropQuery}`);
@@ -151,7 +156,7 @@ export default function Dashboard() {
       setMandiLoading(false);
     };
     if (user.role === 'FARMER') loadMandi();
-  }, [user.state, user.role, cropFilter]);
+  }, [user.state, user.role, cropFilter, liveState]);
 
   const logout = () => {
     localStorage.clear();
