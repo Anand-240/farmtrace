@@ -21,6 +21,20 @@ const transferSchema = new mongoose.Schema({
     enum: ['PENDING', 'CONFIRMED', 'FAILED'],
     default: 'PENDING'
   },
+  deliveryStatus: {
+    type: String,
+    enum: ['PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'],
+    default: 'PICKUP_DISPATCHED'
+  },
+  driverName: { type: String },
+  driverPhone: { type: String },
+  vehicleNumber: { type: String },
+  vehicleType: { type: String },
+  currentLocation: { type: String },
+  expectedDeliveryTime: { type: Date },
+  pickupDispatchedAt: { type: Date },
+  inTransitAt: { type: Date },
+  deliveredAt: { type: Date },
   txHash:              { type: String },
   razorpayPaymentId:   { type: String },
   razorpayOrderId:     { type: String }

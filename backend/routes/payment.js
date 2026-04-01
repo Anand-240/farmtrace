@@ -15,6 +15,29 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+function statusLabel(status) {
+  if (status === 'PICKUP_DISPATCHED') return 'Pickup Dispatched';
+  if (status === 'IN_TRANSIT') return 'In Transit';
+  if (status === 'DELIVERED') return 'Delivered';
+  return status;
+}
+
+async function notifyDeliveryParticipants({ transfer, actorPhone, title, message, type, data = {} }) {
+  const targets = [transfer.fromPhone, transfer.toPhone].filter(Boolean);
+  await Promise.all(targets.map((phone) => Notification.create({
+    userPhone: phone,
+    title,
+    message,
+    type,
+    data: {
+      transferId: transfer._id,
+      produceId: transfer.produceId,
+      actorPhone,
+      ...data
+    }
+  })));
+}
+
 // Transfer request banao
 router.post('/request', auth, async (req, res) => {
   try {
@@ -37,9 +60,11 @@ router.post('/request', auth, async (req, res) => {
       toPhone: toUser.phone,
       price: pricePerKg,
       location,
+      currentLocation: location,
       transferType,
       blockchainStatus: 'PENDING',
-      paymentStatus: 'PENDING'
+      paymentStatus: 'PENDING',
+      deliveryStatus: 'PICKUP_DISPATCHED'
     });
 
     // Receiver ko notification bhejo
@@ -152,6 +177,9 @@ router.post('/verify', auth, async (req, res) => {
     transfer.paymentStatus = 'PAID';
     transfer.razorpayPaymentId = razorpay_payment_id;
     transfer.razorpayOrderId = razorpay_order_id;
+    if (!transfer.pickupDispatchedAt) {
+      transfer.pickupDispatchedAt = new Date();
+    }
 
     // Blockchain pe transfer
     let txHash = null;
@@ -256,6 +284,116 @@ router.get('/transactions', auth, async (req, res) => {
     }).sort({ createdAt: -1 });
 
     res.json(transactions);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delivery logistics list (sender + receiver dono dekh sakte hain)
+router.get('/deliveries/my', auth, async (req, res) => {
+  try {
+    const transfers = await Transfer.find({
+      $or: [
+        { fromPhone: req.user.phone },
+        { toPhone: req.user.phone }
+      ],
+      paymentStatus: 'PAID'
+    }).sort({ createdAt: -1 });
+
+    const list = [];
+    for (const t of transfers) {
+      const produce = await Produce.findById(t.produceId);
+      list.push({
+        ...t.toObject(),
+        produce: produce ? produce.toObject() : null,
+        canUpdate: t.fromPhone === req.user.phone
+      });
+    }
+
+    res.json(list);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delivery logistics update (important status/location updates only)
+router.put('/deliveries/:transferId', auth, async (req, res) => {
+  try {
+    const {
+      deliveryStatus,
+      driverName,
+      driverPhone,
+      vehicleNumber,
+      vehicleType,
+      expectedDeliveryTime,
+      currentLocation
+    } = req.body;
+
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
+
+    if (transfer.fromPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Sirf sender logistics update kar sakta hai' });
+    }
+
+    const oldStatus = transfer.deliveryStatus;
+    const oldLocation = transfer.currentLocation;
+
+    if (deliveryStatus) {
+      const allowed = ['PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'];
+      if (!allowed.includes(deliveryStatus)) {
+        return res.status(400).json({ message: 'Invalid delivery status' });
+      }
+      transfer.deliveryStatus = deliveryStatus;
+
+      if (deliveryStatus === 'PICKUP_DISPATCHED' && !transfer.pickupDispatchedAt) {
+        transfer.pickupDispatchedAt = new Date();
+      }
+      if (deliveryStatus === 'IN_TRANSIT' && !transfer.inTransitAt) {
+        transfer.inTransitAt = new Date();
+      }
+      if (deliveryStatus === 'DELIVERED' && !transfer.deliveredAt) {
+        transfer.deliveredAt = new Date();
+      }
+    }
+
+    if (driverName !== undefined) transfer.driverName = driverName;
+    if (driverPhone !== undefined) transfer.driverPhone = driverPhone;
+    if (vehicleNumber !== undefined) transfer.vehicleNumber = vehicleNumber;
+    if (vehicleType !== undefined) transfer.vehicleType = vehicleType;
+    if (currentLocation !== undefined) transfer.currentLocation = currentLocation;
+    if (expectedDeliveryTime !== undefined) {
+      transfer.expectedDeliveryTime = expectedDeliveryTime ? new Date(expectedDeliveryTime) : null;
+    }
+
+    await transfer.save();
+
+    const produce = await Produce.findById(transfer.produceId);
+    const crop = produce?.cropType || 'Lot';
+
+    if (deliveryStatus && oldStatus !== transfer.deliveryStatus) {
+      await notifyDeliveryParticipants({
+        transfer,
+        actorPhone: req.user.phone,
+        title: 'Delivery Status Update',
+        message: `${crop} delivery status: ${statusLabel(transfer.deliveryStatus)}`,
+        type: 'DELIVERY_UPDATE',
+        data: { deliveryStatus: transfer.deliveryStatus }
+      });
+    }
+
+    if (currentLocation && oldLocation !== currentLocation) {
+      await notifyDeliveryParticipants({
+        transfer,
+        actorPhone: req.user.phone,
+        title: 'Location Shift Update',
+        message: `${crop} shipment ab ${currentLocation} par hai`,
+        type: 'LOCATION_SHIFT',
+        data: { currentLocation }
+      });
+    }
+
+    res.json({ success: true, transfer, message: 'Logistics update ho gaya' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
