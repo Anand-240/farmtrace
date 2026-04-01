@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
+import { Sprout, Truck, Coins, History, User, Layers, PackageCheck, ShieldCheck, Bot, LogOut } from 'lucide-react';
 import './Dashboard.css';
 
 const SORT_OPTIONS = [
@@ -226,49 +227,63 @@ export default function Dashboard() {
         </div>
         <div className="dashboard-header-actions">
           <LanguageToggle />
-          <button onClick={logout} className="btn btn-ghost">{t('dash_logout')}</button>
+          <button onClick={logout} className="btn-logout" title={t('dash_logout')}>
+            <LogOut size={20} />
+            <span className="logout-text">{t('dash_logout')}</span>
+          </button>
         </div>
       </div>
 
       <div className="dashboard-actions-row">
         {user.role === 'FARMER' && (
-          <button onClick={() => navigate('/register-produce')} className="btn btn-solid btn-farmer">
-            {t('dash_action_register')}
+          <button onClick={() => navigate('/register-produce')} className="action-card primary">
+            <Sprout className="action-card-icon" />
+            <span className="action-card-label">{t('dash_action_register')}</span>
           </button>
         )}
         {user.role !== 'CONSUMER' && (
-          <button onClick={() => navigate('/transfer')} className="btn btn-solid btn-transfer">
-            {t('dash_action_transfer')}
+          <button onClick={() => navigate('/transfer')} className="action-card">
+            <Truck className="action-card-icon" color="#0a5a79" />
+            <span className="action-card-label">{t('dash_action_transfer')}</span>
           </button>
         )}
         {user.role !== 'FARMER' && (
-          <button onClick={() => navigate('/payment')} className="btn btn-solid btn-payment">
-            {t('dash_action_pending')} {pendingCount > 0 && `(${pendingCount})`}
+          <button onClick={() => navigate('/payment')} className="action-card">
+            <Coins className="action-card-icon" color="#914f18" />
+            <span className="action-card-label">
+              {t('dash_action_pending')} {pendingCount > 0 && `(${pendingCount})`}
+            </span>
           </button>
         )}
-        <button onClick={() => navigate('/transactions')} className="btn btn-solid btn-history">
-          {t('dash_action_history')}
-          {unreadNotifs > 0 && (
-            <span className="notif-badge">{unreadNotifs}</span>
-          )}
+        <button onClick={() => navigate('/transactions')} className="action-card">
+          <History className="action-card-icon" color="#203f8f" />
+          <span className="action-card-label">
+            {t('dash_action_history')}
+            {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
+          </span>
         </button>
-        <button onClick={() => navigate('/profile')} className="btn btn-solid btn-profile">
-          {t('dash_action_profile')}
+        <button onClick={() => navigate('/profile')} className="action-card">
+          <User className="action-card-icon" color="#425c4a" />
+          <span className="action-card-label">{t('dash_action_profile')}</span>
         </button>
-        <button onClick={() => navigate('/lot-ops')} className="btn btn-solid btn-lot">
-          Lot Split / Merge
+        <button onClick={() => navigate('/lot-ops')} className="action-card">
+          <Layers className="action-card-icon" color="#5a3f86" />
+          <span className="action-card-label">Lot Split / Merge</span>
         </button>
         {user.role !== 'CONSUMER' && (
-          <button onClick={() => navigate('/dispatch-logistics')} className="btn btn-solid btn-dispatch">
-            Dispatch & Delivery
+          <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
+            <PackageCheck className="action-card-icon" color="#2d3f9e" />
+            <span className="action-card-label">Dispatch & Delivery</span>
           </button>
         )}
-        <button onClick={() => navigate('/escrow')} className="btn btn-solid btn-escrow">
-          Milestone Payments
+        <button onClick={() => navigate('/escrow')} className="action-card">
+          <ShieldCheck className="action-card-icon" color="#f57c00" />
+          <span className="action-card-label">Milestone Payments</span>
         </button>
         {user.role === 'FARMER' && (
-          <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
-            {t('dash_action_ai')}
+          <button onClick={() => navigate('/ai')} className="action-card ai-card">
+            <Bot className="action-card-icon" color="#1d9e75" />
+            <span className="action-card-label">{t('dash_action_ai')}</span>
           </button>
         )}
       </div>

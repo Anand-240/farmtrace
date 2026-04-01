@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { countryPhoneConfigs, locationData } from '../data/locationData';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
+import { User, Mail, MapPin, Phone, Lock, Hash, Activity, LogIn, UserPlus } from 'lucide-react';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
@@ -221,7 +222,7 @@ export default function Login() {
     <div style={styles.container}>
       <div style={styles.backgroundGlowTop} />
       <div style={styles.backgroundGlowBottom} />
-      <div style={styles.card}>
+      <div style={styles.card} className="animate-slide-up">
         <div style={styles.langWrap}>
           <LanguageToggle />
         </div>
@@ -267,82 +268,121 @@ export default function Login() {
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmit}>
           {isRegister && (
-            <>
-              <input style={styles.input} placeholder={t('login_name')}
-                value={form.name}
-                onChange={e => updateField('name', e.target.value)} required />
-              <select style={styles.input} value={form.role}
-                onChange={e => updateField('role', e.target.value)}>
-                <option value="FARMER">{t('login_role_farmer')}</option>
-                <option value="DISTRIBUTOR">{t('login_role_distributor')}</option>
-                <option value="RETAILER">{t('login_role_retailer')}</option>
-              </select>
-              <input style={styles.input} type="email" placeholder={t('login_email')}
-                value={form.email}
-                onChange={e => updateField('email', e.target.value)} required />
-              <select style={styles.input} value={form.state}
-                onChange={e => setForm((current) => ({
-                  ...current,
-                  state: e.target.value,
-                  city: '',
-                  district: '',
-                  village: ''
-                }))}
-                required={form.role === 'FARMER'}>
-                <option value="">{t('login_state_select')}</option>
-                {states.map((state) => (
-                  <option key={state} value={state}>{state}</option>
-                ))}
-              </select>
-              <select style={styles.input} value={form.city}
-                onChange={e => setForm((current) => ({
-                  ...current,
-                  city: e.target.value,
-                  district: e.target.value,
-                  village: ''
-                }))}
-                disabled={!form.state}
-                required={form.role === 'FARMER'}>
-                <option value="">{form.state ? t('login_city_select') : t('login_city_select_first')}</option>
-                {cities.map((city) => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-              <select style={styles.input} value={form.village}
-                onChange={e => updateField('village', e.target.value)}
-                disabled={!form.city}
-                required={form.role === 'FARMER'}>
-                <option value="">{form.city ? t('login_village_select') : t('login_village_select_first')}</option>
-                {villages.map((village) => (
-                  <option key={village} value={village}>{village}</option>
-                ))}
-              </select>
-              <div style={styles.phoneRow}>
-                <select style={{ ...styles.input, ...styles.codeInput }} value={form.countryCode}
-                  onChange={e => updateField('countryCode', e.target.value)}>
-                  {Object.entries(countryPhoneConfigs).map(([code, config]) => (
-                    <option key={code} value={code}>{config.country} ({code})</option>
+            <div className="animate-fade-in">
+              <div className="auth-input-group">
+                <input placeholder={t('login_name')}
+                  value={form.name}
+                  onChange={e => updateField('name', e.target.value)} required />
+                <User size={18} className="auth-input-icon" />
+              </div>
+
+              <div className="auth-input-group">
+                <select value={form.role}
+                  onChange={e => updateField('role', e.target.value)}>
+                  <option value="FARMER">{t('login_role_farmer')}</option>
+                  <option value="DISTRIBUTOR">{t('login_role_distributor')}</option>
+                  <option value="RETAILER">{t('login_role_retailer')}</option>
+                </select>
+                <Activity size={18} className="auth-input-icon" />
+              </div>
+
+              <div className="auth-input-group">
+                <input type="email" placeholder={t('login_email')}
+                  value={form.email}
+                  onChange={e => updateField('email', e.target.value)} required />
+                <Mail size={18} className="auth-input-icon" />
+              </div>
+
+              <div className="auth-input-group">
+                <select value={form.state}
+                  onChange={e => setForm((current) => ({
+                    ...current,
+                    state: e.target.value,
+                    city: '',
+                    district: '',
+                    village: ''
+                  }))}
+                  required={form.role === 'FARMER'}>
+                  <option value="">{t('login_state_select')}</option>
+                  {states.map((state) => (
+                    <option key={state} value={state}>{state}</option>
                   ))}
                 </select>
-                <input style={{ ...styles.input, ...styles.phoneInput }} placeholder={selectedPhoneConfig.placeholder}
-                  value={form.phone}
-                  inputMode="numeric"
-                  maxLength={selectedPhoneConfig.digits}
-                  onChange={e => updateField('phone', e.target.value.replace(/\D/g, ''))} required />
+                <MapPin size={18} className="auth-input-icon" />
+              </div>
+
+              <div className="auth-input-group">
+                <select value={form.city}
+                  onChange={e => setForm((current) => ({
+                    ...current,
+                    city: e.target.value,
+                    district: e.target.value,
+                    village: ''
+                  }))}
+                  disabled={!form.state}
+                  required={form.role === 'FARMER'}>
+                  <option value="">{form.state ? t('login_city_select') : t('login_city_select_first')}</option>
+                  {cities.map((city) => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+                <MapPin size={18} className="auth-input-icon" />
+              </div>
+
+              <div className="auth-input-group">
+                <select value={form.village}
+                  onChange={e => updateField('village', e.target.value)}
+                  disabled={!form.city}
+                  required={form.role === 'FARMER'}>
+                  <option value="">{form.city ? t('login_village_select') : t('login_village_select_first')}</option>
+                  {villages.map((village) => (
+                    <option key={village} value={village}>{village}</option>
+                  ))}
+                </select>
+                <MapPin size={18} className="auth-input-icon" />
+              </div>
+
+              <div style={styles.phoneRow}>
+                <div className="auth-input-group" style={{ width: '42%', flexShrink: 0 }}>
+                  <select value={form.countryCode}
+                    onChange={e => updateField('countryCode', e.target.value)}>
+                    {Object.entries(countryPhoneConfigs).map(([code, config]) => (
+                      <option key={code} value={code}>{config.country} ({code})</option>
+                    ))}
+                  </select>
+                  <Hash size={18} className="auth-input-icon" />
+                </div>
+                <div className="auth-input-group" style={{ marginBottom: 0 }}>
+                  <input placeholder={selectedPhoneConfig.placeholder}
+                    value={form.phone}
+                    inputMode="numeric"
+                    maxLength={selectedPhoneConfig.digits}
+                    onChange={e => updateField('phone', e.target.value.replace(/\D/g, ''))} required />
+                  <Phone size={18} className="auth-input-icon" />
+                </div>
               </div>
               <p style={styles.hint}>
                 {t('login_number_format')} {form.countryCode} + {selectedPhoneConfig.placeholder}
               </p>
-            </>
+            </div>
           )}
+
           {!isRegister && (
-            <input style={styles.input} type="email" placeholder={t('login_email')}
-              value={form.email}
-              onChange={e => updateField('email', e.target.value)} required />
+            <div className="animate-fade-in auth-input-group">
+              <input type="email" placeholder={t('login_email')}
+                value={form.email}
+                onChange={e => updateField('email', e.target.value)} required />
+              <Mail size={18} className="auth-input-icon" />
+            </div>
           )}
-          <input style={styles.input} type="password" placeholder={t('login_password')}
-            value={form.password}
-            onChange={e => updateField('password', e.target.value)} required />
+
+          <div className="auth-input-group">
+            <input type="password" placeholder={t('login_password')}
+              value={form.password}
+              onChange={e => updateField('password', e.target.value)} required />
+            <Lock size={18} className="auth-input-icon" />
+          </div>
+
           {!isRegister && (
             <div style={styles.forgotWrap}>
               <span style={styles.forgotLink} onClick={() => navigate('/forgot-password')}>
@@ -350,8 +390,14 @@ export default function Login() {
               </span>
             </div>
           )}
-          <button style={styles.button} type="submit" disabled={loading}>
-            {loading ? t('login_wait') : (isRegister ? t('login_register_action') : t('login_login_action'))}
+
+          <button style={styles.button} className="btn-auth-submit" type="submit" disabled={loading}>
+            {loading ? t('login_wait') : (
+              <>
+                {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
+                {isRegister ? t('login_register_action') : t('login_login_action')}
+              </>
+            )}
           </button>
         </form>
 

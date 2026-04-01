@@ -70,7 +70,7 @@ export default function Register() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      <div style={styles.card} className="animate-slide-up">
         <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
           ← Wapas
         </button>

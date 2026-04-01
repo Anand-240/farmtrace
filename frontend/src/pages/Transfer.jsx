@@ -139,7 +139,7 @@ export default function Transfer() {
 
     return (
       <div style={styles.container}>
-        <div style={styles.card}>
+        <div style={styles.card} className="animate-slide-up">
           <h2 style={{ color: '#27500A', textAlign: 'center' }}>Transfer Request Bheji Gayi!</h2>
           <div style={styles.successBox}>
             <p style={styles.successText}>{produce?.cropType} - {produce?.origin}</p>
@@ -169,7 +169,7 @@ export default function Transfer() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
+      <div style={styles.card} className="animate-slide-up">
         <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Wapas</button>
         <h2 style={styles.title}>Transfer Request Bhejo</h2>
         <p style={styles.roleText}>{user.name} ({user.role})</p>

@@ -103,9 +103,87 @@
 
 .dashboard-actions-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.7rem;
-  margin-bottom: 1.1rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 1.25rem 0.5rem;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #dbe5d8;
+  box-shadow: 0 4px 12px rgba(26, 44, 33, 0.05);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-align: center;
+  color: var(--dash-text);
+  text-decoration: none;
+  position: relative;
+}
+
+.action-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(26, 44, 33, 0.1);
+  border-color: #27500a;
+}
+
+.action-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.action-card.primary {
+  background: linear-gradient(135deg, #27500a, #3a7510);
+  color: #fff;
+  border: none;
+}
+
+.action-card.primary .action-card-icon {
+  color: #fff !important;
+}
+
+.action-card-icon {
+  width: 32px;
+  height: 32px;
+  opacity: 0.95;
+}
+
+.action-card-label {
+  font-family: 'Sora', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.ai-card {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border-color: #86efac;
+}
+
+.btn-logout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(28, 49, 39, 0.2);
+  background: rgba(255, 255, 255, 0.65);
+  color: #d32f2f;
+  border-radius: 10px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-logout:hover {
+  background: #fffafa;
+  border-color: #d32f2f;
+  transform: translateY(-2px);
 }
 
 .dashboard-stats-grid {
