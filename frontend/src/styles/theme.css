@@ -125,6 +125,26 @@ button:active:not(:disabled) {
   transform: scale(1.1);
 }
 
+.auth-input-group.password-group input {
+  padding-right: 2.8rem !important;
+}
+
+.auth-input-eye {
+  position: absolute;
+  right: 1rem;
+  color: #8b968f;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-input-eye:hover {
+  color: #27500A;
+}
+
 .btn-auth-submit {
   display: flex;
   align-items: center;

@@ -4,7 +4,7 @@ import api from '../lib/api';
 import { countryPhoneConfigs, locationData } from '../data/locationData';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
-import { User, Mail, MapPin, Phone, Lock, Hash, Activity, LogIn, UserPlus } from 'lucide-react';
+import { User, Mail, MapPin, Phone, Lock, Hash, Activity, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 
@@ -110,6 +110,7 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID?.trim();
   const selectedPhoneConfig = countryPhoneConfigs[form.countryCode];
@@ -376,11 +377,14 @@ export default function Login() {
             </div>
           )}
 
-          <div className="auth-input-group">
-            <input type="password" placeholder={t('login_password')}
+          <div className="auth-input-group password-group">
+            <input type={showPassword ? "text" : "password"} placeholder={t('login_password')}
               value={form.password}
               onChange={e => updateField('password', e.target.value)} required />
             <Lock size={18} className="auth-input-icon" />
+            <div className="auth-input-eye" onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </div>
           </div>
 
           {!isRegister && (
