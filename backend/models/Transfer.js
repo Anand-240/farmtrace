@@ -23,8 +23,8 @@ const transferSchema = new mongoose.Schema({
   },
   deliveryStatus: {
     type: String,
-    enum: ['PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'],
-    default: 'PICKUP_DISPATCHED'
+    enum: ['PENDING_DISPATCH', 'PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'],
+    default: 'PENDING_DISPATCH'
   },
   driverName: { type: String },
   driverPhone: { type: String },

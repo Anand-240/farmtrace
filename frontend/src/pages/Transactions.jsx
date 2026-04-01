@@ -5,9 +5,6 @@ import api from '../lib/api';
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [deliveries, setDeliveries] = useState([]);
-  const [deliveryForms, setDeliveryForms] = useState({});
-  const [savingDeliveryId, setSavingDeliveryId] = useState(null);
   const [activeTab, setActiveTab] = useState('transactions');
   const [notifFilter, setNotifFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
@@ -20,30 +17,12 @@ export default function Transactions() {
 
   const fetchData = async () => {
     try {
-      const [txRes, notifRes, deliveryRes] = await Promise.all([
+      const [txRes, notifRes] = await Promise.all([
         api.get('/api/payment/transactions'),
-        api.get('/api/payment/notifications'),
-        api.get('/api/payment/deliveries/my')
+        api.get('/api/payment/notifications')
       ]);
       setTransactions(txRes.data);
       setNotifications(notifRes.data);
-      setDeliveries(deliveryRes.data);
-
-      const nextForms = {};
-      deliveryRes.data.forEach((d) => {
-        nextForms[d._id] = {
-          deliveryStatus: d.deliveryStatus || 'PICKUP_DISPATCHED',
-          driverName: d.driverName || '',
-          driverPhone: d.driverPhone || '',
-          vehicleNumber: d.vehicleNumber || '',
-          vehicleType: d.vehicleType || '',
-          currentLocation: d.currentLocation || d.location || '',
-          expectedDeliveryTime: d.expectedDeliveryTime
-            ? new Date(d.expectedDeliveryTime).toISOString().slice(0, 16)
-            : ''
-        };
-      });
-      setDeliveryForms(nextForms);
     } catch (err) {
       console.error(err);
     } finally {
@@ -51,32 +30,7 @@ export default function Transactions() {
     }
   };
 
-  const updateDeliveryForm = (id, field, value) => {
-    setDeliveryForms((prev) => ({
-      ...prev,
-      [id]: {
-        ...(prev[id] || {}),
-        [field]: value
-      }
-    }));
-  };
 
-  const saveDeliveryUpdate = async (id) => {
-    const payload = deliveryForms[id];
-    if (!payload) return;
-
-    try {
-      setSavingDeliveryId(id);
-      const res = await api.put(`/api/payment/deliveries/${id}`, payload);
-      const updated = res.data.transfer;
-      setDeliveries((prev) => prev.map((d) => (d._id === id ? { ...d, ...updated } : d)));
-      await fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Delivery update fail ho gaya');
-    } finally {
-      setSavingDeliveryId(null);
-    }
-  };
 
   const markRead = async (id) => {
     await api.put(`/api/payment/notifications/${id}/read`);
@@ -111,11 +65,6 @@ export default function Transactions() {
     LOCATION_SHIFT: { bg: '#FFEFD9', color: '#8F5A0E', icon: '📍' }
   };
 
-  const deliveryBadge = {
-    PICKUP_DISPATCHED: { bg: '#e8edff', color: '#2d3f9e', text: 'Pickup Dispatched' },
-    IN_TRANSIT: { bg: '#ffeeda', color: '#8b5318', text: 'In Transit' },
-    DELIVERED: { bg: '#e1f5ee', color: '#085041', text: 'Delivered' }
-  };
 
   return (
     <div style={styles.container}>
@@ -139,11 +88,6 @@ export default function Transactions() {
           Notifications {unreadCount > 0 && (
             <span style={styles.badge}>{unreadCount}</span>
           )}
-        </button>
-        <button
-          style={{...styles.tab, ...(activeTab==='deliveries' ? styles.activeTab : {})}}
-          onClick={() => setActiveTab('deliveries')}>
-          Delivery ({deliveries.length})
         </button>
       </div>
 
@@ -265,104 +209,6 @@ export default function Transactions() {
             </div>
           )}
 
-          {activeTab === 'deliveries' && (
-            <div>
-              {deliveries.length === 0 ? (
-                <div style={styles.empty}>
-                  <p>Abhi delivery items nahi hain</p>
-                </div>
-              ) : (
-                deliveries.map((d) => {
-                  const badge = deliveryBadge[d.deliveryStatus] || deliveryBadge.PICKUP_DISPATCHED;
-                  const form = deliveryForms[d._id] || {};
-
-                  return (
-                    <div key={d._id} style={styles.deliveryCard}>
-                      <div style={styles.deliveryHead}>
-                        <p style={styles.deliveryTitle}>{d.produce?.cropType || 'Produce Delivery'}</p>
-                        <span style={{ ...styles.deliveryStatus, background: badge.bg, color: badge.color }}>
-                          {badge.text}
-                        </span>
-                      </div>
-
-                      <p style={styles.deliveryText}><strong>Route:</strong> {d.fromPhone} → {d.toPhone}</p>
-                      <p style={styles.deliveryText}><strong>Source Location:</strong> {d.location || 'N/A'}</p>
-                      <p style={styles.deliveryText}><strong>Current Location:</strong> {d.currentLocation || 'N/A'}</p>
-                      <p style={styles.deliveryText}><strong>Driver:</strong> {d.driverName || 'N/A'} {d.driverPhone ? `(${d.driverPhone})` : ''}</p>
-                      <p style={styles.deliveryText}><strong>Vehicle:</strong> {d.vehicleType || 'N/A'} {d.vehicleNumber ? `• ${d.vehicleNumber}` : ''}</p>
-                      <p style={styles.deliveryText}><strong>Expected Delivery:</strong> {d.expectedDeliveryTime ? new Date(d.expectedDeliveryTime).toLocaleString('hi-IN') : 'N/A'}</p>
-
-                      {d.canUpdate && (
-                        <div style={styles.deliveryForm}>
-                          <label style={styles.deliveryLabel}>Status</label>
-                          <select
-                            style={styles.deliveryInput}
-                            value={form.deliveryStatus || 'PICKUP_DISPATCHED'}
-                            onChange={(e) => updateDeliveryForm(d._id, 'deliveryStatus', e.target.value)}
-                          >
-                            <option value="PICKUP_DISPATCHED">Pickup Dispatched</option>
-                            <option value="IN_TRANSIT">In Transit</option>
-                            <option value="DELIVERED">Delivered</option>
-                          </select>
-
-                          <label style={styles.deliveryLabel}>Driver Name</label>
-                          <input
-                            style={styles.deliveryInput}
-                            value={form.driverName || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'driverName', e.target.value)}
-                          />
-
-                          <label style={styles.deliveryLabel}>Driver Phone</label>
-                          <input
-                            style={styles.deliveryInput}
-                            value={form.driverPhone || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'driverPhone', e.target.value)}
-                          />
-
-                          <label style={styles.deliveryLabel}>Vehicle Number</label>
-                          <input
-                            style={styles.deliveryInput}
-                            value={form.vehicleNumber || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'vehicleNumber', e.target.value)}
-                          />
-
-                          <label style={styles.deliveryLabel}>Vehicle Type</label>
-                          <input
-                            style={styles.deliveryInput}
-                            value={form.vehicleType || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'vehicleType', e.target.value)}
-                          />
-
-                          <label style={styles.deliveryLabel}>Current Location</label>
-                          <input
-                            style={styles.deliveryInput}
-                            value={form.currentLocation || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'currentLocation', e.target.value)}
-                          />
-
-                          <label style={styles.deliveryLabel}>Expected Delivery Time</label>
-                          <input
-                            type="datetime-local"
-                            style={styles.deliveryInput}
-                            value={form.expectedDeliveryTime || ''}
-                            onChange={(e) => updateDeliveryForm(d._id, 'expectedDeliveryTime', e.target.value)}
-                          />
-
-                          <button
-                            style={styles.deliverySaveBtn}
-                            onClick={() => saveDeliveryUpdate(d._id)}
-                            disabled={savingDeliveryId === d._id}
-                          >
-                            {savingDeliveryId === d._id ? 'Saving...' : 'Update Logistics'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
         </>
       )}
     </div>

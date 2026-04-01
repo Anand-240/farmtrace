@@ -13,6 +13,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import { LanguageProvider } from './lib/language';
 import LotOperations from './pages/LotOperations';
+import DispatchLogistics from './pages/DispatchLogistics';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -51,6 +52,9 @@ function App() {
           } />
           <Route path="/transactions" element={
             <PrivateRoute><Transactions /></PrivateRoute>
+          } />
+          <Route path="/dispatch-logistics" element={
+            <PrivateRoute><DispatchLogistics /></PrivateRoute>
           } />
           <Route path="/ai" element={
             <PrivateRoute><AIAssistant /></PrivateRoute>

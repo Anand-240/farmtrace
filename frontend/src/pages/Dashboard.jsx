@@ -258,6 +258,11 @@ export default function Dashboard() {
         <button onClick={() => navigate('/lot-ops')} className="btn btn-solid btn-lot">
           Lot Split / Merge
         </button>
+        {user.role !== 'CONSUMER' && (
+          <button onClick={() => navigate('/dispatch-logistics')} className="btn btn-solid btn-dispatch">
+            Dispatch & Delivery
+          </button>
+        )}
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
             {t('dash_action_ai')}

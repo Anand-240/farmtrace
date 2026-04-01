@@ -16,6 +16,7 @@ const razorpay = new Razorpay({
 });
 
 function statusLabel(status) {
+  if (status === 'PENDING_DISPATCH') return 'Pending Dispatch';
   if (status === 'PICKUP_DISPATCHED') return 'Pickup Dispatched';
   if (status === 'IN_TRANSIT') return 'In Transit';
   if (status === 'DELIVERED') return 'Delivered';
@@ -64,7 +65,7 @@ router.post('/request', auth, async (req, res) => {
       transferType,
       blockchainStatus: 'PENDING',
       paymentStatus: 'PENDING',
-      deliveryStatus: 'PICKUP_DISPATCHED'
+      deliveryStatus: 'PENDING_DISPATCH'
     });
 
     // Receiver ko notification bhejo
@@ -340,7 +341,7 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     const oldLocation = transfer.currentLocation;
 
     if (deliveryStatus) {
-      const allowed = ['PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'];
+      const allowed = ['PENDING_DISPATCH', 'PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'];
       if (!allowed.includes(deliveryStatus)) {
         return res.status(400).json({ message: 'Invalid delivery status' });
       }
