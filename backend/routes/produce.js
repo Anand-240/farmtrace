@@ -103,14 +103,15 @@ router.get('/farmer/my', auth, async (req, res) => {
 // Lot split: ek lot ko multiple sub-lots me tod do
 router.post('/:id/split', auth, async (req, res) => {
   try {
-    const { splits = [] } = req.body;
+    const { splits = [], quantity } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid lot ID' });
     }
 
-    if (!Array.isArray(splits) || splits.length < 2) {
-      return res.status(400).json({ message: 'Split ke liye kam se kam 2 child quantities do' });
+    const hasSingleQuantity = quantity !== undefined && quantity !== null && quantity !== '';
+    if (!hasSingleQuantity && (!Array.isArray(splits) || splits.length < 1)) {
+      return res.status(400).json({ message: 'Split ke liye valid quantity do' });
     }
 
     const sourceLot = await Produce.findById(req.params.id);
@@ -126,16 +127,24 @@ router.post('/:id/split', auth, async (req, res) => {
       return res.status(400).json({ message: 'Inactive lot split nahi ho sakta' });
     }
 
-    const normalizedSplits = splits
-      .map((item) => Number(item?.quantity || item))
-      .filter((qty) => Number.isFinite(qty) && qty > 0);
+    const normalizedSplits = hasSingleQuantity
+      ? [Number(quantity)]
+      : splits.map((item) => Number(item?.quantity || item));
 
-    if (normalizedSplits.length !== splits.length) {
+    const allValid = normalizedSplits.every((qty) => Number.isFinite(qty) && qty > 0);
+    if (!allValid) {
       return res.status(400).json({ message: 'Har split quantity valid positive number honi chahiye' });
     }
 
     const requestedQty = normalizedSplits.reduce((sum, qty) => sum + qty, 0);
     const sourceQty = Number(sourceLot.quantity) || 0;
+
+    // Single quantity split flow me remaining qty source lot me rehni chahiye.
+    if (hasSingleQuantity && requestedQty >= sourceQty) {
+      return res.status(400).json({
+        message: 'Single split quantity source quantity se kam honi chahiye'
+      });
+    }
 
     if (requestedQty > sourceQty) {
       return res.status(400).json({ message: 'Split quantity source lot quantity se zyada nahi ho sakti' });
@@ -175,6 +184,7 @@ router.post('/:id/split', auth, async (req, res) => {
       message: 'Lot split ho gaya',
       sourceLot,
       childLots: children,
+      childLot: children.length === 1 ? children[0] : null,
       remainingQty: sourceLot.quantity
     });
   } catch (err) {
