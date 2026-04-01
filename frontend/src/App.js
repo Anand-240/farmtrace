@@ -14,6 +14,7 @@ import ResetPassword from './pages/ResetPassword';
 import { LanguageProvider } from './lib/language';
 import LotOperations from './pages/LotOperations';
 import DispatchLogistics from './pages/DispatchLogistics';
+import Escrow from './pages/Escrow';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -55,6 +56,9 @@ function App() {
           } />
           <Route path="/dispatch-logistics" element={
             <PrivateRoute><DispatchLogistics /></PrivateRoute>
+          } />
+          <Route path="/escrow" element={
+            <PrivateRoute><Escrow /></PrivateRoute>
           } />
           <Route path="/ai" element={
             <PrivateRoute><AIAssistant /></PrivateRoute>

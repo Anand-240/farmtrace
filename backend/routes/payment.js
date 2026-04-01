@@ -8,6 +8,7 @@ const Produce = require('../models/Produce');
 const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Escrow = require('../models/Escrow');
 const { transferOnChain } = require('../blockchain/blockchainService');
 
 const razorpay = new Razorpay({
@@ -21,6 +22,40 @@ function statusLabel(status) {
   if (status === 'IN_TRANSIT') return 'In Transit';
   if (status === 'DELIVERED') return 'Delivered';
   return status;
+}
+
+// Milestone payment release logic
+async function releaseMilestonePayment({ escrow, transferId, milestone, transfer }) {
+  if (milestone === 'DISPATCH' && !escrow.dispatchReleased) {
+    escrow.dispatchReleased = true;
+    escrow.dispatchReleasedAt = new Date();
+    
+    // Notify farmer that dispatch payment released
+    await Notification.create({
+      userPhone: transfer.fromPhone,
+      title: 'Dispatch Payment Released!',
+      message: `${transfer.toPhone} ne pickup dispatch kiya. \u20b9${escrow.dispatchAmount.toLocaleString()} payment release ho gayi!`,
+      type: 'PAYMENT_RECEIVED',
+      data: { transferId, amount: escrow.dispatchAmount, milestone: 'DISPATCH' }
+    });
+  }
+  
+  if (milestone === 'DELIVERY' && !escrow.deliveryReleased) {
+    escrow.deliveryReleased = true;
+    escrow.deliveryReleasedAt = new Date();
+    escrow.status = 'COMPLETED';
+    
+    // Notify farmer that final payment released
+    await Notification.create({
+      userPhone: transfer.fromPhone,
+      title: 'Final Settlement!',
+      message: `Lot delivery confirm ho gayi! Final payment \u20b9${escrow.deliveryAmount.toLocaleString()} release ho gayi.`,
+      type: 'PAYMENT_RECEIVED',
+      data: { transferId, amount: escrow.deliveryAmount, milestone: 'DELIVERY' }
+    });
+  }
+  
+  await escrow.save();
 }
 
 async function notifyDeliveryParticipants({ transfer, actorPhone, title, message, type, data = {} }) {
@@ -118,24 +153,37 @@ router.post('/create-order', auth, async (req, res) => {
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
     const totalAmount = transfer.price * produce.quantity * 100;
+    
+    // Milestone payment breakdown: 40% booking, 30% dispatch, 30% delivery
+    const bookingAmount = Math.round(totalAmount * 0.40);
+    const dispatchAmount = Math.round(totalAmount * 0.30);
+    const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
 
+    // Razorpay order ke liye sirf BOOKING amount charge karo
     const order = await razorpay.orders.create({
-      amount: totalAmount,
+      amount: bookingAmount,
       currency: 'INR',
       receipt: `transfer_${transferId}`,
       notes: {
         transferId: transferId.toString(),
         produceId: transfer.produceId.toString(),
         fromPhone: transfer.fromPhone,
-        toPhone: transfer.toPhone
+        toPhone: transfer.toPhone,
+        paymentType: 'BOOKING_MILESTONE'
       }
     });
 
     res.json({
       success: true,
       orderId: order.id,
-      amount: totalAmount,
+      amount: bookingAmount,
       currency: 'INR',
+      totalAmount: totalAmount / 100,
+      milestones: {
+        booking: bookingAmount / 100,
+        dispatch: dispatchAmount / 100,
+        delivery: deliveryAmount / 100
+      },
       transfer,
       produce
     });
@@ -173,16 +221,16 @@ router.post('/verify', auth, async (req, res) => {
     const toUser = await User.findOne({ phone: transfer.toPhone });
 
     const totalAmount = transfer.price * produce.quantity;
+    const bookingAmount = Math.round(totalAmount * 0.40);
+    const dispatchAmount = Math.round(totalAmount * 0.30);
+    const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
 
-    // Payment status update
+    // Payment status update - sirf booking stage clear hua
     transfer.paymentStatus = 'PAID';
     transfer.razorpayPaymentId = razorpay_payment_id;
     transfer.razorpayOrderId = razorpay_order_id;
-    if (!transfer.pickupDispatchedAt) {
-      transfer.pickupDispatchedAt = new Date();
-    }
 
-    // Blockchain pe transfer
+    // Blockchain pe transfer (immediate booking ke baad)
     let txHash = null;
     if (produce.produceId) {
       const toAddress = new (require('ethers').Wallet)(
@@ -205,6 +253,20 @@ router.post('/verify', auth, async (req, res) => {
     // Produce owner update
     produce.currentOwner = transfer.toPhone;
     await produce.save();
+
+    // Escrow record banao for milestone tracking
+    await Escrow.create({
+      transferId: transfer._id,
+      totalAmount,
+      bookingAmount,
+      dispatchAmount,
+      deliveryAmount,
+      bookingPaid: true,
+      bookingPaidAt: new Date(),
+      razorpayPaymentId,
+      razorpayOrderId,
+      status: 'ACTIVE'
+    });
 
     // Transaction history — sender ke liye (SENT)
     await Transaction.create({
@@ -242,22 +304,22 @@ router.post('/verify', auth, async (req, res) => {
       type: 'RECEIVED'
     });
 
-    // Farmer ko payment notification
+    // Farmer ko booking confirmation notification
     await Notification.create({
       userPhone: transfer.fromPhone,
-      title: 'Payment Mil Gayi!',
-      message: `${toUser?.name} ne ${produce.cropType} ke liye ₹${totalAmount.toLocaleString()} payment ki!`,
+      title: 'Booking Amount Received!',
+      message: `${toUser?.name} ne ₹${bookingAmount.toLocaleString()} booking fee paid. Dispatch ke baad ₹${dispatchAmount.toLocaleString()} aur milega.`,
       type: 'PAYMENT_RECEIVED',
-      data: { transferId, amount: totalAmount, txHash }
+      data: { transferId, amount: bookingAmount, milestone: 'BOOKING', txHash }
     });
 
     // Distributor ko confirmation notification
     await Notification.create({
       userPhone: transfer.toPhone,
-      title: 'Transfer Complete!',
-      message: `${produce.cropType} blockchain pe transfer ho gaya. TX: ${txHash?.slice(0,20)}...`,
+      title: 'Order Confirmed!',
+      message: `${produce.cropType} blockchain pe transfer ho gaya. Ab dispatch ke baad next payment mile.`,
       type: 'TRANSFER_COMPLETE',
-      data: { transferId, txHash }
+      data: { transferId, txHash, milestone: 'BOOKING' }
     });
 
     res.json({
@@ -373,6 +435,17 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     const crop = produce?.cropType || 'Lot';
 
     if (deliveryStatus && oldStatus !== transfer.deliveryStatus) {
+      // Auto-release milestone payments
+      const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+      if (escrow) {
+        if (deliveryStatus === 'PICKUP_DISPATCHED') {
+          await releaseMilestonePayment({ escrow, transferId: req.params.transferId, milestone: 'DISPATCH', transfer });
+        }
+        if (deliveryStatus === 'DELIVERED') {
+          await releaseMilestonePayment({ escrow, transferId: req.params.transferId, milestone: 'DELIVERY', transfer });
+        }
+      }
+
       await notifyDeliveryParticipants({
         transfer,
         actorPhone: req.user.phone,
@@ -395,6 +468,126 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     }
 
     res.json({ success: true, transfer, message: 'Logistics update ho gaya' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Escrow - View milestone payment details
+router.get('/escrow/:transferId', auth, async (req, res) => {
+  try {
+    const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+    if (!escrow) return res.status(404).json({ message: 'Escrow record nahi mila' });
+
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer || (transfer.fromPhone !== req.user.phone && transfer.toPhone !== req.user.phone)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const produce = await Produce.findById(transfer.produceId);
+    
+    res.json({
+      escrow: escrow.toObject(),
+      transfer: transfer.toObject(),
+      produce: produce ? produce.toObject() : null,
+      progressPercentage: calculateEscrowProgress(escrow)
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Escrow - View all my escrow records
+router.get('/escrow/my/all', auth, async (req, res) => {
+  try {
+    const transfers = await Transfer.find({
+      $or: [
+        { fromPhone: req.user.phone },
+        { toPhone: req.user.phone }
+      ],
+      paymentStatus: 'PAID'
+    }).sort({ createdAt: -1 });
+
+    const results = [];
+    for (const t of transfers) {
+      const escrow = await Escrow.findOne({ transferId: t._id });
+      const produce = await Produce.findById(t.produceId);
+      if (escrow) {
+        results.push({
+          transfer: t.toObject(),
+          escrow: escrow.toObject(),
+          produce: produce ? produce.toObject() : null,
+          progressPercentage: calculateEscrowProgress(escrow)
+        });
+      }
+    }
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Helper: Calculate escrow progress percentage
+function calculateEscrowProgress(escrow) {
+  let released = 0;
+  if (escrow.bookingPaid) released += 40;
+  if (escrow.dispatchReleased) released += 30;
+  if (escrow.deliveryReleased) released += 30;
+  return released;
+}
+
+// Escrow - Request refund for failed/rejected delivery
+router.post('/escrow/:transferId/request-refund', auth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+    if (!escrow) return res.status(404).json({ message: 'Escrow record nahi mila' });
+
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
+
+    // Only receiver can request refund
+    if (transfer.toPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Sirf receiver refund request kar sakta hai' });
+    }
+
+    if (escrow.status === 'REFUNDED') {
+      return res.status(400).json({ message: 'Refund already processed' });
+    }
+
+    // Calculate refund amount based on what's already released
+    let refundAmount = escrow.totalAmount;
+    if (escrow.bookingPaid) refundAmount -= escrow.bookingAmount;
+    if (escrow.dispatchReleased) refundAmount -= escrow.dispatchAmount;
+    if (escrow.deliveryReleased) refundAmount -= escrow.deliveryAmount;
+
+    escrow.refundReason = reason;
+    escrow.refundAmount = refundAmount;
+    escrow.refundRequestedAt = new Date();
+    escrow.status = 'REFUNDED';
+    escrow.refundCompletedAt = new Date();
+    await escrow.save();
+
+    // Update delivery status to show rejection
+    transfer.deliveryStatus = 'DELIVERED'; // Mark as attempted delivery
+    await transfer.save();
+
+    // Notify farmer about refund request
+    await Notification.create({
+      userPhone: transfer.fromPhone,
+      title: 'Refund Requested!',
+      message: `${transfer.toPhone} ne delivery reject kiya. Reason: ${reason}. \u20b9${refundAmount.toLocaleString()} refund process mein.`,
+      type: 'PAYMENT_RECEIVED',
+      data: { transferId: req.params.transferId, refundAmount, reason }
+    });
+
+    res.json({
+      success: true,
+      message: 'Refund request submitted',
+      refundAmount,
+      refundReason: reason
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

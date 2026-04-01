@@ -40,7 +40,7 @@ export default function Payment() {
         amount: amount,
         currency: 'INR',
         name: 'FarmTrace',
-        description: `${produce.cropType} — ${produce.origin}`,
+        description: `${produce.cropType} — ${produce.origin} (Booking Amount)`,
         order_id: orderId,
         handler: async (response) => {
           try {
@@ -53,7 +53,7 @@ export default function Payment() {
             });
 
             if (verifyRes.data.success) {
-              alert(`Payment ho gayi! Blockchain pe transfer ho gaya!\nTX: ${verifyRes.data.txHash?.slice(0,20)}...`);
+              alert(`Booking ho gayi! Blockchain pe transfer ho gaya!\nTX: ${verifyRes.data.txHash?.slice(0,20)}...`);
               fetchPending();
               navigate('/dashboard');
             }
@@ -128,11 +128,29 @@ export default function Payment() {
                 </div>
               </div>
 
+              <div style={styles.milestoneBox}>
+                <h4 style={{margin:'0 0 0.7rem', color:'#27500A', fontSize:'0.95rem'}}>Milestone Payments:</h4>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.5rem', fontSize:'0.85rem'}}>
+                  <div style={styles.milestoneItem}>
+                    <p style={{margin:'0 0 0.2rem', color:'#666', fontSize:'0.75rem'}}>Booking (40%)</p>
+                    <p style={{margin:0, color:'#27500A', fontWeight:'bold'}}>₹{Math.round((t.price * (t.produce?.quantity || 0)) * 0.40).toLocaleString()}</p>
+                  </div>
+                  <div style={styles.milestoneItem}>
+                    <p style={{margin:'0 0 0.2rem', color:'#666', fontSize:'0.75rem'}}>Dispatch (30%)</p>
+                    <p style={{margin:0, color:'#888'}}>₹{Math.round((t.price * (t.produce?.quantity || 0)) * 0.30).toLocaleString()}</p>
+                  </div>
+                  <div style={styles.milestoneItem}>
+                    <p style={{margin:'0 0 0.2rem', color:'#666', fontSize:'0.75rem'}}>Delivery (30%)</p>
+                    <p style={{margin:0, color:'#888'}}>₹{((t.price * (t.produce?.quantity || 0)) - Math.round((t.price * (t.produce?.quantity || 0)) * 0.40) - Math.round((t.price * (t.produce?.quantity || 0)) * 0.30)).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
               <button
                 onClick={() => handlePayment(t)}
                 style={styles.payBtn}
                 disabled={payingId === t._id}>
-                {payingId === t._id ? 'Processing...' : `Pay ₹${(t.price * (t.produce?.quantity || 0)).toLocaleString()}`}
+                {payingId === t._id ? 'Processing...' : `Pay Booking ₹${Math.round((t.price * (t.produce?.quantity || 0)) * 0.40).toLocaleString()}`}
               </button>
             </div>
           ))}
@@ -159,5 +177,7 @@ const styles = {
   priceLabel: { color:'#61726a', fontSize:'0.75rem', margin:'0 0 0.25rem' },
   price: { color:'#27500A', fontWeight:'bold', fontSize:'1rem', margin:0 },
   totalPrice: { color:'#27500A', fontWeight:'bold', fontSize:'1.1rem', margin:0 },
+  milestoneBox: { background:'#f8faf7', padding:'0.85rem', borderRadius:'10px', border:'1px solid #dbe5d8', margin:'1rem 0' },
+  milestoneItem: { background:'#fff', padding:'0.5rem', borderRadius:'8px', border:'1px solid #e5e5e5', textAlign:'center' },
   payBtn: { width:'100%', padding:'0.78rem', background:'#27500A', color:'white', border:'none', borderRadius:'10px', fontSize:'0.97rem', cursor:'pointer', fontWeight:'700' }
 };

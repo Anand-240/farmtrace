@@ -263,6 +263,9 @@ export default function Dashboard() {
             Dispatch & Delivery
           </button>
         )}
+        <button onClick={() => navigate('/escrow')} className="btn btn-solid btn-escrow">
+          Milestone Payments
+        </button>
         {user.role === 'FARMER' && (
           <button onClick={() => navigate('/ai')} className="btn btn-solid btn-ai">
             {t('dash_action_ai')}
