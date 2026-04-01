@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import { useNotification } from '../context/NotificationContext';
 
 export default function Transfer() {
+  const { showNotification } = useNotification();
   const [produceId, setProduceId] = useState('');
   const [produce, setProduce] = useState(null);
 
@@ -130,6 +132,7 @@ export default function Transfer() {
         transferType: form.transferType
       });
       setResult(res.data);
+      showNotification(`Zabardast! Aapki Transfer Request ${form.toEmail} ko bhej di gayi hai.`, { title: 'WhatsApp Update', type: 'whatsapp' });
     } catch (err) {
       setError(err.response?.data?.message || 'Kuch galat hua');
     }

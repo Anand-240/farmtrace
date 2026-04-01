@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
+import { useNotification } from '../context/NotificationContext';
 import { Sprout, Truck, Coins, History, User, Layers, PackageCheck, ShieldCheck, Bot, LogOut, Sun, Cloud, CloudRain, Thermometer, Info } from 'lucide-react';
 import './Dashboard.css';
 
@@ -16,6 +17,7 @@ const SORT_OPTIONS = [
 
 export default function Dashboard() {
   const { t } = useLanguage();
+  const { showNotification } = useNotification();
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -45,7 +47,18 @@ export default function Dashboard() {
           setPendingCount(pending.data.length);
         }
         const notifRes = await api.get('/api/payment/notifications');
-        setUnreadNotifs(notifRes.data.filter(n => !n.isRead).length);
+        const unreads = notifRes.data.filter(n => !n.isRead);
+        setUnreadNotifs(unreads.length);
+
+        if (unreads.length > 0) {
+          setTimeout(() => {
+            showNotification(`Hello ${user.name}, aapke paas ${unreads.length} naye updates hain! Kripya apne History page pe check karein.`, {
+              title: 'FarmTrace SMS',
+              type: 'sms',
+              duration: 7000
+            });
+          }, 1500);
+        }
       } catch (err) {
         console.error(err);
       } finally {
