@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
-import { Sprout, Truck, Coins, History, User, Layers, PackageCheck, ShieldCheck, Bot, LogOut } from 'lucide-react';
+import { Sprout, Truck, Coins, History, User, Layers, PackageCheck, ShieldCheck, Bot, LogOut, Sun, Cloud, CloudRain, Thermometer, Info } from 'lucide-react';
 import './Dashboard.css';
 
 const SORT_OPTIONS = [
@@ -54,6 +54,55 @@ export default function Dashboard() {
     };
     fetchData();
   }, [user.role]);
+
+  const [weather, setWeather] = useState(null);
+  const [mandiRates, setMandiRates] = useState([]);
+
+  useEffect(() => {
+    const loadWidgets = async () => {
+      // 1. Weather
+      try {
+        const city = user.city || 'Bhopal';
+        const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
+        const geoData = await geoRes.json();
+        
+        if (geoData.results && geoData.results.length > 0) {
+          const { latitude, longitude, name } = geoData.results[0];
+          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+          const weatherData = await weatherRes.json();
+          setWeather({
+            temp: weatherData.current_weather.temperature,
+            windspeed: weatherData.current_weather.windspeed,
+            code: weatherData.current_weather.weathercode,
+            location: name
+          });
+        }
+      } catch (err) {
+        console.error('Weather error:', err);
+      }
+
+      // 2. Mandi Rates (Data.gov.in API)
+      try {
+        const apiKey = process.env.REACT_APP_DATA_GOV_API_KEY;
+        const stateQuery = user.state ? `&filters[state]=${encodeURIComponent(user.state)}` : '';
+        let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}`);
+        let mandiData = await mandiRes.json();
+        
+        if (!mandiData.records || mandiData.records.length === 0) {
+          // Fallback if no records in state
+          mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5`);
+          mandiData = await mandiRes.json();
+        }
+        
+        if (mandiData.records) {
+          setMandiRates(mandiData.records);
+        }
+      } catch (err) {
+        console.error("Mandi API Error:", err);
+      }
+    };
+    if (user.role === 'FARMER') loadWidgets();
+  }, [user.city, user.state, user.role]);
 
   const logout = () => {
     localStorage.clear();
@@ -296,6 +345,49 @@ export default function Dashboard() {
               <p className="dashboard-stat-value">{stat.value}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && user.role === 'FARMER' && (
+        <div className="dashboard-widgets-grid animate-slide-up">
+          <div className="widget-card weather-widget">
+            <h3 className="widget-header"><Thermometer size={20} /> Aaj Ka Mausam</h3>
+            {weather ? (
+              <>
+                <div className="weather-main">
+                  {weather.code > 50 ? <CloudRain size={42} /> : (weather.code > 1 ? <Cloud size={42} /> : <Sun size={42} />)}
+                  <span className="weather-temp">{weather.temp}°C</span>
+                </div>
+                <div className="weather-details">
+                  <p>Location: <strong>{weather.location}</strong></p>
+                  <p>Hawa: {weather.windspeed} km/h</p>
+                </div>
+              </>
+            ) : (
+              <p style={{ opacity: 0.8 }}>Mausam ki jaankari aa rahi hai...</p>
+            )}
+          </div>
+          
+          <div className="widget-card msp-widget">
+            <h3 className="widget-header"><Info size={20} /> Live Mandi Rates</h3>
+            {mandiRates.length > 0 ? (
+              <div className="msp-list">
+                 {mandiRates.map((record, i) => (
+                   <div key={i} className="msp-item" style={{display:'flex', flexDirection:'column', alignItems:'flex-start', gap:'0.2rem'}}>
+                     <div style={{display:'flex', justifyContent:'space-between', width:'100%'}}>
+                       <span className="msp-crop">{record.commodity}</span>
+                       <span className="msp-price">Rs {(record.modal_price / 100).toFixed(2)}/kg</span>
+                     </div>
+                     <span style={{fontSize:'0.8rem', color:'#8b6a36'}}>
+                       {record.market}, {record.state} (Rs {record.modal_price}/qtl)
+                     </span>
+                   </div>
+                 ))}
+              </div>
+            ) : (
+              <p style={{ opacity: 0.8 }}>Live rates load ho rahe hain...</p>
+            )}
+          </div>
         </div>
       )}
 

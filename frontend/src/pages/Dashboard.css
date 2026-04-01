@@ -255,6 +255,89 @@
   color: #2d3e34;
 }
 
+.dashboard-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.2rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.widget-card {
+  background: #ffffff;
+  border: 1px solid #dbe5d8;
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: var(--dash-shadow);
+}
+
+.weather-widget {
+  background: linear-gradient(135deg, #e4f2fc, #c5e3fa);
+  border-color: #9ccaf4;
+  color: #0d47a1;
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+}
+
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.weather-temp {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.weather-details p {
+  margin: 0.1rem 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.msp-widget {
+  background: linear-gradient(135deg, #fff8e8, #ffebc2);
+  border-color: #f7d896;
+  color: #a1640d;
+}
+
+.msp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.msp-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.65);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.msp-crop {
+  font-weight: 700;
+}
+
+.msp-price {
+  font-weight: 800;
+  color: #27500A;
+}
+
 .dashboard-clear-btn {
   background: #f2f7ef;
   border: 1px solid #d7e3d3;
