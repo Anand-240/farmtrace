@@ -225,7 +225,7 @@ router.post('/disease-detect', auth, upload.single('image'), async (req, res) =>
       return res.status(500).json({ message: 'GEMINI_API_KEY server par set nahi hai.' });
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
     const prompt = `You are an expert AI agricultural assistant for Indian farmers. 
 Analyze the provided image of a crop leaf.
