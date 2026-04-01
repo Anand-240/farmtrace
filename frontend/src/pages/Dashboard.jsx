@@ -66,7 +66,7 @@ export default function Dashboard() {
       }
     };
     fetchData();
-  }, [user.role]);
+  }, [user.role, user.name, showNotification]);
 
   const [weather, setWeather] = useState(null);
   const [mandiRates, setMandiRates] = useState([]);
