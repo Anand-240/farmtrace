@@ -25,6 +25,7 @@ export default function Transfer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [transferProduceDetails, setTransferProduceDetails] = useState(null);
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -117,6 +118,10 @@ export default function Transfer() {
         return;
       }
 
+      // First fetch the produce details for the lot being transferred
+      const produceRes = await api.get(`/api/produce/${transferLotId}`);
+      setTransferProduceDetails(produceRes.data);
+
       const res = await api.post('/api/payment/request', {
         produceMongoId: transferLotId,
         toEmail: form.toEmail,
@@ -133,8 +138,10 @@ export default function Transfer() {
   };
 
   if (result) {
-    const transferredLotCode = splitResult?.childLot?.lotCode || produce?.lotCode || 'N/A';
-    const transferredQty = splitResult?.childLot?.quantity ?? produce?.quantity ?? 'N/A';
+    // Use transferProduceDetails which has the ACTUAL quantity being transferred
+    const transferredLot = transferProduceDetails || produce;
+    const transferredLotCode = transferredLot?.lotCode || 'N/A';
+    const transferredQty = transferredLot?.quantity || 'N/A';
     const remainingQty = splitResult ? splitResult.remainingQty : 0;
 
     return (
@@ -142,12 +149,10 @@ export default function Transfer() {
         <div style={styles.card} className="animate-slide-up">
           <h2 style={{ color: '#27500A', textAlign: 'center' }}>Transfer Request Bheji Gayi!</h2>
           <div style={styles.successBox}>
-            <p style={styles.successText}>{produce?.cropType} - {produce?.origin}</p>
+            <p style={styles.successText}>{transferredLot?.cropType} - {transferredLot?.origin}</p>
             <p style={styles.successDetail}>Price: Rs {form.price}/kg</p>
             <p style={styles.successDetail}>Ko: {form.toEmail}</p>
-            {splitResult?.childLot && (
-              <p style={styles.successDetail}>Split Transfer Qty: {splitResult.childLot.quantity} kg</p>
-            )}
+            <p style={styles.successDetail}>Transfer Quantity: <strong>{transferredQty} kg</strong></p>
             <p style={styles.successDetail}>Jab woh payment karega tab blockchain pe transfer hoga</p>
           </div>
 
@@ -156,7 +161,9 @@ export default function Transfer() {
             <p style={styles.summaryRow}><strong>Transferred Lot ID:</strong> {transferLotId || 'N/A'}</p>
             <p style={styles.summaryRow}><strong>Transferred Lot Code:</strong> {transferredLotCode}</p>
             <p style={styles.summaryRow}><strong>Transferred Quantity:</strong> {transferredQty} kg</p>
-            <p style={styles.summaryRow}><strong>Remaining Quantity (source lot):</strong> {remainingQty} kg</p>
+            {remainingQty > 0 && (
+              <p style={styles.summaryRow}><strong>Remaining Quantity (source lot):</strong> {remainingQty} kg</p>
+            )}
           </div>
 
           <button onClick={() => navigate('/dashboard')} style={styles.button}>
