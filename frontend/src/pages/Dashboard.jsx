@@ -57,15 +57,14 @@ export default function Dashboard() {
 
   const [weather, setWeather] = useState(null);
   const [mandiRates, setMandiRates] = useState([]);
+  const [mandiLoading, setMandiLoading] = useState(false);
+  const [cropFilter, setCropFilter] = useState('');
 
   useEffect(() => {
-    const loadWidgets = async () => {
-      // 1. Weather
+    const fetchWeatherByCity = async (city) => {
       try {
-        const city = user.city || 'Bhopal';
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
         const geoData = await geoRes.json();
-        
         if (geoData.results && geoData.results.length > 0) {
           const { latitude, longitude, name } = geoData.results[0];
           const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
@@ -78,31 +77,81 @@ export default function Dashboard() {
           });
         }
       } catch (err) {
-        console.error('Weather error:', err);
+        console.error('Weather error fallback:', err);
       }
+    };
 
-      // 2. Mandi Rates (Data.gov.in API)
+    const loadWeather = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            try {
+              const { latitude, longitude } = position.coords;
+              const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+              const weatherData = await weatherRes.json();
+              
+              let locationName = "GPS Location";
+              try {
+                const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+                const titleData = await titleRes.json();
+                locationName = titleData.city || titleData.locality || "Live GPS Location";
+              } catch (e) {
+                console.error("Reverse geo error", e);
+              }
+
+              setWeather({
+                temp: weatherData.current_weather.temperature,
+                windspeed: weatherData.current_weather.windspeed,
+                code: weatherData.current_weather.weathercode,
+                location: `${locationName} 🎯`
+              });
+            } catch (err) {
+              console.error('Live Weather error:', err);
+              fetchWeatherByCity(user.city || 'Lucknow');
+            }
+          },
+          (error) => {
+            console.warn('GPS denied or failed, using profile city');
+            fetchWeatherByCity(user.city || 'Lucknow');
+          }
+        );
+      } else {
+        fetchWeatherByCity(user.city || 'Lucknow');
+      }
+    };
+
+    if (user.role === 'FARMER') loadWeather();
+  }, [user.city, user.role]);
+
+  useEffect(() => {
+    const loadMandi = async () => {
+      setMandiLoading(true);
       try {
         const apiKey = process.env.REACT_APP_DATA_GOV_API_KEY;
         const stateQuery = user.state ? `&filters[state]=${encodeURIComponent(user.state)}` : '';
-        let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}`);
+        const cropQuery = cropFilter ? `&filters[commodity]=${encodeURIComponent(cropFilter)}` : '';
+        
+        let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}${cropQuery}`);
         let mandiData = await mandiRes.json();
         
         if (!mandiData.records || mandiData.records.length === 0) {
-          // Fallback if no records in state
-          mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5`);
+          // Fallback globally without state filter
+          mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${cropQuery}`);
           mandiData = await mandiRes.json();
         }
         
         if (mandiData.records) {
           setMandiRates(mandiData.records);
+        } else {
+          setMandiRates([]);
         }
       } catch (err) {
         console.error("Mandi API Error:", err);
       }
+      setMandiLoading(false);
     };
-    if (user.role === 'FARMER') loadWidgets();
-  }, [user.city, user.state, user.role]);
+    if (user.role === 'FARMER') loadMandi();
+  }, [user.state, user.role, cropFilter]);
 
   const logout = () => {
     localStorage.clear();
@@ -368,9 +417,43 @@ export default function Dashboard() {
             )}
           </div>
           
-          <div className="widget-card msp-widget">
-            <h3 className="widget-header"><Info size={20} /> Live Mandi Rates</h3>
-            {mandiRates.length > 0 ? (
+          <div className="widget-card msp-widget" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
+              <h3 className="widget-header" style={{ margin:0 }}><Info size={20} /> Live Mandi Rates</h3>
+              <select 
+                value={cropFilter} 
+                onChange={(e) => setCropFilter(e.target.value)}
+                style={{
+                  padding: '0.38rem 0.5rem',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(161, 100, 13, 0.4)',
+                  background: 'rgba(255, 255, 255, 0.85)',
+                  color: '#a1640d',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Sabhi Fasalein</option>
+                <option value="Wheat">Gehu (Wheat)</option>
+                <option value="Paddy(Dhaan)(Common)">Dhaan (Paddy)</option>
+                <option value="Tomato">Tamatar (Tomato)</option>
+                <option value="Potato">Aloo (Potato)</option>
+                <option value="Onion">Pyaaz (Onion)</option>
+                <option value="Apple">Seb (Apple)</option>
+                <option value="Cotton">Kapas (Cotton)</option>
+                <option value="Soyabean">Soyabean</option>
+                <option value="Mustard">Sarson</option>
+                <option value="Bhindi(Ladies Finger)">Bhindi</option>
+              </select>
+            </div>
+
+            {mandiLoading ? (
+              <div style={{ display:'flex', flex:1, alignItems:'center', justifyContent:'center', opacity: 0.7, fontWeight:'600' }}>
+                Fasal ke aaj ke fresh rate aa rahe hain...
+              </div>
+            ) : mandiRates.length > 0 ? (
               <div className="msp-list">
                  {mandiRates.map((record, i) => (
                    <div key={i} className="msp-item" style={{display:'flex', flexDirection:'column', alignItems:'flex-start', gap:'0.2rem'}}>
@@ -385,7 +468,9 @@ export default function Dashboard() {
                  ))}
               </div>
             ) : (
-              <p style={{ opacity: 0.8 }}>Live rates load ho rahe hain...</p>
+              <div style={{ display:'flex', flex:1, alignItems:'center', justifyContent:'center', opacity: 0.7, fontWeight:'600' }}>
+                Khed hai, abhi is fasal ka aaj ka rate update nahi hua hai.
+              </div>
             )}
           </div>
         </div>
