@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
 
 const ACTION_OPTIONS = [
   { value: 'register', label: 'Nayi fasal register karo' },
-  { value: 'sell', label: 'Distributor ko becho' }
+  { value: 'sell', label: 'Distributor ko becho' },
+  { value: 'detect_disease', label: 'Fasal ki bimari pehchano (Photo)' }
 ];
 
 const CROP_OPTIONS = [
@@ -36,6 +37,7 @@ export default function AIAssistant() {
   const [form, setForm] = useState({});
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
   const produceOptions = useMemo(
     () => bootstrapData.produces.map((produce) => ({
@@ -138,6 +140,15 @@ export default function AIAssistant() {
       type: 'option',
       text: 'Kaunsi registered fasal distributor ko bhejni hai?',
       options: produceOptions
+    });
+  };
+
+  const startDiseaseDetectFlow = () => {
+    setFlow('detect_disease');
+    setPrompt({
+      key: 'uploadImage',
+      type: 'image',
+      text: 'Fasal ki bimari pehchanne ke liye kharab patte (leaf) ki saaf photo upload karein.'
     });
   };
 
@@ -295,6 +306,7 @@ export default function AIAssistant() {
     if (currentPrompt?.key === 'action') {
       if (option.value === 'register') startRegisterFlow();
       if (option.value === 'sell') startSellFlow();
+      if (option.value === 'detect_disease') startDiseaseDetectFlow();
       return;
     }
 
@@ -319,7 +331,8 @@ export default function AIAssistant() {
       const normalized = answer.toLowerCase();
       if (normalized.includes('register')) startRegisterFlow();
       else if (normalized.includes('bech') || normalized.includes('sell')) startSellFlow();
-      else pushAiMessage('Do options mein se chuno: nayi fasal register karni hai ya distributor ko bechna hai?');
+      else if (normalized.includes('bimari') || normalized.includes('disease') || normalized.includes('photo') || normalized.includes('pehchan')) startDiseaseDetectFlow();
+      else pushAiMessage('Teen options mein se chuno: nayi fasal register karni hai, distributor ko bechna hai, ya bimari pehchanni hai?');
       return;
     }
 
@@ -563,6 +576,59 @@ export default function AIAssistant() {
     }
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      pushAiMessage('Kripya sirf JPG, PNG ya WEBP photo upload karein.');
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setMessages((prev) => [...prev, { id: `${Date.now()}-${prev.length}`, role: 'user', type: 'image', imageUrl: objectUrl }]);
+
+    setSubmitting(true);
+    pushAiMessage('Photo check ki jaa rahi hai, thoda intezaar karein...');
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const res = await api.post('/api/ai/disease-detect', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const data = res.data.data;
+      const remedyHtml = `
+        <div style="font-family: inherit">
+          <strong>Bimari:</strong> <span style="color: #8B0000; font-weight: bold">${data.disease}</span><br/>
+          <strong>Gambhirta (Severity):</strong> ${data.severity}<br/><br/>
+          <strong>Upay (Remedies):</strong><br/>
+          ${data.remedies.map(r => `• ${r}`).join('<br/>')}<br/><br/>
+          <strong>Bachaav (Preventions):</strong><br/>
+          ${data.preventions.map(p => `• ${p}`).join('<br/>')}
+        </div>
+      `;
+
+      pushAiMessage(null, { html: remedyHtml });
+      setCurrentPrompt(null);
+      setFlow(null);
+      
+      setTimeout(() => {
+        pushAiMessage('Agar aap koi aur kaam karna chahte hain, toh kripya batayein.');
+        askAction();
+      }, 1500);
+
+    } catch (err) {
+      pushAiMessage(err.response?.data?.message || 'Bimari pehchanne mein dikkat aayi. Kripya baad mein try karein.');
+    } finally {
+      setSubmitting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const isNumericPrompt = currentPrompt?.type === 'number';
   const showTextInput = currentPrompt && !currentPrompt.options;
 
@@ -595,7 +661,13 @@ export default function AIAssistant() {
                 color: msg.role === 'user' ? 'white' : '#24331d'
               }}
             >
-              <p style={styles.bubbleText}>{msg.text}</p>
+              {msg.type === 'image' ? (
+                <img src={msg.imageUrl} alt="Uploaded leaf" style={styles.uploadedImg} />
+              ) : msg.html ? (
+                <div style={styles.bubbleText} dangerouslySetInnerHTML={{ __html: msg.html }} />
+              ) : (
+                <p style={styles.bubbleText}>{msg.text}</p>
+              )}
               {msg.options && currentPrompt?.key === msg.promptKey && (
                 <div style={styles.optionList}>
                   {msg.options.map((option) => (
@@ -660,7 +732,22 @@ export default function AIAssistant() {
 
       {!result && (
         <div style={styles.inputWrap}>
-          {showTextInput && (
+          {currentPrompt?.type === 'image' ? (
+            <div style={styles.uploadRow}>
+              <input 
+                type="file" 
+                accept="image/jpeg, image/png, image/webp" 
+                onChange={handleImageUpload} 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                id="disease-img-upload" 
+                disabled={submitting || loading} 
+              />
+              <label htmlFor="disease-img-upload" style={styles.uploadLabelBtn}>
+                📸 Photo Upload Karein
+              </label>
+            </div>
+          ) : showTextInput ? (
             <div style={styles.inputRow}>
               <input
                 style={styles.input}
@@ -679,7 +766,7 @@ export default function AIAssistant() {
                 Bhejo
               </button>
             </div>
-          )}
+          ) : null}
           {error && <p style={styles.error}>{error}</p>}
         </div>
       )}
@@ -715,5 +802,8 @@ const styles = {
   resultActions: { display: 'flex', gap: '0.7rem', flexWrap: 'wrap' },
   primaryBtn: { flex: 1, minWidth: '160px', padding: '0.78rem', background: '#27500A', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' },
   secondaryBtn: { flex: 1, minWidth: '160px', padding: '0.78rem', background: '#f2f7ef', color: '#27500A', border: '1px solid #d3dfd0', borderRadius: '10px', cursor: 'pointer', fontWeight: '700' },
-  error: { color: '#a12828', margin: '0.7rem 0 0', fontSize: '0.9rem' }
+  error: { color: '#a12828', margin: '0.7rem 0 0', fontSize: '0.9rem' },
+  uploadedImg: { maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', objectFit: 'contain' },
+  uploadRow: { display: 'flex', justifyContent: 'center', padding: '0.5rem 0' },
+  uploadLabelBtn: { padding: '0.8rem 1.5rem', background: '#27500A', color: 'white', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', transition: 'background-color 0.2s', width: 'fit-content', margin: '0 auto' }
 };

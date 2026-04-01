@@ -6,7 +6,15 @@ const Produce = require('../models/Produce');
 const User = require('../models/User');
 const Transfer = require('../models/Transfer');
 const Notification = require('../models/Notification');
+const multer = require('multer');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 async function buildFarmerGreeting(user, produceCount, distributorCount) {
@@ -204,6 +212,57 @@ router.post('/confirm-transfer', auth, async (req, res) => {
   } catch (err) {
     console.error('Confirm error:', err);
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/disease-detect', auth, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Koi image upload nahi hui.' });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ message: 'GEMINI_API_KEY server par set nahi hai.' });
+    }
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const prompt = `You are an expert AI agricultural assistant for Indian farmers. 
+Analyze the provided image of a crop leaf.
+Identify the disease, its severity, and provide practical home remedies and prevention steps.
+Write your answers in simple Hindi (Latin alphabet is fine, or simple Devanagari).
+Respond ONLY with this JSON structure:
+{
+  "disease": "name of the disease",
+  "severity": "Low, Medium, or High",
+  "remedies": ["remedy 1", "remedy 2"],
+  "preventions": ["prevention 1", "prevention 2"]
+}`;
+
+    const imageParts = [
+      {
+        inlineData: {
+          data: req.file.buffer.toString("base64"),
+          mimeType: req.file.mimetype
+        }
+      }
+    ];
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const responseText = result.response.text();
+    
+    // Clean potential markdown blocks
+    const cleanText = responseText.replace(/```json|```/g, '').trim();
+    const parsedData = JSON.parse(cleanText);
+
+    res.json({
+      success: true,
+      data: parsedData
+    });
+
+  } catch (err) {
+    console.error('Disease detection error:', err.message);
+    res.status(500).json({ message: 'Bimari pehchanne mein dikkat aayi.' });
   }
 });
 
