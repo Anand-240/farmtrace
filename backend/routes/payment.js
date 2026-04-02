@@ -263,8 +263,8 @@ router.post('/verify', auth, async (req, res) => {
       deliveryAmount,
       bookingPaid: true,
       bookingPaidAt: new Date(),
-      razorpayPaymentId,
-      razorpayOrderId,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
       status: 'ACTIVE'
     });
 
