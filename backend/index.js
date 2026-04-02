@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
 
 const app = express();
 let mongoState = 'connecting';
@@ -9,6 +12,16 @@ const allowedOrigins = (process.env.FRONTEND_URL || '')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
+
+// Security Middlewares
+app.use(helmet());
+app.use(mongoSanitize());
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later'
+});
+app.use('/api/', apiLimiter);
 
 app.use(cors({
   origin(origin, callback) {
