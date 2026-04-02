@@ -3,6 +3,50 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
 
+const compressImage = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const MAX_SIZE = 1200;
+        
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Canvas is empty'));
+          const compressedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          resolve(compressedFile);
+        }, 'image/jpeg', 0.8);
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 const ACTION_OPTIONS = [
   { value: 'register', label: 'Nayi fasal register karo' },
   { value: 'sell', label: 'Distributor ko becho' },
@@ -593,8 +637,17 @@ export default function AIAssistant() {
     pushAiMessage('Photo check ki jaa rahi hai, thoda intezaar karein...');
 
     try {
+      let finalFile = file;
+      if (file.size > 1024 * 1024) { // Compress if larger than 1MB
+        try {
+          finalFile = await compressImage(file);
+        } catch (e) {
+          console.error("Compression failed, using original file", e);
+        }
+      }
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', finalFile);
 
       const res = await api.post('/api/ai/disease-detect', formData);
 
