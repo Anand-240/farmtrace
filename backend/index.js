@@ -43,10 +43,13 @@ app.use('/api/', apiLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+let lastError = null;
+
 app.get('/health', (req, res) => {
   res.json({
     status: mongoose.connection.readyState === 1 ? 'ok' : 'error',
     database: mongoState,
+    error: lastError,
     time: new Date().toISOString()
   });
 });
@@ -75,9 +78,11 @@ app.listen(PORT, '0.0.0.0', () => {
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     mongoState = 'connected';
+    lastError = null;
     console.log('MongoDB Connected');
   })
   .catch(err => {
     mongoState = 'error';
+    lastError = err.message;
     console.error('MongoDB Connection Error:', err.message);
   });
