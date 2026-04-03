@@ -34,6 +34,7 @@ const loadGoogleScript = () => new Promise((resolve, reject) => {
 function GoogleSignInButton({ clientId, disabled, onCredential }) {
   const containerRef = useRef(null);
   const credentialHandlerRef = useRef(onCredential);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     credentialHandlerRef.current = onCredential;
@@ -52,14 +53,18 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
           return;
         }
 
-        google.accounts.id.initialize({
-          client_id: clientId,
-          callback: ({ credential }) => {
-            if (credential) {
-              credentialHandlerRef.current(credential);
+        
+        if (!isInitializedRef.current) {
+          google.accounts.id.initialize({
+            client_id: clientId,
+            callback: ({ credential }) => {
+              if (credential) {
+                credentialHandlerRef.current(credential);
+              }
             }
-          }
-        });
+          });
+          isInitializedRef.current = true;
+        }
 
         containerRef.current.innerHTML = '';
         google.accounts.id.renderButton(containerRef.current, {
