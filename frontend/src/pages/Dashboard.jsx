@@ -253,44 +253,37 @@ export default function Dashboard() {
       )}
 
       {/* ── STICKY HEADER ── */}
-      <div className="dashboard-header">
+      <header className="dashboard-header">
         <div className="dashboard-brand">
-          <div className="dashboard-brand-icon">🌾</div>
-          <div>
-            <h1 className="dashboard-title">FarmTrace</h1>
-            <p className="dashboard-welcome">
-              {user.name}
-              <span className="dashboard-role-badge" style={{ background: roleColor[user.role] || '#1a4a0f' }}>
-                {roleLabel}
-              </span>
-            </p>
-          </div>
+          <div className="dashboard-brand-icon">🌱</div>
+          <h1 className="dashboard-title">FarmTrace</h1>
+          <span className="dashboard-role-badge">{roleLabel}</span>
         </div>
         <div className="dashboard-header-actions">
           <LanguageToggle />
-          <button onClick={logout} className="btn-logout" title={t('dash_logout')}>
-            <LogOut size={16} />
-            <span className="logout-text">{t('dash_logout')}</span>
+          <button onClick={logout} className="btn-logout">
+            <LogOut size={18} />
+            <span className="logout-text">Logout</span>
           </button>
         </div>
-      </div>
+      </header>
 
       <div className="dash-inner">
-        {/* ── GREETING BANNER ── */}
-        <div className="dash-greeting ft-anim-slide-up">
-          <div className="dash-greeting-emoji">🌾</div>
-          <div className="dash-greeting-hello">स्वागत है 🙏</div>
-          <div className="dash-greeting-name">{user.name}</div>
-          <div className="dash-greeting-sub">
-            {user.role === 'FARMER' ? 'आपकी फसल की पूरी जानकारी यहाँ देखें' : 'प्राप्त उत्पाद की जानकारी'}
-          </div>
+        {/* ── GREETING HERO ── */}
+        <section className="dash-greeting ft-anim-slide-up">
+          <div className="dash-greeting-emoji">🌿</div>
+          <div className="dash-greeting-hello">NAMASTE 🙏</div>
+          <h2 className="dash-greeting-name">{user.name}</h2>
+          <p className="dash-greeting-sub">
+            {user.role === 'FARMER' ? 'Your farm, verified on the blockchain. See your harvest details below.' : 'Track agricultural produce across the supply chain with immutable proof.'}
+          </p>
           <div className="dash-greeting-chips">
-            <span className="dash-chip">🌿 {roleLabel}</span>
+            <span className="dash-chip">Role: {roleLabel}</span>
             {user.city && <span className="dash-chip">📍 {user.city}</span>}
             {user.state && <span className="dash-chip">🗺️ {user.state}</span>}
-            <span className="dash-chip">📅 {new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+            <span className="dash-chip">📅 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
           </div>
-        </div>
+        </section>
 
         {/* ── QUICK ACTIONS ── */}
         <p className="dash-section-title">⚡ मुख्य कार्य</p>
@@ -354,9 +347,9 @@ export default function Dashboard() {
           <>
             <p className="dash-section-title">📊 आपका विवरण</p>
             <div className="dashboard-stats-grid">
-              {quickStats.map((stat) => (
-                <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`}>
-                  <div className="stat-icon-wrap">{stat.icon}</div>
+              {quickStats.map((stat, idx) => (
+                <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`} style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <span className="stat-icon-wrap">{stat.icon}</span>
                   <p className="dashboard-stat-label">{stat.label}</p>
                   <p className="dashboard-stat-value">{stat.value}</p>
                 </div>
@@ -473,22 +466,25 @@ export default function Dashboard() {
             <div className="dashboard-grid">
               {/* FARMER — empty */}
               {user.role === 'FARMER' && myProduces.length === 0 && (
-                <div className="dashboard-empty">
+                <div className="dashboard-empty ft-anim-slide-up">
                   <div className="dashboard-empty-icon">🌱</div>
-                  <p>{t('dash_empty_farmer')}</p>
-                  <p className="dashboard-empty-sub">{t('dash_empty_farmer_sub')}</p>
+                  <h3>No Produce Registered</h3>
+                  <p className="dashboard-empty-sub">Your harvest is the heart of the supply chain. Start by registering your first batch.</p>
                   <button onClick={() => navigate('/register-produce')} className="dashboard-empty-cta dashboard-empty-cta-farmer">
-                    <Sprout size={18} /> {t('dash_empty_register_cta')}
+                    <Sprout size={20} /> Register Your Harvest
                   </button>
                 </div>
               )}
               {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
-                <div className="dashboard-empty"><p>🔍 {t('dash_empty_filter')}</p></div>
+                <div className="dashboard-empty">
+                  <h3>🔍 No matches found</h3>
+                  <p>Try adjusting your search or filters.</p>
+                </div>
               )}
 
               {/* FARMER — cards */}
               {user.role === 'FARMER' && filteredList.map((p, idx) => (
-                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-card-header">
                     <h3 className="produce-name">
                       <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
@@ -498,39 +494,37 @@ export default function Dashboard() {
                       {p.blockchainStatus === 'CONFIRMED' ? '✓ Verified' : '⏳ Pending'}
                     </span>
                   </div>
+                  
                   <div className="produce-details">
                     <div className="produce-detail">
-                      <span className="detail-label">Mool (Origin)</span>
+                      <span className="detail-label">Origin</span>
                       <span className="detail-val">📍 {p.origin}</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Maatra (Qty)</span>
+                      <span className="detail-label">Quantity</span>
                       <span className="detail-val">⚖️ {p.quantity} kg</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Grade</span>
+                      <span className="detail-label">Quality</span>
                       <span className="detail-val">🏅 {p.qualityGrade}</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Tarikh</span>
-                      <span className="detail-val">📅 {new Date(p.createdAt).toLocaleDateString('hi-IN')}</span>
+                      <span className="detail-label">Date</span>
+                      <span className="detail-val">📅 {new Date(p.createdAt).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  <p className="produce-price">₹{p.farmPrice}/kg</p>
+
+                  <div className="produce-price">₹{p.farmPrice}<small>/kg</small></div>
+
                   <div className="produce-actions">
-                    <button onClick={() => showQR(p._id)} className="btn btn-full btn-action-primary">
-                      <QrCode size={15} /> QR Code Dekho / Print Karo
+                    <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
+                      <QrCode size={18} /> QR & Traceability
                     </button>
-                    <button onClick={() => copyId(p._id)} className="btn btn-full btn-action-secondary">
-                      <Copy size={15} /> ID Copy Karo
+                    <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
+                      <Copy size={18} /> Copy ID
                     </button>
-                    {p.txHash && (
-                      <a href={`https://sepolia.etherscan.io/tx/${p.txHash}`} target="_blank" rel="noreferrer" className="chain-link btn-full">
-                        <Link size={13} /> Blockchain pe Dekho →
-                      </a>
-                    )}
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-full btn-verify">
-                      <Eye size={15} /> Poori Journey Dekho
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
+                      <Eye size={18} /> View Journey
                     </button>
                   </div>
                 </div>
@@ -555,7 +549,7 @@ export default function Dashboard() {
 
               {/* DISTRIBUTOR/RETAILER — cards */}
               {user.role !== 'FARMER' && filteredList.map((p, idx) => (
-                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-card-header">
                     <h3 className="produce-name">
                       <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
@@ -563,43 +557,46 @@ export default function Dashboard() {
                     </h3>
                     <span className="status-badge status-received">📦 Received</span>
                   </div>
+
                   <div className="produce-details">
                     <div className="produce-detail">
-                      <span className="detail-label">Kisan</span>
-                      <span className="detail-val">👨‍🌾 {p.farmerName}</span>
+                      <span className="detail-label">Farmer</span>
+                      <span className="detail-val">{p.farmerName}</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Mool</span>
-                      <span className="detail-val">📍 {p.origin}</span>
+                      <span className="detail-label">Quantity</span>
+                      <span className="detail-val">{p.quantity} kg</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Maatra</span>
-                      <span className="detail-val">⚖️ {p.quantity} kg</span>
+                      <span className="detail-label">Origin</span>
+                      <span className="detail-val">{p.origin}</span>
                     </div>
                     <div className="produce-detail">
                       <span className="detail-label">Grade</span>
-                      <span className="detail-val">🏅 {p.qualityGrade}</span>
+                      <span className="detail-val">{p.qualityGrade}</span>
                     </div>
                   </div>
+
                   <div className="price-row">
                     <div>
                       <p className="price-label">Farm Price</p>
-                      <p className="farm-price">₹{p.farmPrice}/kg</p>
+                      <p className="farm-price">₹{p.farmPrice}</p>
                     </div>
                     <div className="price-right">
-                      <p className="price-label">Tumne diya</p>
-                      <p className="received-price">₹{p.receivedPrice}/kg</p>
+                      <p className="price-label">Batch Price</p>
+                      <p className="received-price">₹{p.receivedPrice || p.farmPrice}</p>
                     </div>
                   </div>
+
                   <div className="produce-actions">
-                    <button onClick={() => showQR(p._id)} className="btn btn-full btn-action-primary">
-                      <QrCode size={15} /> QR Code Dekho / Print Karo
+                    <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
+                      <QrCode size={18} /> Traceability QR
                     </button>
-                    <button onClick={() => copyId(p._id)} className="btn btn-full btn-action-secondary">
-                      <Copy size={15} /> ID Copy Karo
+                    <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
+                      <Copy size={18} /> Batch ID
                     </button>
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-full btn-verify">
-                      <Eye size={15} /> Poori Journey Dekho
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
+                      <Eye size={18} /> View Journey
                     </button>
                   </div>
                 </div>
