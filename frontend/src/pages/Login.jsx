@@ -7,6 +7,7 @@ import { useLanguage } from '../lib/language';
 import { User, Mail, MapPin, Phone, Lock, Hash, Activity, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
+let googleSignInInitialized = false;
 
 const loadGoogleScript = () => new Promise((resolve, reject) => {
   if (window.google?.accounts?.id) {
@@ -34,7 +35,6 @@ const loadGoogleScript = () => new Promise((resolve, reject) => {
 function GoogleSignInButton({ clientId, disabled, onCredential }) {
   const containerRef = useRef(null);
   const credentialHandlerRef = useRef(onCredential);
-  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     credentialHandlerRef.current = onCredential;
@@ -53,8 +53,7 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
           return;
         }
 
-        
-        if (!isInitializedRef.current) {
+        if (!googleSignInInitialized) {
           google.accounts.id.initialize({
             client_id: clientId,
             callback: ({ credential }) => {
@@ -63,7 +62,7 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
               }
             }
           });
-          isInitializedRef.current = true;
+          googleSignInInitialized = true;
         }
 
         containerRef.current.innerHTML = '';
@@ -97,6 +96,7 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
     />
   );
 }
+
 
 export default function Login() {
   const { t } = useLanguage();
