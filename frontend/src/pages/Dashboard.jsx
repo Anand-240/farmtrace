@@ -9,7 +9,9 @@ import {
   Sprout, Truck, Coins, History, User, Layers,
   PackageCheck, ShieldCheck, Bot, LogOut,
   Sun, Cloud, CloudRain, Thermometer, Info,
-  QrCode, Copy, Eye
+  QrCode, Copy, Eye,
+  Search, ChevronDown, ChevronUp, SlidersHorizontal, 
+  Filter, Calendar, ArrowUpDown, IndianRupee
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -55,6 +57,7 @@ export default function Dashboard() {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const navigate = useNavigate();
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
@@ -428,30 +431,99 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* ── FILTER SECTION ── */}
+        {/* ── SEARCH & FILTER SECTION ── */}
         {!loading && (
-          <div className="dashboard-filter-card">
+          <div className="dashboard-filter-card ft-anim-slide-up">
             <div className="dashboard-filter-top">
-              <p className="dashboard-filter-title">🔍 फ़िल्टर करें</p>
-              <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
-                ✕ Clear
+              <div className="search-container">
+                <Search className="search-icon" size={20} />
+                <input 
+                  className="dashboard-filter-input main-search" 
+                  placeholder={t('dash_filter_search_placeholder') || "Search crop, location, grade..."} 
+                  value={searchText} 
+                  onChange={(e) => setSearchText(e.target.value)} 
+                />
+              </div>
+              
+              <button 
+                className="filter-toggle-btn"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <SlidersHorizontal size={18} />
+                {isFilterOpen ? 'Hide Filters' : 'Advanced Filters'}
+                {isFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
+
+              {(searchText || statusFilter !== 'ALL' || dateFrom || dateTo || minPrice || maxPrice) && (
+                <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
+                  ✕ Reset
+                </button>
+              )}
             </div>
-            <div className="dashboard-filter-grid">
-              <input className="dashboard-filter-input" placeholder={t('dash_filter_search_placeholder')} value={searchText} onChange={(e) => setSearchText(e.target.value)} />
-              <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="ALL">{t('dash_filter_all_status')}</option>
-                <option value="VERIFIED">{t('dash_filter_verified')}</option>
-                <option value="PENDING">{t('dash_filter_pending')}</option>
-              </select>
-              <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
-              </select>
-              <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-              <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-              <input type="number" className="dashboard-filter-input" placeholder={t('dash_filter_min_price')} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-              <input type="number" className="dashboard-filter-input" placeholder={t('dash_filter_max_price')} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-            </div>
+
+            {isFilterOpen && (
+              <div className="advanced-filters-section ft-anim-slide-up">
+                {/* Status Filter */}
+                <div className="input-group">
+                  <label className="input-label">Produce Status</label>
+                  <div className="input-with-icon">
+                    <Filter className="input-field-icon" size={16} />
+                    <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                      <option value="ALL">Sabhi Status (All)</option>
+                      <option value="VERIFIED">Verified Only</option>
+                      <option value="PENDING">Pending Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Sort By */}
+                <div className="input-group">
+                  <label className="input-label">Sort Order</label>
+                  <div className="input-with-icon">
+                    <ArrowUpDown className="input-field-icon" size={16} />
+                    <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                      {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Date From */}
+                <div className="input-group">
+                  <label className="input-label">Date From</label>
+                  <div className="input-with-icon">
+                    <Calendar className="input-field-icon" size={16} />
+                    <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Date To */}
+                <div className="input-group">
+                  <label className="input-label">Date To</label>
+                  <div className="input-with-icon">
+                    <Calendar className="input-field-icon" size={16} />
+                    <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Price Min */}
+                <div className="input-group">
+                  <label className="input-label">Min Price</label>
+                  <div className="input-with-icon">
+                    <IndianRupee className="input-field-icon" size={16} />
+                    <input type="number" className="dashboard-filter-input" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+                  </div>
+                </div>
+
+                {/* Price Max */}
+                <div className="input-group">
+                  <label className="input-label">Max Price</label>
+                  <div className="input-with-icon">
+                    <IndianRupee className="input-field-icon" size={16} />
+                    <input type="number" className="dashboard-filter-input" placeholder="No limit" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
