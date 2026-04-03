@@ -3,8 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 let mongoState = 'connecting';
@@ -15,31 +15,20 @@ const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.
   .filter(Boolean);
 
 const corsOptions = {
-  origin(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (frontendURLs.includes(origin)) return callback(null, true);
-    return callback(null, true);
+  origin: function (origin, callback) {
+    if (!origin || frontendURLs.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
-  optionsSuccessStatus: 200,
-  preflightContinue: false,
-  maxAge: 86400
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 };
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  res.setHeader('Access-Control-Allow-Origin', origin || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(mongoSanitize());
@@ -47,7 +36,7 @@ app.use(mongoSanitize());
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later'
+  message: 'Too many requests'
 });
 app.use('/api/', apiLimiter);
 
@@ -55,12 +44,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get('/health', (req, res) => {
-  const isMongoConnected = mongoose.connection.readyState === 1;
-  res.status(isMongoConnected ? 200 : 503).json({
-    status: isMongoConnected ? 'ok' : 'degraded',
+  res.json({
+    status: mongoose.connection.readyState === 1 ? 'ok' : 'error',
     database: mongoState,
-    message: 'FarmTrace backend is running',
-    timestamp: new Date().toISOString()
+    time: new Date().toISOString()
   });
 });
 
@@ -70,33 +57,27 @@ app.use('/api/transfer', require('./routes/transfer'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/payment', require('./routes/payment'));
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found', path: req.path });
-});
+app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
-  res.status(err.status || 500).json({
+  console.error('SERVER ERROR:', err.stack);
+  res.status(500).json({
     error: err.message || 'Internal Server Error',
-    timestamp: new Date().toISOString()
+    stack: process.env.NODE_ENV === 'production' ? null : err.stack
   });
 });
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`FarmTrace Backend running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
-mongoose.connect(process.env.MONGO_URI, {
-  tls: true,
-  tlsAllowInvalidCertificates: true,
-  serverSelectionTimeoutMS: 10000,
-})
+mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     mongoState = 'connected';
-    console.log('MongoDB connected!');
+    console.log('MongoDB Connected');
   })
   .catch(err => {
-    mongoState = 'disconnected';
-    console.error('MongoDB error:', err.message);
+    mongoState = 'error';
+    console.error('MongoDB Connection Error:', err.message);
   });
