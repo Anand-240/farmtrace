@@ -558,13 +558,17 @@ export default function Dashboard() {
               {user.role === 'FARMER' && filteredList.map((p, idx) => (
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-card-header">
-                    <h3 className="produce-name">
-                      <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
-                      {p.cropType}
-                    </h3>
-                    <span className={`status-badge ${p.blockchainStatus === 'CONFIRMED' ? 'status-ok' : 'status-pending'}`}>
-                      {p.blockchainStatus === 'CONFIRMED' ? '✓ Verified' : '⏳ Pending'}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                      <div style={{ fontSize: '2.5rem', background: 'var(--p50)', borderRadius: '14px', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyCenter: 'center', boxShadow: 'inset 0 2px 4px var(--border-soft)' }}>
+                        {getCropEmoji(p.cropType)}
+                      </div>
+                      <div>
+                        <h3 className="produce-name" style={{ fontSize: '1.5rem' }}>{p.cropType}</h3>
+                        <span className={`status-badge ${p.blockchainStatus === 'CONFIRMED' ? 'status-ok' : 'status-pending'}`} style={{ marginTop: '0.35rem', display: 'inline-block' }}>
+                          {p.blockchainStatus === 'CONFIRMED' ? '✓ VERIFIED' : '⏳ PENDING'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="produce-details">
@@ -586,7 +590,10 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="produce-price">₹{p.farmPrice}<small>/kg</small></div>
+                  <div className="produce-price">
+                    <IndianRupee size={22} style={{ marginRight: '2px' }} />
+                    {p.farmPrice}<small style={{ fontSize: '1rem', opacity: 0.6 }}>/kg</small>
+                  </div>
 
                   <div className="produce-actions">
                     <button onClick={() => showQR(p._id)} className="btn btn-action-primary">

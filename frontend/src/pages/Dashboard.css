@@ -581,39 +581,80 @@
 }
 
 .detail-val {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-body);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
 }
 
 .produce-price {
-  font-size: 1.85rem;
-  font-weight: 850;
-  color: var(--p700);
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--p800);
+  margin-top: 0.5rem;
   margin-bottom: 1.5rem;
+  letter-spacing: -0.04em;
+}
+
+.produce-actions {
+  display: grid;
+  grid-template-areas: 
+    "primary primary"
+    "copy verify";
+  gap: 0.85rem;
+  margin-top: auto;
 }
 
 .btn {
-  padding: 0.85rem 1.5rem;
-  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
   transition: var(--transition-smooth);
+  border: 1.5px solid var(--border-soft);
+  box-shadow: var(--shadow-soft);
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text-main);
+  text-decoration: none;
 }
 
 .btn-action-primary {
+  grid-area: primary;
   background: var(--p800);
   color: #fff;
+  border: none;
+  font-size: 0.95rem;
+  padding: 1rem;
 }
 
 .btn-action-primary:hover {
   background: var(--p900);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-medium);
+}
+
+.btn-action-secondary {
+  grid-area: copy;
+  background: var(--p50);
+  color: var(--p800);
+  border-color: var(--p100);
+}
+
+.btn-verify {
+  grid-area: verify;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: var(--p900);
+  border-color: var(--p100);
+}
+
+.btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(6, 45, 25, 0.2);
+  box-shadow: var(--shadow-medium);
+  border-color: var(--p400);
 }
 
 
