@@ -9,7 +9,7 @@ import {
   Sprout, Truck, Coins, History, User, Layers,
   PackageCheck, ShieldCheck, Bot, LogOut,
   Sun, Cloud, CloudRain, Thermometer, Info,
-  QrCode, Copy, Link, Eye
+  QrCode, Copy, Eye
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -173,7 +173,7 @@ export default function Dashboard() {
     } catch (err) { alert('QR load nahi hua'); }
   };
 
-  const roleColor = { FARMER: '#1a4a0f', DISTRIBUTOR: '#0c4a6e', RETAILER: '#78350f' };
+
   const roleLabel = user.role || 'USER';
 
   const normalizeDate = (value) => {
