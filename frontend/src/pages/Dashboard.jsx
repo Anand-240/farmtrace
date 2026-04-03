@@ -5,15 +5,38 @@ import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
 import { useNotification } from '../context/NotificationContext';
-import { Sprout, Truck, Coins, History, User, Layers, PackageCheck, ShieldCheck, Bot, LogOut, Sun, Cloud, CloudRain, Thermometer, Info } from 'lucide-react';
+import {
+  Sprout, Truck, Coins, History, User, Layers,
+  PackageCheck, ShieldCheck, Bot, LogOut,
+  Sun, Cloud, CloudRain, Thermometer, Info,
+  QrCode, Copy, Link, Eye
+} from 'lucide-react';
 import './Dashboard.css';
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest' },
-  { value: 'oldest', label: 'Oldest' },
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
   { value: 'priceHigh', label: 'Highest Price' },
   { value: 'priceLow', label: 'Lowest Price' }
 ];
+
+const CROP_EMOJIS = {
+  wheat: '🌾', gehu: '🌾', rice: '🌾', dhaan: '🌾', paddy: '🌾',
+  tomato: '🍅', tamatar: '🍅',
+  potato: '🥔', aloo: '🥔',
+  onion: '🧅', pyaaz: '🧅',
+  apple: '🍎', seb: '🍎',
+  cotton: '🪴', kapas: '🪴',
+  mustard: '🌻', sarson: '🌻',
+  sugarcane: '🎋', ganna: '🎋',
+  corn: '🌽', maize: '🌽', makka: '🌽',
+  mango: '🥭', aam: '🥭',
+};
+
+function getCropEmoji(cropType = '') {
+  const key = cropType.toLowerCase().split(' ')[0];
+  return CROP_EMOJIS[key] || '🌱';
+}
 
 export default function Dashboard() {
   const { t } = useLanguage();
@@ -52,8 +75,8 @@ export default function Dashboard() {
 
         if (unreads.length > 0) {
           setTimeout(() => {
-            showNotification(`Hello ${user.name}, aapke paas ${unreads.length} naye updates hain! Kripya apne History page pe check karein.`, {
-              title: 'FarmTrace SMS',
+            showNotification(`Namaste ${user.name}, aapke paas ${unreads.length} naye updates hain!`, {
+              title: 'FarmTrace',
               type: 'sms',
               duration: 7000
             });
@@ -83,16 +106,9 @@ export default function Dashboard() {
           const { latitude, longitude, name } = geoData.results[0];
           const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
           const weatherData = await weatherRes.json();
-          setWeather({
-            temp: weatherData.current_weather.temperature,
-            windspeed: weatherData.current_weather.windspeed,
-            code: weatherData.current_weather.weathercode,
-            location: name
-          });
+          setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: name });
         }
-      } catch (err) {
-        console.error('Weather error fallback:', err);
-      }
+      } catch (err) { console.error('Weather error:', err); }
     };
 
     const loadWeather = () => {
@@ -103,38 +119,19 @@ export default function Dashboard() {
               const { latitude, longitude } = position.coords;
               const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
               const weatherData = await weatherRes.json();
-              
-              let locationName = "GPS Location";
+              let locationName = 'GPS Location';
               try {
                 const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                 const titleData = await titleRes.json();
-                locationName = titleData.city || titleData.locality || "Live GPS Location";
-                if (titleData.principalSubdivision) {
-                  setLiveState(titleData.principalSubdivision);
-                }
-              } catch (e) {
-                console.error("Reverse geo error", e);
-              }
-
-              setWeather({
-                temp: weatherData.current_weather.temperature,
-                windspeed: weatherData.current_weather.windspeed,
-                code: weatherData.current_weather.weathercode,
-                location: `${locationName} 🎯`
-              });
-            } catch (err) {
-              console.error('Live Weather error:', err);
-              fetchWeatherByCity(user.city || 'Lucknow');
-            }
+                locationName = titleData.city || titleData.locality || 'Live Location';
+                if (titleData.principalSubdivision) setLiveState(titleData.principalSubdivision);
+              } catch (e) {}
+              setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: `${locationName} 📍` });
+            } catch (err) { fetchWeatherByCity(user.city || 'Lucknow'); }
           },
-          (error) => {
-            console.warn('GPS denied or failed, using profile city');
-            fetchWeatherByCity(user.city || 'Lucknow');
-          }
+          () => fetchWeatherByCity(user.city || 'Lucknow')
         );
-      } else {
-        fetchWeatherByCity(user.city || 'Lucknow');
-      }
+      } else { fetchWeatherByCity(user.city || 'Lucknow'); }
     };
 
     if (user.role === 'FARMER') loadWeather();
@@ -148,51 +145,35 @@ export default function Dashboard() {
         const targetState = liveState || user.state;
         const stateQuery = targetState ? `&filters[state]=${encodeURIComponent(targetState)}` : '';
         const cropQuery = cropFilter ? `&filters[commodity]=${encodeURIComponent(cropFilter)}` : '';
-        
         let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}${cropQuery}`);
         let mandiData = await mandiRes.json();
-        
         if (!mandiData.records || mandiData.records.length === 0) {
-          // Fallback globally without state filter
           mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${cropQuery}`);
           mandiData = await mandiRes.json();
         }
-        
-        if (mandiData.records) {
-          setMandiRates(mandiData.records);
-        } else {
-          setMandiRates([]);
-        }
-      } catch (err) {
-        console.error("Mandi API Error:", err);
-      }
+        setMandiRates(mandiData.records || []);
+      } catch (err) { console.error('Mandi API Error:', err); }
       setMandiLoading(false);
     };
     if (user.role === 'FARMER') loadMandi();
   }, [user.state, user.role, cropFilter, liveState]);
 
-  const logout = () => {
-    localStorage.clear();
-    navigate('/login');
-  };
+  const logout = () => { localStorage.clear(); navigate('/login'); };
 
   const copyId = (id) => {
     navigator.clipboard.writeText(id);
-    alert('ID copy ho gayi!');
+    showNotification('ID copy ho gayi! ✅', { type: 'sms', duration: 2500 });
   };
 
   const showQR = async (produceId) => {
     try {
       const verifyUrl = `${window.location.origin}/verify/${produceId}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300 });
+      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 2 });
       setQrModal({ qr: qrDataUrl, url: verifyUrl });
-    } catch (err) {
-      alert('QR load nahi hua');
-    }
+    } catch (err) { alert('QR load nahi hua'); }
   };
 
-  const roleColor = { FARMER: '#27500A', DISTRIBUTOR: '#085041', RETAILER: '#854F0B' };
-
+  const roleColor = { FARMER: '#1a4a0f', DISTRIBUTOR: '#0c4a6e', RETAILER: '#78350f' };
   const roleLabel = user.role || 'USER';
 
   const normalizeDate = (value) => {
@@ -207,473 +188,419 @@ export default function Dashboard() {
   };
 
   const baseList = user.role === 'FARMER' ? myProduces : receivedProduces;
-
   const totalProduce = baseList.length;
-  const totalSales = baseList.reduce((sum, item) => {
-    const quantity = Number(item.quantity) || 0;
-    const price = getPrice(item);
-    return sum + (quantity * price);
-  }, 0);
+  const totalSales = baseList.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * getPrice(item)), 0);
 
   const quickStats = [
-    {
-      label: t('dash_stat_total_produce'),
-      value: totalProduce,
-      tone: 'produce'
-    },
-    {
-      label: t('dash_stat_pending_payments'),
-      value: pendingCount,
-      tone: 'payments'
-    },
-    {
-      label: t('dash_stat_unread'),
-      value: unreadNotifs,
-      tone: 'notifications'
-    },
-    {
-      label: t('dash_stat_total_sales'),
-      value: `Rs ${Math.round(totalSales).toLocaleString('en-IN')}`,
-      tone: 'sales'
-    }
+    { label: t('dash_stat_total_produce'), value: totalProduce, tone: 'produce', icon: '🌾' },
+    { label: t('dash_stat_pending_payments'), value: pendingCount, tone: 'payments', icon: '💰' },
+    { label: t('dash_stat_unread'), value: unreadNotifs, tone: 'notifications', icon: '🔔' },
+    { label: t('dash_stat_total_sales'), value: `₹${Math.round(totalSales).toLocaleString('en-IN')}`, tone: 'sales', icon: '📈' }
   ];
 
   const filteredList = baseList
     .filter((item) => {
       const searchValue = searchText.trim().toLowerCase();
-      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      if (searchValue && !searchableText.includes(searchValue)) {
-        return false;
-      }
-
+      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade].filter(Boolean).join(' ').toLowerCase();
+      if (searchValue && !searchableText.includes(searchValue)) return false;
       if (statusFilter !== 'ALL') {
         const statusValue = item.blockchainStatus === 'CONFIRMED' ? 'VERIFIED' : 'PENDING';
         if (statusValue !== statusFilter) return false;
       }
-
       const createdAtDate = normalizeDate(item.createdAt);
       const from = normalizeDate(dateFrom);
       const to = normalizeDate(dateTo);
-
-      if (from && (!createdAtDate || createdAtDate < from)) {
-        return false;
-      }
-
+      if (from && (!createdAtDate || createdAtDate < from)) return false;
       if (to) {
         const end = new Date(to);
         end.setHours(23, 59, 59, 999);
-        if (!createdAtDate || createdAtDate > end) {
-          return false;
-        }
+        if (!createdAtDate || createdAtDate > end) return false;
       }
-
       const price = getPrice(item);
       const min = minPrice === '' ? null : Number(minPrice);
       const max = maxPrice === '' ? null : Number(maxPrice);
-
-      if (min !== null && !Number.isNaN(min) && price < min) {
-        return false;
-      }
-
-      if (max !== null && !Number.isNaN(max) && price > max) {
-        return false;
-      }
-
+      if (min !== null && !Number.isNaN(min) && price < min) return false;
+      if (max !== null && !Number.isNaN(max) && price > max) return false;
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === 'oldest') {
-        return new Date(a.createdAt) - new Date(b.createdAt);
-      }
-
-      if (sortBy === 'priceHigh') {
-        return getPrice(b) - getPrice(a);
-      }
-
-      if (sortBy === 'priceLow') {
-        return getPrice(a) - getPrice(b);
-      }
-
+      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
+      if (sortBy === 'priceHigh') return getPrice(b) - getPrice(a);
+      if (sortBy === 'priceLow') return getPrice(a) - getPrice(b);
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
   const resetFilters = () => {
-    setSearchText('');
-    setStatusFilter('ALL');
-    setDateFrom('');
-    setDateTo('');
-    setMinPrice('');
-    setMaxPrice('');
-    setSortBy('newest');
+    setSearchText(''); setStatusFilter('ALL'); setDateFrom(''); setDateTo(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest');
   };
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-bg-orb dashboard-bg-orb-a" />
-      <div className="dashboard-bg-orb dashboard-bg-orb-b" />
-
+      {/* ── QR MODAL ── */}
       {qrModal && (
         <div className="dashboard-modal-overlay" onClick={() => setQrModal(null)}>
           <div className="dashboard-modal-card" onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📱</div>
             <h3 className="dashboard-modal-title">{t('dash_qr_title')}</h3>
             <p className="dashboard-modal-sub">{t('dash_qr_sub')}</p>
-            <img src={qrModal.qr} alt="QR Code"
-              className="dashboard-modal-qr" />
+            <img src={qrModal.qr} alt="QR Code" className="dashboard-modal-qr" />
             <p className="dashboard-modal-url">{qrModal.url}</p>
-            <button onClick={() => setQrModal(null)} className="btn btn-solid btn-full">
-              {t('dash_close')}
+            <button onClick={() => setQrModal(null)} className="btn btn-full btn-action-primary" style={{ borderRadius: '12px', padding: '0.75rem' }}>
+              ✕ Band Karo
             </button>
           </div>
         </div>
       )}
 
+      {/* ── STICKY HEADER ── */}
       <div className="dashboard-header">
-        <div>
-          <h1 className="dashboard-title">{t('dash_title')}</h1>
-          <p className="dashboard-welcome">
-            {t('dash_welcome')}, {user.name}
-            <span className="dashboard-role-badge" style={{ background: roleColor[user.role] || '#27500A' }}>
-              {roleLabel}
-            </span>
-          </p>
+        <div className="dashboard-brand">
+          <div className="dashboard-brand-icon">🌾</div>
+          <div>
+            <h1 className="dashboard-title">FarmTrace</h1>
+            <p className="dashboard-welcome">
+              {user.name}
+              <span className="dashboard-role-badge" style={{ background: roleColor[user.role] || '#1a4a0f' }}>
+                {roleLabel}
+              </span>
+            </p>
+          </div>
         </div>
         <div className="dashboard-header-actions">
           <LanguageToggle />
           <button onClick={logout} className="btn-logout" title={t('dash_logout')}>
-            <LogOut size={20} />
+            <LogOut size={16} />
             <span className="logout-text">{t('dash_logout')}</span>
           </button>
         </div>
       </div>
 
-      <div className="dashboard-actions-row">
-        {user.role === 'FARMER' && (
-          <button onClick={() => navigate('/register-produce')} className="action-card primary">
-            <Sprout className="action-card-icon" />
-            <span className="action-card-label">{t('dash_action_register')}</span>
-          </button>
-        )}
-        {user.role !== 'CONSUMER' && (
-          <button onClick={() => navigate('/transfer')} className="action-card">
-            <Truck className="action-card-icon" color="#0a5a79" />
-            <span className="action-card-label">{t('dash_action_transfer')}</span>
-          </button>
-        )}
-        {user.role !== 'FARMER' && (
-          <button onClick={() => navigate('/payment')} className="action-card">
-            <Coins className="action-card-icon" color="#914f18" />
+      <div className="dash-inner">
+        {/* ── GREETING BANNER ── */}
+        <div className="dash-greeting ft-anim-slide-up">
+          <div className="dash-greeting-hello">Namaste 🙏</div>
+          <div className="dash-greeting-name">{user.name}</div>
+          <div className="dash-greeting-sub">
+            {user.role === 'FARMER' ? 'Aaj apni fasal ki jaankari dekhen' : 'Aapki received produce ki jaankari'}
+          </div>
+        </div>
+
+        {/* ── QUICK ACTIONS ── */}
+        <p className="dash-section-title">⚡ Quick Actions</p>
+        <div className="dashboard-actions-row">
+          {user.role === 'FARMER' && (
+            <button onClick={() => navigate('/register-produce')} className="action-card primary">
+              <Sprout className="action-card-icon" />
+              <span className="action-card-label">{t('dash_action_register')}</span>
+            </button>
+          )}
+          {user.role !== 'CONSUMER' && (
+            <button onClick={() => navigate('/transfer')} className="action-card">
+              <Truck className="action-card-icon" color="#0369a1" />
+              <span className="action-card-label">{t('dash_action_transfer')}</span>
+            </button>
+          )}
+          {user.role !== 'FARMER' && (
+            <button onClick={() => navigate('/payment')} className="action-card">
+              <Coins className="action-card-icon" color="#d97706" />
+              <span className="action-card-label">
+                {t('dash_action_pending')}
+                {pendingCount > 0 && <span className="notif-badge">{pendingCount}</span>}
+              </span>
+            </button>
+          )}
+          <button onClick={() => navigate('/transactions')} className="action-card">
+            <History className="action-card-icon" color="#4f46e5" />
             <span className="action-card-label">
-              {t('dash_action_pending')} {pendingCount > 0 && `(${pendingCount})`}
+              {t('dash_action_history')}
+              {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
             </span>
           </button>
-        )}
-        <button onClick={() => navigate('/transactions')} className="action-card">
-          <History className="action-card-icon" color="#203f8f" />
-          <span className="action-card-label">
-            {t('dash_action_history')}
-            {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
-          </span>
-        </button>
-        <button onClick={() => navigate('/profile')} className="action-card">
-          <User className="action-card-icon" color="#425c4a" />
-          <span className="action-card-label">{t('dash_action_profile')}</span>
-        </button>
-        <button onClick={() => navigate('/lot-ops')} className="action-card">
-          <Layers className="action-card-icon" color="#5a3f86" />
-          <span className="action-card-label">Lot Split / Merge</span>
-        </button>
-        {user.role !== 'CONSUMER' && (
-          <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
-            <PackageCheck className="action-card-icon" color="#2d3f9e" />
-            <span className="action-card-label">Dispatch & Delivery</span>
+          <button onClick={() => navigate('/profile')} className="action-card">
+            <User className="action-card-icon" color="#0f766e" />
+            <span className="action-card-label">{t('dash_action_profile')}</span>
           </button>
-        )}
-        <button onClick={() => navigate('/escrow')} className="action-card">
-          <ShieldCheck className="action-card-icon" color="#f57c00" />
-          <span className="action-card-label">Milestone Payments</span>
-        </button>
-        {user.role === 'FARMER' && (
-          <button onClick={() => navigate('/ai')} className="action-card ai-card">
-            <Bot className="action-card-icon" color="#1d9e75" />
-            <span className="action-card-label">{t('dash_action_ai')}</span>
+          <button onClick={() => navigate('/lot-ops')} className="action-card">
+            <Layers className="action-card-icon" color="#7c3aed" />
+            <span className="action-card-label">Lot Split / Merge</span>
           </button>
+          {user.role !== 'CONSUMER' && (
+            <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
+              <PackageCheck className="action-card-icon" color="#1d4ed8" />
+              <span className="action-card-label">Dispatch</span>
+            </button>
+          )}
+          <button onClick={() => navigate('/escrow')} className="action-card">
+            <ShieldCheck className="action-card-icon" color="#ea580c" />
+            <span className="action-card-label">Milestone Pay</span>
+          </button>
+          {user.role === 'FARMER' && (
+            <button onClick={() => navigate('/ai')} className="action-card ai-card">
+              <Bot className="action-card-icon" color="#16a34a" />
+              <span className="action-card-label">{t('dash_action_ai')}</span>
+            </button>
+          )}
+        </div>
+
+        {/* ── STATS ── */}
+        {!loading && (
+          <>
+            <p className="dash-section-title">📊 Overview</p>
+            <div className="dashboard-stats-grid">
+              {quickStats.map((stat) => (
+                <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`}>
+                  <div className="stat-icon">{stat.icon}</div>
+                  <p className="dashboard-stat-label">{stat.label}</p>
+                  <p className="dashboard-stat-value">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* ── FARMER WIDGETS (Weather + Mandi) ── */}
+        {!loading && user.role === 'FARMER' && (
+          <>
+            <p className="dash-section-title">🌤 Live Info</p>
+            <div className="dashboard-widgets-grid ft-anim-slide-up">
+              {/* Weather */}
+              <div className="widget-card weather-widget">
+                <h3 className="widget-header"><Thermometer size={18} /> Aaj Ka Mausam</h3>
+                {weather ? (
+                  <>
+                    <div className="weather-main">
+                      {weather.code > 50 ? <CloudRain size={44} /> : (weather.code > 1 ? <Cloud size={44} /> : <Sun size={44} />)}
+                      <span className="weather-temp">{weather.temp}°C</span>
+                    </div>
+                    <div className="weather-details">
+                      <p>📍 <strong>{weather.location}</strong></p>
+                      <p>💨 Hawa: {weather.windspeed} km/h</p>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ opacity: 0.7, fontWeight: 600 }} className="ft-loading-pulse">Mausam aa raha hai...</p>
+                )}
+              </div>
+
+              {/* Mandi */}
+              <div className="widget-card msp-widget" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <h3 className="widget-header" style={{ margin: 0 }}><Info size={18} /> Live Mandi</h3>
+                  <select
+                    value={cropFilter}
+                    onChange={(e) => setCropFilter(e.target.value)}
+                    style={{ padding: '0.35rem 0.5rem', borderRadius: '8px', border: '1.5px solid #fcd34d', background: 'rgba(255,255,255,0.85)', color: '#78350f', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+                  >
+                    <option value="">Sabhi Fasalein</option>
+                    <option value="Wheat">🌾 Gehu (Wheat)</option>
+                    <option value="Paddy(Dhaan)(Common)">🌾 Dhaan (Paddy)</option>
+                    <option value="Tomato">🍅 Tamatar</option>
+                    <option value="Potato">🥔 Aloo</option>
+                    <option value="Onion">🧅 Pyaaz</option>
+                    <option value="Apple">🍎 Seb</option>
+                    <option value="Cotton">🪴 Kapas</option>
+                    <option value="Soyabean">🫛 Soyabean</option>
+                    <option value="Mustard">🌻 Sarson</option>
+                    <option value="Bhindi(Ladies Finger)">🥬 Bhindi</option>
+                  </select>
+                </div>
+                {mandiLoading ? (
+                  <p style={{ opacity: 0.7, fontWeight: 600, textAlign: 'center' }} className="ft-loading-pulse">Rate aa rahe hain...</p>
+                ) : mandiRates.length > 0 ? (
+                  <div className="msp-list">
+                    {mandiRates.map((record, i) => (
+                      <div key={i} className="msp-item">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                          <span className="msp-crop">{record.commodity}</span>
+                          <span className="msp-price">₹{(record.modal_price / 100).toFixed(2)}/kg</span>
+                        </div>
+                        <span style={{ fontSize: '0.76rem', color: '#92400e', marginTop: '0.2rem', display: 'block' }}>
+                          {record.market}, {record.state}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ opacity: 0.7, fontWeight: 600, textAlign: 'center' }}>Is fasal ka rate abhi nahi mila</p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ── FILTER SECTION ── */}
+        {!loading && (
+          <div className="dashboard-filter-card">
+            <div className="dashboard-filter-top">
+              <p className="dashboard-filter-title">🔍 Filter Karo</p>
+              <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
+                ✕ Clear
+              </button>
+            </div>
+            <div className="dashboard-filter-grid">
+              <input className="dashboard-filter-input" placeholder={t('dash_filter_search_placeholder')} value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+              <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="ALL">{t('dash_filter_all_status')}</option>
+                <option value="VERIFIED">{t('dash_filter_verified')}</option>
+                <option value="PENDING">{t('dash_filter_pending')}</option>
+              </select>
+              <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
+              </select>
+              <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input type="number" className="dashboard-filter-input" placeholder={t('dash_filter_min_price')} value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+              <input type="number" className="dashboard-filter-input" placeholder={t('dash_filter_max_price')} value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {/* ── PRODUCE LIST ── */}
+        {loading ? (
+          <p className="dashboard-loading ft-loading-pulse">🌱 {t('dash_loading')}</p>
+        ) : (
+          <>
+            <p className="dash-section-title">
+              {user.role === 'FARMER' ? '🌾 Meri Fasal' : '📦 Meri Received Produce'}
+            </p>
+            <div className="dashboard-grid">
+              {/* FARMER — empty */}
+              {user.role === 'FARMER' && myProduces.length === 0 && (
+                <div className="dashboard-empty">
+                  <div className="dashboard-empty-icon">🌱</div>
+                  <p>{t('dash_empty_farmer')}</p>
+                  <p className="dashboard-empty-sub">{t('dash_empty_farmer_sub')}</p>
+                  <button onClick={() => navigate('/register-produce')} className="dashboard-empty-cta dashboard-empty-cta-farmer">
+                    <Sprout size={18} /> {t('dash_empty_register_cta')}
+                  </button>
+                </div>
+              )}
+              {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
+                <div className="dashboard-empty"><p>🔍 {t('dash_empty_filter')}</p></div>
+              )}
+
+              {/* FARMER — cards */}
+              {user.role === 'FARMER' && filteredList.map((p, idx) => (
+                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+                  <div className="produce-card-header">
+                    <h3 className="produce-name">
+                      <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
+                      {p.cropType}
+                    </h3>
+                    <span className={`status-badge ${p.blockchainStatus === 'CONFIRMED' ? 'status-ok' : 'status-pending'}`}>
+                      {p.blockchainStatus === 'CONFIRMED' ? '✓ Verified' : '⏳ Pending'}
+                    </span>
+                  </div>
+                  <div className="produce-details">
+                    <div className="produce-detail">
+                      <span className="detail-label">Mool (Origin)</span>
+                      <span className="detail-val">📍 {p.origin}</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Maatra (Qty)</span>
+                      <span className="detail-val">⚖️ {p.quantity} kg</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Grade</span>
+                      <span className="detail-val">🏅 {p.qualityGrade}</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Tarikh</span>
+                      <span className="detail-val">📅 {new Date(p.createdAt).toLocaleDateString('hi-IN')}</span>
+                    </div>
+                  </div>
+                  <p className="produce-price">₹{p.farmPrice}/kg</p>
+                  <div className="produce-actions">
+                    <button onClick={() => showQR(p._id)} className="btn btn-full btn-action-primary">
+                      <QrCode size={15} /> QR Code Dekho / Print Karo
+                    </button>
+                    <button onClick={() => copyId(p._id)} className="btn btn-full btn-action-secondary">
+                      <Copy size={15} /> ID Copy Karo
+                    </button>
+                    {p.txHash && (
+                      <a href={`https://sepolia.etherscan.io/tx/${p.txHash}`} target="_blank" rel="noreferrer" className="chain-link btn-full">
+                        <Link size={13} /> Blockchain pe Dekho →
+                      </a>
+                    )}
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-full btn-verify">
+                      <Eye size={15} /> Poori Journey Dekho
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* DISTRIBUTOR/RETAILER — empty */}
+              {user.role !== 'FARMER' && receivedProduces.length === 0 && (
+                <div className="dashboard-empty">
+                  <div className="dashboard-empty-icon">📦</div>
+                  <p>{t('dash_empty_received')}</p>
+                  <p className="dashboard-empty-sub">{t('dash_empty_received_sub')}</p>
+                  {user.role !== 'CONSUMER' && (
+                    <button onClick={() => navigate('/transfer')} className="dashboard-empty-cta dashboard-empty-cta-transfer">
+                      <Truck size={18} /> {t('dash_empty_transfer_cta')}
+                    </button>
+                  )}
+                </div>
+              )}
+              {user.role !== 'FARMER' && receivedProduces.length > 0 && filteredList.length === 0 && (
+                <div className="dashboard-empty"><p>🔍 {t('dash_empty_filter')}</p></div>
+              )}
+
+              {/* DISTRIBUTOR/RETAILER — cards */}
+              {user.role !== 'FARMER' && filteredList.map((p, idx) => (
+                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.05}s` }}>
+                  <div className="produce-card-header">
+                    <h3 className="produce-name">
+                      <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
+                      {p.cropType}
+                    </h3>
+                    <span className="status-badge status-received">📦 Received</span>
+                  </div>
+                  <div className="produce-details">
+                    <div className="produce-detail">
+                      <span className="detail-label">Kisan</span>
+                      <span className="detail-val">👨‍🌾 {p.farmerName}</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Mool</span>
+                      <span className="detail-val">📍 {p.origin}</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Maatra</span>
+                      <span className="detail-val">⚖️ {p.quantity} kg</span>
+                    </div>
+                    <div className="produce-detail">
+                      <span className="detail-label">Grade</span>
+                      <span className="detail-val">🏅 {p.qualityGrade}</span>
+                    </div>
+                  </div>
+                  <div className="price-row">
+                    <div>
+                      <p className="price-label">Farm Price</p>
+                      <p className="farm-price">₹{p.farmPrice}/kg</p>
+                    </div>
+                    <div className="price-right">
+                      <p className="price-label">Tumne diya</p>
+                      <p className="received-price">₹{p.receivedPrice}/kg</p>
+                    </div>
+                  </div>
+                  <div className="produce-actions">
+                    <button onClick={() => showQR(p._id)} className="btn btn-full btn-action-primary">
+                      <QrCode size={15} /> QR Code Dekho / Print Karo
+                    </button>
+                    <button onClick={() => copyId(p._id)} className="btn btn-full btn-action-secondary">
+                      <Copy size={15} /> ID Copy Karo
+                    </button>
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-full btn-verify">
+                      <Eye size={15} /> Poori Journey Dekho
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
-
-      {!loading && (
-        <div className="dashboard-stats-grid">
-          {quickStats.map((stat) => (
-            <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`}>
-              <p className="dashboard-stat-label">{stat.label}</p>
-              <p className="dashboard-stat-value">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {!loading && user.role === 'FARMER' && (
-        <div className="dashboard-widgets-grid animate-slide-up">
-          <div className="widget-card weather-widget">
-            <h3 className="widget-header"><Thermometer size={20} /> Aaj Ka Mausam</h3>
-            {weather ? (
-              <>
-                <div className="weather-main">
-                  {weather.code > 50 ? <CloudRain size={42} /> : (weather.code > 1 ? <Cloud size={42} /> : <Sun size={42} />)}
-                  <span className="weather-temp">{weather.temp}°C</span>
-                </div>
-                <div className="weather-details">
-                  <p>Location: <strong>{weather.location}</strong></p>
-                  <p>Hawa: {weather.windspeed} km/h</p>
-                </div>
-              </>
-            ) : (
-              <p style={{ opacity: 0.8 }}>Mausam ki jaankari aa rahi hai...</p>
-            )}
-          </div>
-          
-          <div className="widget-card msp-widget" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem' }}>
-              <h3 className="widget-header" style={{ margin:0 }}><Info size={20} /> Live Mandi Rates</h3>
-              <select 
-                value={cropFilter} 
-                onChange={(e) => setCropFilter(e.target.value)}
-                style={{
-                  padding: '0.38rem 0.5rem',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(161, 100, 13, 0.4)',
-                  background: 'rgba(255, 255, 255, 0.85)',
-                  color: '#a1640d',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Sabhi Fasalein</option>
-                <option value="Wheat">Gehu (Wheat)</option>
-                <option value="Paddy(Dhaan)(Common)">Dhaan (Paddy)</option>
-                <option value="Tomato">Tamatar (Tomato)</option>
-                <option value="Potato">Aloo (Potato)</option>
-                <option value="Onion">Pyaaz (Onion)</option>
-                <option value="Apple">Seb (Apple)</option>
-                <option value="Cotton">Kapas (Cotton)</option>
-                <option value="Soyabean">Soyabean</option>
-                <option value="Mustard">Sarson</option>
-                <option value="Bhindi(Ladies Finger)">Bhindi</option>
-              </select>
-            </div>
-
-            {mandiLoading ? (
-              <div style={{ display:'flex', flex:1, alignItems:'center', justifyContent:'center', opacity: 0.7, fontWeight:'600' }}>
-                Fasal ke aaj ke fresh rate aa rahe hain...
-              </div>
-            ) : mandiRates.length > 0 ? (
-              <div className="msp-list">
-                 {mandiRates.map((record, i) => (
-                   <div key={i} className="msp-item" style={{display:'flex', flexDirection:'column', alignItems:'flex-start', gap:'0.2rem'}}>
-                     <div style={{display:'flex', justifyContent:'space-between', width:'100%'}}>
-                       <span className="msp-crop">{record.commodity}</span>
-                       <span className="msp-price">Rs {(record.modal_price / 100).toFixed(2)}/kg</span>
-                     </div>
-                     <span style={{fontSize:'0.8rem', color:'#8b6a36'}}>
-                       {record.market}, {record.state} (Rs {record.modal_price}/qtl)
-                     </span>
-                   </div>
-                 ))}
-              </div>
-            ) : (
-              <div style={{ display:'flex', flex:1, alignItems:'center', justifyContent:'center', opacity: 0.7, fontWeight:'600' }}>
-                Khed hai, abhi is fasal ka aaj ka rate update nahi hua hai.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {!loading && (
-        <div className="dashboard-filter-card">
-          <div className="dashboard-filter-top">
-            <h3 className="dashboard-filter-title">{t('dash_filter_title')}</h3>
-            <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
-              {t('dash_filter_clear')}
-            </button>
-          </div>
-
-          <div className="dashboard-filter-grid">
-            <input
-              className="dashboard-filter-input"
-              placeholder={t('dash_filter_search_placeholder')}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-
-            <select
-              className="dashboard-filter-input"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="ALL">{t('dash_filter_all_status')}</option>
-              <option value="VERIFIED">{t('dash_filter_verified')}</option>
-              <option value="PENDING">{t('dash_filter_pending')}</option>
-            </select>
-
-            <select
-              className="dashboard-filter-input"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-
-            <input
-              type="date"
-              className="dashboard-filter-input"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-
-            <input
-              type="date"
-              className="dashboard-filter-input"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-
-            <input
-              type="number"
-              className="dashboard-filter-input"
-              placeholder={t('dash_filter_min_price')}
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-            />
-
-            <input
-              type="number"
-              className="dashboard-filter-input"
-              placeholder={t('dash_filter_max_price')}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-            />
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <p className="dashboard-loading">{t('dash_loading')}</p>
-      ) : (
-        <div className="dashboard-grid">
-
-          {user.role === 'FARMER' && myProduces.length === 0 && (
-            <div className="dashboard-empty">
-              <p>{t('dash_empty_farmer')}</p>
-              <p className="dashboard-empty-sub">
-                {t('dash_empty_farmer_sub')}
-              </p>
-              <button
-                onClick={() => navigate('/register-produce')}
-                className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-farmer"
-              >
-                {t('dash_empty_register_cta')}
-              </button>
-            </div>
-          )}
-
-          {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
-            <div className="dashboard-empty"><p>{t('dash_empty_filter')}</p></div>
-          )}
-
-          {user.role === 'FARMER' && filteredList.map(p => (
-            <div key={p._id} className="produce-card">
-              <div className="produce-card-header">
-                <h3 className="produce-name">{p.cropType}</h3>
-                <span className={`status-badge ${p.blockchainStatus === 'CONFIRMED' ? 'status-ok' : 'status-pending'}`}>
-                  {p.blockchainStatus === 'CONFIRMED' ? 'Verified' : 'Pending'}
-                </span>
-              </div>
-              <p className="produce-detail">Mool: {p.origin}</p>
-              <p className="produce-detail">Maatra: {p.quantity} kg</p>
-              <p className="produce-detail">Grade: {p.qualityGrade}</p>
-              <p className="produce-price">Rs {p.farmPrice}/kg</p>
-              <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                QR Code Dekho / Print Karo
-              </button>
-              <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
-                ID Copy Karo
-              </button>
-              {p.txHash && (
-                <a href={`https://sepolia.etherscan.io/tx/${p.txHash}`}
-                  target="_blank" rel="noreferrer" className="chain-link">
-                  Blockchain pe dekho →
-                </a>
-              )}
-              <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
-                Poori Journey Dekho
-              </button>
-            </div>
-          ))}
-
-          {user.role !== 'FARMER' && receivedProduces.length === 0 && (
-            <div className="dashboard-empty">
-              <p>{t('dash_empty_received')}</p>
-              <p className="dashboard-empty-sub">
-                {t('dash_empty_received_sub')}
-              </p>
-              {user.role !== 'CONSUMER' && (
-                <button
-                  onClick={() => navigate('/transfer')}
-                  className="btn btn-solid dashboard-empty-cta dashboard-empty-cta-transfer"
-                >
-                  {t('dash_empty_transfer_cta')}
-                </button>
-              )}
-            </div>
-          )}
-
-          {user.role !== 'FARMER' && receivedProduces.length > 0 && filteredList.length === 0 && (
-            <div className="dashboard-empty"><p>{t('dash_empty_filter')}</p></div>
-          )}
-
-          {user.role !== 'FARMER' && filteredList.map(p => (
-            <div key={p._id} className="produce-card">
-              <div className="produce-card-header">
-                <h3 className="produce-name">{p.cropType}</h3>
-                <span className="status-badge status-received">
-                  Received
-                </span>
-              </div>
-              <p className="produce-detail">Kisan: {p.farmerName}</p>
-              <p className="produce-detail">Mool: {p.origin}</p>
-              <p className="produce-detail">Maatra: {p.quantity} kg</p>
-              <p className="produce-detail">Grade: {p.qualityGrade}</p>
-              <div className="price-row">
-                <div>
-                  <p className="price-label">Farm price</p>
-                  <p className="farm-price">Rs {p.farmPrice}/kg</p>
-                </div>
-                <div className="price-right">
-                  <p className="price-label">Tumne diya</p>
-                  <p className="received-price">Rs {p.receivedPrice}/kg</p>
-                </div>
-              </div>
-              <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                QR Code Dekho / Print Karo
-              </button>
-              <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
-                ID Copy Karo
-              </button>
-              <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
-                Poori Journey Dekho
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

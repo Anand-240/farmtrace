@@ -8,14 +8,12 @@ export default function Transfer() {
   const [produceId, setProduceId] = useState('');
   const [produce, setProduce] = useState(null);
 
-  // Split state
   const [showSplitForm, setShowSplitForm] = useState(false);
   const [splitQuantity, setSplitQuantity] = useState('');
   const [splitError, setSplitError] = useState('');
   const [splitLoading, setSplitLoading] = useState(false);
   const [splitResult, setSplitResult] = useState(null);
 
-  // Transfer form state
   const [form, setForm] = useState({
     toEmail: '',
     price: '',
@@ -23,7 +21,6 @@ export default function Transfer() {
     transferType: 'FARM_TO_DISTRIBUTOR'
   });
   const [transferLotId, setTransferLotId] = useState('');
-
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,91 +36,43 @@ export default function Transfer() {
   };
 
   const fetchProduce = async () => {
-    if (!produceId.trim()) {
-      setError('ID daalo pehle');
-      return;
-    }
-
+    if (!produceId.trim()) { setError('ID daalo pehle'); return; }
     try {
-      setError('');
-      setSplitError('');
-      setSplitResult(null);
-      setShowSplitForm(false);
-      setSplitQuantity('');
-      setTransferLotId('');
-
+      setError(''); setSplitError(''); setSplitResult(null); setShowSplitForm(false); setSplitQuantity(''); setTransferLotId('');
       const res = await api.get(`/api/produce/${produceId.trim()}`);
       setProduce(res.data);
       setTransferLotId(res.data._id);
-      setForm((prev) => ({
-        ...prev,
-        transferType: getDefaultTransferType(),
-        price: res.data.farmPrice || ''
-      }));
-    } catch (err) {
-      setError('Produce nahi mila — sahi ID daalo');
-    }
+      setForm((prev) => ({ ...prev, transferType: getDefaultTransferType(), price: res.data.farmPrice || '' }));
+    } catch (err) { setError('Produce nahi mila — sahi ID daalo'); }
   };
 
   const runSplit = async () => {
-    setError('');
-    setSplitError('');
-
+    setError(''); setSplitError('');
     const qty = Number(splitQuantity);
     const availableQty = Number(produce?.quantity || 0);
-
-    if (!Number.isFinite(qty) || qty <= 0) {
-      setSplitError('Valid split quantity daalo');
-      return;
-    }
-
-    // User requirement: split quantity transfer ho, baki source lot owner ke paas rahe.
-    if (qty >= availableQty) {
-      setSplitError(`Split quantity ${availableQty} kg se kam honi chahiye`);
-      return;
-    }
-
+    if (!Number.isFinite(qty) || qty <= 0) { setSplitError('Valid split quantity daalo'); return; }
+    if (qty >= availableQty) { setSplitError(`Split quantity ${availableQty} kg se kam honi chahiye`); return; }
     setSplitLoading(true);
     try {
       const res = await api.post(`/api/produce/${produce._id}/split`, { quantity: qty });
       const childLot = res.data.childLot || res.data.childLots?.[0];
-
-      if (!childLot?._id) {
-        throw new Error('Child lot create nahi hua');
-      }
-
+      if (!childLot?._id) throw new Error('Child lot create nahi hua');
       setSplitResult(res.data);
       setSplitQuantity('');
       setTransferLotId(childLot._id);
-
-      setProduce((prev) => ({
-        ...prev,
-        quantity: res.data.remainingQty,
-        childLots: [...(prev.childLots || []), childLot._id]
-      }));
+      setProduce((prev) => ({ ...prev, quantity: res.data.remainingQty, childLots: [...(prev.childLots || []), childLot._id] }));
     } catch (err) {
       setSplitError(err.response?.data?.message || err.message || 'Split fail ho gaya');
-    } finally {
-      setSplitLoading(false);
-    }
+    } finally { setSplitLoading(false); }
   };
 
   const handleRequest = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
+    setLoading(true); setError('');
     try {
-      if (!transferLotId) {
-        setError('Transfer lot select nahi hua');
-        setLoading(false);
-        return;
-      }
-
-      // First fetch the produce details for the lot being transferred
+      if (!transferLotId) { setError('Transfer lot select nahi hua'); setLoading(false); return; }
       const produceRes = await api.get(`/api/produce/${transferLotId}`);
       setTransferProduceDetails(produceRes.data);
-
       const res = await api.post('/api/payment/request', {
         produceMongoId: transferLotId,
         toEmail: form.toEmail,
@@ -132,344 +81,202 @@ export default function Transfer() {
         transferType: form.transferType
       });
       setResult(res.data);
-      showNotification(`Zabardast! Aapki Transfer Request ${form.toEmail} ko bhej di gayi hai.`, { title: 'WhatsApp Update', type: 'whatsapp' });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Kuch galat hua');
-    }
-
+      showNotification(`Zabardast! Transfer Request ${form.toEmail} ko bhej di gayi hai.`, { title: 'FarmTrace', type: 'whatsapp' });
+    } catch (err) { setError(err.response?.data?.message || 'Kuch galat hua'); }
     setLoading(false);
   };
 
   if (result) {
-    // Use transferProduceDetails which has the ACTUAL quantity being transferred
     const transferredLot = transferProduceDetails || produce;
     const transferredLotCode = transferredLot?.lotCode || 'N/A';
     const transferredQty = transferredLot?.quantity || 'N/A';
     const remainingQty = splitResult ? splitResult.remainingQty : 0;
 
     return (
-      <div style={styles.container}>
-        <div style={styles.card} className="animate-slide-up">
-          <h2 style={{ color: '#27500A', textAlign: 'center' }}>Transfer Request Bheji Gayi!</h2>
-          <div style={styles.successBox}>
-            <p style={styles.successText}>{transferredLot?.cropType} - {transferredLot?.origin}</p>
-            <p style={styles.successDetail}>Price: Rs {form.price}/kg</p>
-            <p style={styles.successDetail}>Ko: {form.toEmail}</p>
-            <p style={styles.successDetail}>Transfer Quantity: <strong>{transferredQty} kg</strong></p>
-            <p style={styles.successDetail}>Jab woh payment karega tab blockchain pe transfer hoga</p>
+      <div style={s.page}>
+        <div style={s.topbar}>
+          <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+          <span style={s.topbarText}>🚛 Transfer Request</span>
+        </div>
+        <div style={s.inner}>
+          <div style={s.successCard}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🎉</div>
+            <h2 style={s.successTitle}>Transfer Request Bheji Gayi!</h2>
+            <div style={s.successInfo}>
+              <p>🌾 <strong>{transferredLot?.cropType}</strong> — {transferredLot?.origin}</p>
+              <p>💰 Price: ₹{form.price}/kg</p>
+              <p>📧 Ko: {form.toEmail}</p>
+              <p>⚖️ Transfer Quantity: <strong>{transferredQty} kg</strong></p>
+              <p style={{ fontSize: '0.85rem', color: '#5a7050', marginTop: '0.5rem' }}>Jab woh payment karega tab blockchain pe confirm hoga</p>
+            </div>
+            <div style={s.summaryBox}>
+              <p style={s.summaryTitle}>📋 Transfer Summary</p>
+              <p style={s.summaryRow}><strong>Lot ID:</strong> {transferLotId || 'N/A'}</p>
+              <p style={s.summaryRow}><strong>Lot Code:</strong> {transferredLotCode}</p>
+              <p style={s.summaryRow}><strong>Transferred Qty:</strong> {transferredQty} kg</p>
+              {remainingQty > 0 && <p style={s.summaryRow}><strong>Remaining Qty:</strong> {remainingQty} kg</p>}
+            </div>
+            <button onClick={() => navigate('/dashboard')} style={s.primaryBtn}>🏠 Dashboard pe Wapas Jao</button>
           </div>
-
-          <div style={styles.summaryCard}>
-            <h3 style={styles.summaryTitle}>Transfer Summary</h3>
-            <p style={styles.summaryRow}><strong>Transferred Lot ID:</strong> {transferLotId || 'N/A'}</p>
-            <p style={styles.summaryRow}><strong>Transferred Lot Code:</strong> {transferredLotCode}</p>
-            <p style={styles.summaryRow}><strong>Transferred Quantity:</strong> {transferredQty} kg</p>
-            {remainingQty > 0 && (
-              <p style={styles.summaryRow}><strong>Remaining Quantity (source lot):</strong> {remainingQty} kg</p>
-            )}
-          </div>
-
-          <button onClick={() => navigate('/dashboard')} style={styles.button}>
-            Dashboard pe Wapas Jao
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card} className="animate-slide-up">
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Wapas</button>
-        <h2 style={styles.title}>Transfer Request Bhejo</h2>
-        <p style={styles.roleText}>{user.name} ({user.role})</p>
+    <div style={s.page}>
+      <div style={s.topbar}>
+        <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+          <span style={{ fontSize: '1.2rem' }}>🚛</span>
+          <span style={s.topbarText}>Transfer Request Bhejo</span>
+        </div>
+        <span style={s.rolePill}>{user.role}</span>
+      </div>
 
+      <div style={s.inner}>
         {!produce ? (
-          <div>
-            <label style={styles.label}>Produce ID daalo</label>
+          <div style={s.card}>
+            <p style={s.sectionLabel}>🔍 Produce ID Daalo</p>
+            <p style={s.helpText}>Dashboard se apni fasal ki ID copy karke yahan paste karo</p>
+            <label style={s.label}>Produce ID</label>
             <input
-              style={styles.input}
-              placeholder="Dashboard se ID Copy Karo"
+              style={s.input}
+              placeholder="ID paste karo yahan..."
               value={produceId}
               onChange={(e) => setProduceId(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchProduce()}
             />
-            {error && <p style={styles.error}>{error}</p>}
-            <button onClick={fetchProduce} style={styles.button} disabled={!produceId.trim()}>
-              Produce Dhundo
+            {error && <div style={s.alertErr}>⚠️ {error}</div>}
+            <button onClick={fetchProduce} style={s.primaryBtn} disabled={!produceId.trim()}>
+              🔍 Produce Dhundo
             </button>
           </div>
         ) : (
-          <div>
-            <div style={styles.produceBox}>
-              <h3 style={styles.cropName}>{produce.cropType}</h3>
-              <p style={styles.detail}><strong>Lot Code:</strong> {produce.lotCode || 'N/A'}</p>
-              <p style={styles.detail}><strong>Total Quantity:</strong> {produce.quantity} kg</p>
-              <p style={styles.detail}><strong>Farmer:</strong> {produce.farmerName}</p>
-              <p style={styles.detail}><strong>Current Owner:</strong> {produce.currentOwner}</p>
-              <p style={styles.detail}><strong>Origin:</strong> {produce.origin}</p>
-              <p style={styles.detail}><strong>Grade:</strong> {produce.qualityGrade}</p>
-              <p style={styles.detail}><strong>Lot Status:</strong> {produce.lotStatus}</p>
-              <p style={styles.detail}><strong>Source Type:</strong> {produce.sourceType}</p>
-              <p style={styles.detail}><strong>Farm Price:</strong> Rs {produce.farmPrice}/kg</p>
+          <>
+            <div style={s.produceCard}>
+              <div style={s.produceHeader}>
+                <h3 style={s.cropName}>🌾 {produce.cropType}</h3>
+                <span style={s.gradeBadge}>Grade: {produce.qualityGrade}</span>
+              </div>
+              <div style={s.produceGrid}>
+                {[
+                  { label: 'Lot Code', val: produce.lotCode || 'N/A' },
+                  { label: 'Maatra', val: `${produce.quantity} kg` },
+                  { label: 'Kisan', val: produce.farmerName },
+                  { label: 'Mool', val: produce.origin },
+                  { label: 'Farm Price', val: `₹${produce.farmPrice}/kg` },
+                  { label: 'Status', val: produce.lotStatus },
+                ].map(({ label, val }) => (
+                  <div key={label} style={s.produceDetail}>
+                    <span style={s.detailLabel}>{label}</span>
+                    <span style={s.detailVal}>{val}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {error && <p style={styles.error}>{error}</p>}
-            {loading && <p style={styles.loadingText}>Request bheji ja rahi hai...</p>}
+            {error && <div style={s.alertErr}>⚠️ {error}</div>}
+            {loading && <div style={s.alertWarn}>⏳ Request bheji ja rahi hai...</div>}
 
-            <div style={styles.splitSection}>
+            <div style={s.card}>
               <button
                 type="button"
                 onClick={() => setShowSplitForm(!showSplitForm)}
-                style={{ ...styles.splitToggle, ...(showSplitForm ? { background: '#5a3f86', color: '#fff' } : {}) }}
+                style={{ ...s.splitToggle, background: showSplitForm ? '#7c3aed' : '#ede9fe', color: showSplitForm ? '#fff' : '#7c3aed' }}
               >
-                {showSplitForm ? 'Split form hide karo' : 'Split quantity dalni hai?'}
+                ✂️ {showSplitForm ? 'Split Form Band Karo' : 'Quantity Split Karni Hai?'}
               </button>
 
               {showSplitForm && (
-                <div style={styles.splitForm}>
-                  <p style={styles.splitDesc}>
-                    Ek quantity dalo. Utna lot split hoga aur utna hi transfer hoga. Baaki quantity aapke paas rahegi.
+                <div style={{ marginTop: '1rem' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#7c3aed', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                    Ek quantity dalo — utna lot split hoga aur transfer hoga. Baaki aapke paas rahegi.
                   </p>
-                  <label style={styles.label}>Split Quantity (kg)</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    placeholder="e.g. 40"
-                    value={splitQuantity}
-                    onChange={(e) => setSplitQuantity(e.target.value)}
-                  />
-                  {splitError && <p style={styles.error}>{splitError}</p>}
-                  <button
-                    type="button"
-                    onClick={runSplit}
-                    style={styles.splitBtn}
-                    disabled={splitLoading || !splitQuantity.trim()}
-                  >
-                    {splitLoading ? 'Split ho raha hai...' : 'Split karo'}
+                  <label style={s.label}>Split Quantity (kg)</label>
+                  <input style={s.input} type="number" min="0" step="0.001" placeholder="e.g. 40" value={splitQuantity} onChange={(e) => setSplitQuantity(e.target.value)} />
+                  {splitError && <div style={s.alertErr}>⚠️ {splitError}</div>}
+                  <button type="button" onClick={runSplit} style={{ ...s.primaryBtn, background: '#7c3aed' }} disabled={splitLoading || !splitQuantity.trim()}>
+                    {splitLoading ? '⏳ Split ho raha hai...' : '✂️ Split Karo'}
                   </button>
                 </div>
               )}
-
               {splitResult?.childLot && (
-                <div style={styles.splitSuccess}>
-                  <p style={styles.successMsg}>Split successful.</p>
-                  <p style={styles.successMsgSmall}>Transfer lot: {splitResult.childLot.lotCode} ({splitResult.childLot.quantity} kg)</p>
-                  <p style={styles.successMsgSmall}>Remaining source lot quantity: {splitResult.remainingQty} kg</p>
+                <div style={{ ...s.alertOk, marginTop: '0.75rem' }}>
+                  ✅ Split kaamyab! Transfer Lot: <strong>{splitResult.childLot.lotCode}</strong> ({splitResult.childLot.quantity} kg) | Remaining: {splitResult.remainingQty} kg
                 </div>
               )}
             </div>
 
-            <div style={styles.selectionBox}>
-              <p style={styles.selectionText}>Transfer ke liye selected lot ID: <strong>{transferLotId || 'N/A'}</strong></p>
-              {splitResult?.childLot && (
-                <p style={styles.selectionText}>Selected transfer quantity: <strong>{splitResult.childLot.quantity} kg</strong></p>
-              )}
+            <div style={{ ...s.card, background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+              <p style={{ fontSize: '0.85rem', color: '#0369a1', fontWeight: 600 }}>
+                📤 Transfer ke liye selected Lot ID: <strong>{transferLotId || 'N/A'}</strong>
+                {splitResult?.childLot && ` (${splitResult.childLot.quantity} kg)`}
+              </p>
             </div>
 
-            <form onSubmit={handleRequest}>
-              <label style={styles.label}>Transfer Type</label>
-              <select
-                style={styles.input}
-                value={form.transferType}
-                onChange={(e) => setForm({ ...form, transferType: e.target.value })}
-              >
-                {user.role === 'FARMER' && (
-                  <option value="FARM_TO_DISTRIBUTOR">Farmer to Distributor</option>
-                )}
-                {user.role === 'DISTRIBUTOR' && (
-                  <option value="DISTRIBUTOR_TO_RETAILER">Distributor to Retailer</option>
-                )}
-                {user.role === 'RETAILER' && (
-                  <option value="RETAILER_TO_CONSUMER">Retailer to Consumer</option>
-                )}
-              </select>
+            <div style={s.card}>
+              <p style={s.sectionLabel}>📝 Transfer Details</p>
+              <form onSubmit={handleRequest}>
+                <label style={s.label}>Transfer Type</label>
+                <select style={s.input} value={form.transferType} onChange={(e) => setForm({ ...form, transferType: e.target.value })}>
+                  {user.role === 'FARMER' && <option value="FARM_TO_DISTRIBUTOR">👨‍🌾 → 🚛 Farmer to Distributor</option>}
+                  {user.role === 'DISTRIBUTOR' && <option value="DISTRIBUTOR_TO_RETAILER">🚛 → 🏪 Distributor to Retailer</option>}
+                  {user.role === 'RETAILER' && <option value="RETAILER_TO_CONSUMER">🏪 → 👥 Retailer to Consumer</option>}
+                </select>
 
-              <label style={styles.label}>
-                {user.role === 'FARMER' ? 'Distributor' : user.role === 'DISTRIBUTOR' ? 'Retailer' : 'Consumer'} ka Email
-              </label>
-              <input
-                style={styles.input}
-                type="email"
-                placeholder="Email address"
-                value={form.toEmail}
-                onChange={(e) => setForm({ ...form, toEmail: e.target.value })}
-                required
-              />
+                <label style={s.label}>
+                  {user.role === 'FARMER' ? '🚛 Distributor' : user.role === 'DISTRIBUTOR' ? '🏪 Retailer' : '👥 Consumer'} ka Email
+                </label>
+                <input style={s.input} type="email" placeholder="Email address" value={form.toEmail} onChange={(e) => setForm({ ...form, toEmail: e.target.value })} required />
 
-              <label style={styles.label}>Aapka Price (Rs/kg)</label>
-              <input
-                style={styles.input}
-                type="number"
-                placeholder={user.role === 'FARMER' ? '22' : user.role === 'DISTRIBUTOR' ? '30' : '38'}
-                value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
-                required
-              />
+                <label style={s.label}>💰 Aapka Price (₹/kg)</label>
+                <input style={s.input} type="number" placeholder="Price per kg" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
 
-              <label style={styles.label}>Location</label>
-              <input
-                style={styles.input}
-                placeholder="Pune, Maharashtra"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                required
-              />
+                <label style={s.label}>📍 Location</label>
+                <input style={s.input} placeholder="Jaise: Pune, Maharashtra" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
 
-              <button type="submit" style={styles.button} disabled={loading}>
-                {loading ? 'Bheji ja rahi hai...' : 'Transfer Request Bhejo'}
-              </button>
-            </form>
-          </div>
+                <button type="submit" style={s.primaryBtn} disabled={loading}>
+                  {loading ? '⏳ Bheji ja rahi hai...' : '🚀 Transfer Request Bhejo'}
+                </button>
+              </form>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: 'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '1rem'
-  },
-  card: {
-    background: '#fff',
-    padding: '1.5rem',
-    borderRadius: '16px',
-    width: '100%',
-    maxWidth: '560px',
-    border: '1px solid #dbe5d8',
-    boxShadow: '0 10px 24px rgba(26, 44, 33, 0.09)'
-  },
-  title: { color: '#1f3320', marginBottom: '0.4rem' },
-  roleText: { color: '#5f7167', fontSize: '0.85rem', marginBottom: '1.2rem' },
-  label: { display: 'block', color: '#3f5346', marginBottom: '0.32rem', fontSize: '0.9rem', fontWeight: '700' },
-  input: {
-    width: '100%',
-    padding: '0.78rem 0.85rem',
-    marginBottom: '0.95rem',
-    border: '1px solid #d3dfd0',
-    borderRadius: '10px',
-    fontSize: '0.98rem',
-    boxSizing: 'border-box',
-    background: '#fbfdfb'
-  },
-  button: {
-    width: '100%',
-    padding: '0.8rem',
-    background: '#27500A',
-    color: 'white',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '0.98rem',
-    cursor: 'pointer',
-    marginTop: '0.4rem',
-    fontWeight: '700'
-  },
-  backBtn: { background: 'none', border: 'none', color: '#27500A', cursor: 'pointer', marginBottom: '1rem', fontSize: '0.9rem', padding: 0 },
-  error: {
-    color: '#a22929',
-    marginBottom: '1rem',
-    fontSize: '0.9rem',
-    background: '#fdecec',
-    border: '1px solid #f4cfcf',
-    borderRadius: '10px',
-    padding: '0.6rem 0.75rem'
-  },
-  loadingText: {
-    color: '#8b5318',
-    background: '#fff1df',
-    padding: '0.72rem',
-    borderRadius: '10px',
-    marginBottom: '1rem',
-    fontSize: '0.9rem'
-  },
-  produceBox: {
-    background: '#eef5e9',
-    padding: '0.95rem',
-    borderRadius: '10px',
-    marginBottom: '1.2rem',
-    border: '1px solid #dbe5d8'
-  },
-  cropName: { color: '#27500A', margin: '0 0 0.5rem' },
-  detail: { color: '#4f6057', fontSize: '0.9rem', margin: '0.2rem 0' },
-  splitSection: {
-    background: '#f9fcf7',
-    border: '2px solid #5a3f86',
-    borderRadius: '12px',
-    padding: '0.8rem',
-    marginBottom: '1rem'
-  },
-  splitToggle: {
-    width: '100%',
-    padding: '0.7rem',
-    background: '#e8dff5',
-    color: '#5a3f86',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '0.9rem'
-  },
-  splitForm: { marginTop: '0.8rem' },
-  splitDesc: { color: '#5a3f86', fontSize: '0.85rem', margin: '0 0 0.6rem' },
-  splitBtn: {
-    width: '100%',
-    padding: '0.7rem',
-    background: '#5a3f86',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '0.9rem'
-  },
-  splitSuccess: {
-    marginTop: '0.8rem',
-    background: '#e8f5e9',
-    border: '1px solid #27500A',
-    borderRadius: '8px',
-    padding: '0.7rem'
-  },
-  successMsg: { color: '#27500A', fontSize: '0.9rem', fontWeight: '600', margin: '0' },
-  successMsgSmall: { color: '#27500A', fontSize: '0.85rem', fontWeight: '500', margin: '0.3rem 0 0' },
-  selectionBox: {
-    marginBottom: '1rem',
-    background: '#f2f7ff',
-    border: '1px solid #cad9f4',
-    borderRadius: '10px',
-    padding: '0.7rem'
-  },
-  selectionText: { margin: '0.2rem 0', color: '#27406b', fontSize: '0.85rem' },
-  successBox: {
-    background: '#eef5e9',
-    padding: '1rem',
-    borderRadius: '10px',
-    margin: '1rem 0',
-    border: '1px solid #dbe5d8'
-  },
-  summaryCard: {
-    background: '#f2f7ff',
-    border: '1px solid #cad9f4',
-    borderRadius: '10px',
-    padding: '0.9rem',
-    marginBottom: '1rem'
-  },
-  summaryTitle: {
-    margin: '0 0 0.5rem',
-    color: '#27406b',
-    fontSize: '1rem'
-  },
-  summaryRow: {
-    margin: '0.3rem 0',
-    color: '#27406b',
-    fontSize: '0.9rem'
-  },
-  successText: { color: '#27500A', fontWeight: 'bold', margin: '0 0 0.5rem' },
-  successDetail: { color: '#4f6057', fontSize: '0.9rem', margin: '0.2rem 0' }
+const s = {
+  page: { minHeight: '100vh', background: 'linear-gradient(160deg, #f4f8f0 0%, #eef5e7 50%, #e8f0e0 100%)', fontFamily: "'Outfit', sans-serif" },
+  topbar: { position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #d4e4c8', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 2px 10px rgba(15,45,9,0.07)' },
+  backBtn: { width: 38, height: 38, borderRadius: 10, background: '#f3fae8', border: '1px solid #d4e4c8', color: '#27500a', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  topbarText: { fontWeight: 800, fontSize: '1.05rem', color: '#0f1f0d', flex: 1 },
+  rolePill: { background: '#1a4a0f', color: '#fff', borderRadius: 999, padding: '0.2rem 0.7rem', fontSize: '0.72rem', fontWeight: 800 },
+  inner: { maxWidth: 580, margin: '0 auto', padding: '1rem 1rem 3rem' },
+  card: { background: '#fff', borderRadius: 18, padding: '1.25rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)' },
+  sectionLabel: { fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#5a7050', marginBottom: '0.85rem' },
+  helpText: { fontSize: '0.88rem', color: '#5a7050', marginBottom: '0.85rem', lineHeight: 1.5 },
+  label: { display: 'block', color: '#2d4428', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem', marginTop: '0.6rem' },
+  input: { width: '100%', padding: '0.8rem 1rem', border: '1.5px solid #d4e4c8', borderRadius: 10, background: '#f3fae8', fontSize: '0.95rem', color: '#0f1f0d', outline: 'none', boxSizing: 'border-box', marginBottom: '0.1rem' },
+  primaryBtn: { width: '100%', padding: '0.9rem', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg, #27500a, #3a7510)', color: '#fff', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(39,80,10,0.3)', marginTop: '0.75rem', transition: 'all 0.2s' },
+  alertErr: { background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 10, padding: '0.7rem 0.9rem', fontWeight: 600, fontSize: '0.88rem', marginTop: '0.5rem' },
+  alertOk: { background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 10, padding: '0.7rem 0.9rem', fontWeight: 600, fontSize: '0.88rem' },
+  alertWarn: { background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', borderRadius: 10, padding: '0.7rem 0.9rem', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.88rem' },
+  produceCard: { background: '#fff', borderRadius: 18, padding: '1.25rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)' },
+  produceHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' },
+  cropName: { color: '#0f1f0d', fontWeight: 900, fontSize: '1.15rem', margin: 0 },
+  gradeBadge: { background: '#dcfce7', color: '#166534', borderRadius: 999, padding: '0.2rem 0.7rem', fontSize: '0.75rem', fontWeight: 800 },
+  produceGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', background: '#f3fae8', borderRadius: 12, padding: '0.85rem' },
+  produceDetail: { display: 'flex', flexDirection: 'column', gap: '0.1rem' },
+  detailLabel: { fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#5a7050', fontWeight: 700 },
+  detailVal: { fontSize: '0.88rem', fontWeight: 700, color: '#0f1f0d' },
+  splitToggle: { width: '100%', padding: '0.75rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', transition: 'all 0.2s' },
+  successCard: { background: '#fff', borderRadius: 20, padding: '2rem 1.5rem', textAlign: 'center', border: '1.5px solid #d4e4c8', boxShadow: '0 8px 28px rgba(15,45,9,0.12)' },
+  successTitle: { fontWeight: 900, fontSize: '1.3rem', color: '#0f1f0d', margin: '0 0 1rem' },
+  successInfo: { background: '#f3fae8', borderRadius: 14, padding: '1rem', textAlign: 'left', marginBottom: '1rem', lineHeight: 2, fontSize: '0.9rem', color: '#2d4428' },
+  summaryBox: { background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 12, padding: '1rem', textAlign: 'left', marginBottom: '1.25rem' },
+  summaryTitle: { fontWeight: 800, fontSize: '0.88rem', color: '#0369a1', marginBottom: '0.5rem' },
+  summaryRow: { fontSize: '0.85rem', color: '#0c4a6e', margin: '0.25rem 0' },
 };

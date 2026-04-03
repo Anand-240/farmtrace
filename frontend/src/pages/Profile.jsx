@@ -4,14 +4,8 @@ import api from '../lib/api';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: '',
-    phone: '',
-    village: '',
-    city: '',
-    state: '',
-    avatar: ''
-  });
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [form, setForm] = useState({ name: '', phone: '', village: '', city: '', state: '', avatar: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -22,113 +16,116 @@ export default function Profile() {
     const loadProfile = async () => {
       try {
         const res = await api.get('/api/auth/me');
-        const user = res.data.user || {};
-        setForm({
-          name: user.name || '',
-          phone: user.phone || '',
-          village: user.village || '',
-          city: user.city || '',
-          state: user.state || '',
-          avatar: user.avatar || ''
-        });
+        const u = res.data.user || {};
+        setForm({ name: u.name || '', phone: u.phone || '', village: u.village || '', city: u.city || '', state: u.state || '', avatar: u.avatar || '' });
       } catch (err) {
         setError(err.response?.data?.message || 'Profile load nahi hua');
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     };
-
     loadProfile();
   }, []);
 
   const updateField = (key, value) => {
-    if (key === 'avatar') {
-      setAvatarBroken(false);
-    }
+    if (key === 'avatar') setAvatarBroken(false);
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
-
+    setSaving(true); setError(''); setSuccess('');
     try {
       const res = await api.put('/api/auth/me', form);
       if (res.data?.token && res.data?.user) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
       }
-      setSuccess('Profile update ho gaya');
+      setSuccess('✅ Profile update ho gaya!');
     } catch (err) {
       setError(err.response?.data?.message || 'Profile update nahi hua');
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Dashboard</button>
-        <h2 style={styles.title}>Profile Edit</h2>
+  const roleColor = { FARMER: '#1a4a0f', DISTRIBUTOR: '#0c4a6e', RETAILER: '#78350f' };
+  const roleEmoji = { FARMER: '👨‍🌾', DISTRIBUTOR: '🚛', RETAILER: '🏪' };
 
+  return (
+    <div style={s.page}>
+      {/* TOP BAR */}
+      <div style={s.topbar}>
+        <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+          <span style={{ fontSize: '1.2rem' }}>👤</span>
+          <span style={s.topbarText}>Mera Profile</span>
+        </div>
+      </div>
+
+      <div style={s.inner}>
         {loading ? (
-          <p style={styles.loading}>Load ho raha hai...</p>
+          <div style={s.loadingWrap}><p style={s.loadingText}>Profile load ho raha hai...</p></div>
         ) : (
           <>
-            {error && <p style={styles.error}>{error}</p>}
-            {success && <p style={styles.success}>{success}</p>}
+            {/* AVATAR CARD */}
+            <div style={s.avatarCard}>
+              <div style={s.avatarCircle}>
+                {form.avatar && !avatarBroken ? (
+                  <img src={form.avatar} alt="Avatar" style={s.avatarImg} onError={() => setAvatarBroken(true)} />
+                ) : (
+                  <span style={{ fontSize: '2.8rem' }}>{roleEmoji[user.role] || '👤'}</span>
+                )}
+              </div>
+              <div>
+                <div style={s.avatarName}>{form.name || user.name}</div>
+                <div style={s.avatarEmail}>{user.email}</div>
+                <span style={{ ...s.roleBadge, background: roleColor[user.role] || '#1a4a0f' }}>
+                  {user.role}
+                </span>
+              </div>
+            </div>
 
-            <form onSubmit={handleSubmit}>
-              <label style={styles.label}>Name</label>
-              <input style={styles.input} value={form.name} onChange={(e) => updateField('name', e.target.value)} required />
+            {error && <div style={s.alertErr}>⚠️ {error}</div>}
+            {success && <div style={s.alertOk}>{success}</div>}
 
-              <label style={styles.label}>Phone</label>
-              <input
-                style={styles.input}
-                value={form.phone}
-                onChange={(e) => updateField('phone', e.target.value)}
-                placeholder="+91..."
-                maxLength={20}
-              />
+            {/* FORM CARD */}
+            <div style={s.formCard}>
+              <p style={s.sectionLabel}>✏️ Profile Edit Karo</p>
+              <form onSubmit={handleSubmit}>
+                {[
+                  { label: 'Aapka Naam', key: 'name', icon: '👤', placeholder: 'Jaise: Ram Singh' },
+                  { label: 'Phone Number', key: 'phone', icon: '📱', placeholder: '+91...' },
+                  { label: 'Village / Gaon', key: 'village', icon: '🏘️', placeholder: 'Aapka gaon' },
+                  { label: 'City / Shahar', key: 'city', icon: '🏙️', placeholder: 'Aapka shahar' },
+                  { label: 'State / Pradesh', key: 'state', icon: '📍', placeholder: 'Jaise: Uttar Pradesh' },
+                ].map(({ label, key, icon, placeholder }) => (
+                  <div key={key} style={s.fieldWrap}>
+                    <label style={s.label}>{icon} {label}</label>
+                    <input
+                      style={s.input}
+                      value={form[key]}
+                      onChange={(e) => updateField(key, e.target.value)}
+                      placeholder={placeholder}
+                    />
+                  </div>
+                ))}
 
-              <label style={styles.label}>Village</label>
-              <input style={styles.input} value={form.village} onChange={(e) => updateField('village', e.target.value)} />
-
-              <label style={styles.label}>City</label>
-              <input style={styles.input} value={form.city} onChange={(e) => updateField('city', e.target.value)} />
-
-              <label style={styles.label}>State</label>
-              <input style={styles.input} value={form.state} onChange={(e) => updateField('state', e.target.value)} />
-
-              <label style={styles.label}>Avatar URL</label>
-              <input style={styles.input} value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://..." />
-
-              {form.avatar && !avatarBroken && (
-                <div style={styles.avatarPreviewWrap}>
-                  <img
-                    src={form.avatar}
-                    alt="Avatar Preview"
-                    style={styles.avatarPreview}
-                    onError={() => setAvatarBroken(true)}
-                  />
+                <div style={s.fieldWrap}>
+                  <label style={s.label}>🖼️ Avatar URL (optional)</label>
+                  <input style={s.input} value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://..." />
+                  {form.avatar && avatarBroken && <p style={s.helperErr}>URL se image load nahi hui, sahi URL daalo</p>}
                 </div>
-              )}
 
-              {form.avatar && avatarBroken && (
-                <p style={styles.helperText}>Avatar URL valid image nahi lag raha, URL re-check karo.</p>
-              )}
+                <button type="submit" style={s.primaryBtn} disabled={saving}>
+                  {saving ? '⏳ Save ho raha hai...' : '💾 Profile Save Karo'}
+                </button>
+              </form>
+            </div>
 
-              <button type="submit" style={styles.primaryBtn} disabled={saving}>
-                {saving ? 'Save ho raha hai...' : 'Save Profile'}
+            {/* SECONDARY ACTIONS */}
+            <div style={s.formCard}>
+              <p style={s.sectionLabel}>🔐 Security</p>
+              <button onClick={() => navigate('/change-password')} style={s.secondaryBtn}>
+                🔑 Password Change Karo
               </button>
-            </form>
-
-            <button onClick={() => navigate('/change-password')} style={styles.secondaryBtn}>
-              Change Password
-            </button>
+            </div>
           </>
         )}
       </div>
@@ -136,95 +133,28 @@ export default function Profile() {
   );
 }
 
-const styles = {
-  page: {
-    minHeight: '100vh',
-    background: 'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '1rem'
-  },
-  card: {
-    width: '100%',
-    maxWidth: '500px',
-    background: '#fff',
-    border: '1px solid #dbe5d8',
-    borderRadius: '14px',
-    boxShadow: '0 10px 24px rgba(26, 44, 33, 0.09)',
-    padding: '1.2rem'
-  },
-  backBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#27500A',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-    padding: 0,
-    marginBottom: '0.8rem'
-  },
-  title: { margin: '0 0 1rem', color: '#1f3320' },
-  loading: { color: '#5f7167' },
-  label: { display: 'block', marginBottom: '0.3rem', color: '#3f5346', fontWeight: 700, fontSize: '0.9rem' },
-  input: {
-    width: '100%',
-    padding: '0.78rem 0.85rem',
-    marginBottom: '0.9rem',
-    border: '1px solid #d3dfd0',
-    borderRadius: '10px',
-    background: '#fbfdfb'
-  },
-  error: {
-    color: '#a22929',
-    background: '#fdecec',
-    border: '1px solid #f4cfcf',
-    borderRadius: '10px',
-    padding: '0.6rem 0.75rem'
-  },
-  success: {
-    color: '#27500A',
-    background: '#eef5e9',
-    border: '1px solid #dbe5d8',
-    borderRadius: '10px',
-    padding: '0.6rem 0.75rem'
-  },
-  primaryBtn: {
-    width: '100%',
-    padding: '0.8rem',
-    border: 'none',
-    borderRadius: '10px',
-    background: '#27500A',
-    color: '#fff',
-    fontWeight: 700,
-    cursor: 'pointer'
-  },
-  secondaryBtn: {
-    width: '100%',
-    marginTop: '0.6rem',
-    padding: '0.8rem',
-    border: '1px solid #d3dfd0',
-    borderRadius: '10px',
-    background: '#f2f7ef',
-    color: '#27500A',
-    fontWeight: 700,
-    cursor: 'pointer'
-  },
-  avatarPreviewWrap: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '0.9rem'
-  },
-  avatarPreview: {
-    width: '76px',
-    height: '76px',
-    borderRadius: '50%',
-    objectFit: 'cover',
-    border: '1px solid #d3dfd0'
-  },
-  helperText: {
-    marginTop: '-0.5rem',
-    marginBottom: '0.8rem',
-    color: '#8a5a11',
-    fontSize: '0.82rem'
-  }
+const s = {
+  page: { minHeight: '100vh', background: 'linear-gradient(160deg, #f4f8f0 0%, #eef5e7 50%, #e8f0e0 100%)', fontFamily: "'Outfit', sans-serif" },
+  topbar: { position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #d4e4c8', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 2px 10px rgba(15,45,9,0.07)' },
+  backBtn: { width: 38, height: 38, borderRadius: 10, background: '#f3fae8', border: '1px solid #d4e4c8', color: '#27500a', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  topbarText: { fontWeight: 800, fontSize: '1.05rem', color: '#0f1f0d' },
+  inner: { maxWidth: 560, margin: '0 auto', padding: '1rem 1rem 3rem' },
+  loadingWrap: { textAlign: 'center', marginTop: '4rem' },
+  loadingText: { color: '#5a7050', fontWeight: 600, fontSize: '1rem' },
+  avatarCard: { background: '#fff', borderRadius: 18, padding: '1.5rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)', display: 'flex', alignItems: 'center', gap: '1.25rem' },
+  avatarCircle: { width: 80, height: 80, borderRadius: '50%', background: '#f3fae8', border: '3px solid #d4e4c8', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+  avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  avatarName: { fontWeight: 900, fontSize: '1.2rem', color: '#0f1f0d', marginBottom: '0.25rem' },
+  avatarEmail: { fontSize: '0.82rem', color: '#5a7050', marginBottom: '0.4rem' },
+  roleBadge: { color: '#fff', borderRadius: 999, padding: '0.2rem 0.7rem', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' },
+  alertErr: { background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.85rem', fontWeight: 600, fontSize: '0.9rem' },
+  alertOk:  { background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.85rem', fontWeight: 600, fontSize: '0.9rem' },
+  formCard: { background: '#fff', borderRadius: 18, padding: '1.25rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)' },
+  sectionLabel: { fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#5a7050', marginBottom: '1rem' },
+  fieldWrap: { marginBottom: '0.85rem' },
+  label: { display: 'block', color: '#2d4428', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' },
+  input: { width: '100%', padding: '0.8rem 1rem', border: '1.5px solid #d4e4c8', borderRadius: 10, background: '#f3fae8', fontSize: '0.95rem', color: '#0f1f0d', outline: 'none', transition: 'all 0.2s', boxSizing: 'border-box' },
+  helperErr: { fontSize: '0.8rem', color: '#b45309', marginTop: '0.3rem', fontWeight: 600 },
+  primaryBtn: { width: '100%', padding: '0.9rem', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg, #27500a, #3a7510)', color: '#fff', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(39,80,10,0.3)', marginTop: '0.5rem', transition: 'all 0.2s' },
+  secondaryBtn: { width: '100%', padding: '0.85rem', border: '1.5px solid #d4e4c8', borderRadius: 12, background: '#f3fae8', color: '#27500a', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' },
 };
