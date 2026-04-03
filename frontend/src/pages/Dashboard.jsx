@@ -597,13 +597,13 @@ export default function Dashboard() {
 
                   <div className="produce-actions">
                     <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                      <QrCode size={18} /> QR & Traceability
+                      <QrCode size={20} strokeWidth={2.5} /> QR & Traceability
                     </button>
                     <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
                       <Copy size={18} /> Copy ID
                     </button>
                     <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
-                      <Eye size={18} /> View Journey
+                      <Eye size={18} /> Full History
                     </button>
                   </div>
                 </div>
@@ -669,13 +669,13 @@ export default function Dashboard() {
 
                   <div className="produce-actions">
                     <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                      <QrCode size={18} /> Traceability QR
+                      <QrCode size={20} strokeWidth={2.5} /> QR & Traceability
                     </button>
                     <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
-                      <Copy size={18} /> Batch ID
+                      <Copy size={18} /> Copy ID
                     </button>
                     <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
-                      <Eye size={18} /> View Journey
+                      <Eye size={18} /> Full History
                     </button>
                   </div>
                 </div>
