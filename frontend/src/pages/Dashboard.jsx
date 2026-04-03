@@ -278,15 +278,22 @@ export default function Dashboard() {
       <div className="dash-inner">
         {/* ── GREETING BANNER ── */}
         <div className="dash-greeting ft-anim-slide-up">
-          <div className="dash-greeting-hello">Namaste 🙏</div>
+          <div className="dash-greeting-emoji">🌾</div>
+          <div className="dash-greeting-hello">स्वागत है 🙏</div>
           <div className="dash-greeting-name">{user.name}</div>
           <div className="dash-greeting-sub">
-            {user.role === 'FARMER' ? 'Aaj apni fasal ki jaankari dekhen' : 'Aapki received produce ki jaankari'}
+            {user.role === 'FARMER' ? 'आपकी फसल की पूरी जानकारी यहाँ देखें' : 'प्राप्त उत्पाद की जानकारी'}
+          </div>
+          <div className="dash-greeting-chips">
+            <span className="dash-chip">🌿 {roleLabel}</span>
+            {user.city && <span className="dash-chip">📍 {user.city}</span>}
+            {user.state && <span className="dash-chip">🗺️ {user.state}</span>}
+            <span className="dash-chip">📅 {new Date().toLocaleDateString('hi-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
           </div>
         </div>
 
         {/* ── QUICK ACTIONS ── */}
-        <p className="dash-section-title">⚡ Quick Actions</p>
+        <p className="dash-section-title">⚡ मुख्य कार्य</p>
         <div className="dashboard-actions-row">
           {user.role === 'FARMER' && (
             <button onClick={() => navigate('/register-produce')} className="action-card primary">
@@ -345,11 +352,11 @@ export default function Dashboard() {
         {/* ── STATS ── */}
         {!loading && (
           <>
-            <p className="dash-section-title">📊 Overview</p>
+            <p className="dash-section-title">📊 आपका विवरण</p>
             <div className="dashboard-stats-grid">
               {quickStats.map((stat) => (
                 <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`}>
-                  <div className="stat-icon">{stat.icon}</div>
+                  <div className="stat-icon-wrap">{stat.icon}</div>
                   <p className="dashboard-stat-label">{stat.label}</p>
                   <p className="dashboard-stat-value">{stat.value}</p>
                 </div>
@@ -361,11 +368,11 @@ export default function Dashboard() {
         {/* ── FARMER WIDGETS (Weather + Mandi) ── */}
         {!loading && user.role === 'FARMER' && (
           <>
-            <p className="dash-section-title">🌤 Live Info</p>
+            <p className="dash-section-title">🌤️ लाइव जानकारी</p>
             <div className="dashboard-widgets-grid ft-anim-slide-up">
               {/* Weather */}
               <div className="widget-card weather-widget">
-                <h3 className="widget-header"><Thermometer size={18} /> Aaj Ka Mausam</h3>
+                <h3 className="widget-header"><Thermometer size={18} /> आज का तापमान</h3>
                 {weather ? (
                   <>
                     <div className="weather-main">
@@ -385,7 +392,7 @@ export default function Dashboard() {
               {/* Mandi */}
               <div className="widget-card msp-widget" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                  <h3 className="widget-header" style={{ margin: 0 }}><Info size={18} /> Live Mandi</h3>
+                  <h3 className="widget-header" style={{ margin: 0 }}><Info size={18} /> मंडी दर</h3>
                   <select
                     value={cropFilter}
                     onChange={(e) => setCropFilter(e.target.value)}
@@ -432,7 +439,7 @@ export default function Dashboard() {
         {!loading && (
           <div className="dashboard-filter-card">
             <div className="dashboard-filter-top">
-              <p className="dashboard-filter-title">🔍 Filter Karo</p>
+              <p className="dashboard-filter-title">🔍 फ़िल्टर करें</p>
               <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
                 ✕ Clear
               </button>
@@ -457,11 +464,11 @@ export default function Dashboard() {
 
         {/* ── PRODUCE LIST ── */}
         {loading ? (
-          <p className="dashboard-loading ft-loading-pulse">🌱 {t('dash_loading')}</p>
+          <p className="dashboard-loading ft-loading-pulse">🌱 लोड हो रहा है...</p>
         ) : (
           <>
             <p className="dash-section-title">
-              {user.role === 'FARMER' ? '🌾 Meri Fasal' : '📦 Meri Received Produce'}
+              {user.role === 'FARMER' ? '🌾 मेरी फसल' : '📦 प्राप्त उत्पाद'}
             </p>
             <div className="dashboard-grid">
               {/* FARMER — empty */}
