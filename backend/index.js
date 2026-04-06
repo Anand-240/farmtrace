@@ -9,14 +9,16 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 let mongoState = 'connecting';
 
-const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000')
+const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
 
+const isLocalhostOrigin = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || frontendURLs.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+    if (!origin || frontendURLs.indexOf(origin) !== -1 || isLocalhostOrigin(origin) || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

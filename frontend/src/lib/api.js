@@ -1,17 +1,17 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
-  const configuredBaseUrl = process.env.REACT_APP_API_URL?.trim();
-
-  if (configuredBaseUrl) {
-    return configuredBaseUrl;
-  }
-
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (['localhost', '127.0.0.1'].includes(hostname)) {
       return 'http://localhost:4000';
     }
+  }
+
+  const configuredBaseUrl = process.env.REACT_APP_API_URL?.trim();
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
   }
 
   return '/api';

@@ -9,7 +9,7 @@ import {
   Sprout, Truck, Coins, History, User, Layers,
   PackageCheck, ShieldCheck, Bot, LogOut,
   Sun, Cloud, CloudRain, Thermometer, Info,
-  QrCode, Copy, Eye,
+  QrCode, Copy, Eye, X,
   Search, ChevronDown, ChevronUp, SlidersHorizontal, 
   Filter, Calendar, ArrowUpDown, IndianRupee
 } from 'lucide-react';
@@ -243,13 +243,21 @@ export default function Dashboard() {
       {qrModal && (
         <div className="dashboard-modal-overlay" onClick={() => setQrModal(null)}>
           <div className="dashboard-modal-card" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className="dashboard-modal-close"
+              onClick={() => setQrModal(null)}
+              aria-label="Close QR modal"
+            >
+              <X size={18} strokeWidth={2.5} />
+            </button>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📱</div>
             <h3 className="dashboard-modal-title">{t('dash_qr_title')}</h3>
             <p className="dashboard-modal-sub">{t('dash_qr_sub')}</p>
             <img src={qrModal.qr} alt="QR Code" className="dashboard-modal-qr" />
             <p className="dashboard-modal-url">{qrModal.url}</p>
             <button onClick={() => setQrModal(null)} className="btn btn-full btn-action-primary" style={{ borderRadius: '12px', padding: '0.75rem' }}>
-              ✕ Band Karo
+              {t('dash_close')}
             </button>
           </div>
         </div>
@@ -304,19 +312,19 @@ export default function Dashboard() {
             </button>
           )}
           {user.role !== 'FARMER' && (
-            <button onClick={() => navigate('/payment')} className="action-card">
+            <button onClick={() => navigate('/payment')} className={`action-card ${pendingCount > 0 ? 'action-card-alert action-card-alert-pending' : ''}`}>
               <Coins className="action-card-icon" color="#d97706" />
               <span className="action-card-label">
                 {t('dash_action_pending')}
-                {pendingCount > 0 && <span className="notif-badge">{pendingCount}</span>}
+                {pendingCount > 0 && <span className="notif-badge notif-badge-pending">{pendingCount > 99 ? '99+' : pendingCount}</span>}
               </span>
             </button>
           )}
-          <button onClick={() => navigate('/transactions')} className="action-card">
+          <button onClick={() => navigate('/transactions')} className={`action-card ${unreadNotifs > 0 ? 'action-card-alert action-card-alert-history' : ''}`}>
             <History className="action-card-icon" color="#4f46e5" />
             <span className="action-card-label">
               {t('dash_action_history')}
-              {unreadNotifs > 0 && <span className="notif-badge">{unreadNotifs}</span>}
+              {unreadNotifs > 0 && <span className="notif-badge notif-badge-history">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
             </span>
           </button>
           <button onClick={() => navigate('/profile')} className="action-card">
