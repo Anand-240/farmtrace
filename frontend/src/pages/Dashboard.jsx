@@ -144,17 +144,15 @@ export default function Dashboard() {
     const loadMandi = async () => {
       setMandiLoading(true);
       try {
-        const apiKey = process.env.REACT_APP_DATA_GOV_API_KEY;
         const targetState = liveState || user.state;
-        const stateQuery = targetState ? `&filters[state]=${encodeURIComponent(targetState)}` : '';
-        const cropQuery = cropFilter ? `&filters[commodity]=${encodeURIComponent(cropFilter)}` : '';
-        let mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${stateQuery}${cropQuery}`);
-        let mandiData = await mandiRes.json();
-        if (!mandiData.records || mandiData.records.length === 0) {
-          mandiRes = await fetch(`https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${apiKey}&format=json&limit=5${cropQuery}`);
-          mandiData = await mandiRes.json();
-        }
-        setMandiRates(mandiData.records || []);
+        const mandiRes = await api.get('/api/market/mandi', {
+          params: {
+            state: targetState || undefined,
+            commodity: cropFilter || undefined,
+            limit: 5
+          }
+        });
+        setMandiRates(mandiRes.data?.records || []);
       } catch (err) { console.error('Mandi API Error:', err); }
       setMandiLoading(false);
     };
@@ -163,9 +161,50 @@ export default function Dashboard() {
 
   const logout = () => { localStorage.clear(); navigate('/login'); };
 
-  const copyId = (id) => {
-    navigator.clipboard.writeText(id);
-    showNotification('ID copy ho gayi! ✅', { type: 'sms', duration: 2500 });
+  const fallbackCopyText = (text) => {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.top = '-9999px';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+
+    let copied = false;
+    try {
+      copied = document.execCommand('copy');
+    } catch (err) {
+      copied = false;
+    }
+
+    document.body.removeChild(area);
+    return copied;
+  };
+
+  const copyId = async (id) => {
+    const text = String(id || '').trim();
+    if (!text) return;
+
+    try {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const copied = fallbackCopyText(text);
+        if (!copied) {
+          throw new Error('Clipboard fallback failed');
+        }
+      }
+
+      showNotification('ID copy ho gayi! ✅', { type: 'sms', duration: 2500 });
+    } catch (err) {
+      showNotification(`Auto-copy fail hua. Manual copy ke liye ID: ${text}`, {
+        title: 'Copy Failed',
+        type: 'sms',
+        duration: 7000
+      });
+    }
   };
 
   const showQR = async (produceId) => {

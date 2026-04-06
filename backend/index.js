@@ -61,6 +61,7 @@ app.use('/api/produce', require('./routes/produce'));
 app.use('/api/transfer', require('./routes/transfer'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/payment', require('./routes/payment'));
+app.use('/api/market', require('./routes/market'));
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 
