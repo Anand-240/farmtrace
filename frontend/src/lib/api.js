@@ -31,6 +31,13 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Prevent duplicated /api path when deployment baseURL already ends with /api
+  const base = (config.baseURL || '').replace(/\/+$/, '');
+  if (typeof config.url === 'string' && /\/api$/i.test(base) && /^\/api\//i.test(config.url)) {
+    config.url = config.url.replace(/^\/api/i, '');
+  }
+
   return config;
 });
 
