@@ -8,6 +8,7 @@ const Transfer = require('../models/Transfer');
 const Notification = require('../models/Notification');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { validateSellPrice } = require('../utils/marketPricing');
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
@@ -177,6 +178,25 @@ router.post('/confirm-transfer', auth, async (req, res) => {
 
     const produce = await Produce.findById(produceId);
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
+
+    const sellValidation = await validateSellPrice({
+      produce,
+      requestedPrice: pricePerKg,
+      transferType: transferType || 'FARM_TO_DISTRIBUTOR'
+    });
+
+    if (!sellValidation.allowed) {
+      return res.status(400).json({
+        message: sellValidation.reason,
+        floorPrice: sellValidation.floorPrice || null,
+        mandiPrice: sellValidation.mandiPrice || null,
+        mspPrice: sellValidation.mspPrice || null,
+        floorSource: sellValidation.floorSource || null,
+        floorLabel: sellValidation.floorLabel || null,
+        commodity: sellValidation.commodity || null,
+        state: sellValidation.state || null
+      });
+    }
 
     const normalizedEmail = receiverEmail?.trim().toLowerCase();
     const receiver = await User.findOne(

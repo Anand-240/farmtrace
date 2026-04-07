@@ -5,6 +5,7 @@ const Transfer = require('../models/Transfer');
 const Produce = require('../models/Produce');
 const User = require('../models/User');
 const { transferOnChain } = require('../blockchain/blockchainService');
+const { validateSellPrice } = require('../utils/marketPricing');
 
 router.post('/', auth, async (req, res) => {
   try {
@@ -18,6 +19,25 @@ router.post('/', auth, async (req, res) => {
     const produce = await Produce.findById(produceMongoId);
     if (!produce) {
       return res.status(404).json({ message: 'Produce nahi mila' });
+    }
+
+    const sellValidation = await validateSellPrice({
+      produce,
+      requestedPrice: price,
+      transferType
+    });
+
+    if (!sellValidation.allowed) {
+      return res.status(400).json({
+        message: sellValidation.reason,
+        floorPrice: sellValidation.floorPrice || null,
+        mandiPrice: sellValidation.mandiPrice || null,
+        mspPrice: sellValidation.mspPrice || null,
+        floorSource: sellValidation.floorSource || null,
+        floorLabel: sellValidation.floorLabel || null,
+        commodity: sellValidation.commodity || null,
+        state: sellValidation.state || null
+      });
     }
 
     const receiver = await User.findOne(

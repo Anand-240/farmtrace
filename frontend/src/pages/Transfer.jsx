@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useNotification } from '../context/NotificationContext';
+import { getMandiFloorForProduce } from '../lib/market';
 
 export default function Transfer() {
   const { showNotification } = useNotification();
@@ -25,6 +26,9 @@ export default function Transfer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [transferProduceDetails, setTransferProduceDetails] = useState(null);
+  const [marketFloor, setMarketFloor] = useState(null);
+  const [priceError, setPriceError] = useState('');
+  const [marketLoading, setMarketLoading] = useState(false);
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -38,13 +42,53 @@ export default function Transfer() {
   const fetchProduce = async () => {
     if (!produceId.trim()) { setError('ID daalo pehle'); return; }
     try {
-      setError(''); setSplitError(''); setSplitResult(null); setShowSplitForm(false); setSplitQuantity(''); setTransferLotId('');
+      setError(''); setPriceError(''); setSplitError(''); setSplitResult(null); setShowSplitForm(false); setSplitQuantity(''); setTransferLotId('');
       const res = await api.get(`/api/produce/${produceId.trim()}`);
       setProduce(res.data);
       setTransferLotId(res.data._id);
-      setForm((prev) => ({ ...prev, transferType: getDefaultTransferType(), price: res.data.farmPrice || '' }));
+      const defaultTransferType = getDefaultTransferType();
+      setForm((prev) => ({ ...prev, transferType: defaultTransferType, price: res.data.farmPrice || '' }));
     } catch (err) { setError('Produce nahi mila — sahi ID daalo'); }
   };
+
+  useEffect(() => {
+    const refreshFloor = async () => {
+      if (!produce || form.transferType !== 'FARM_TO_DISTRIBUTOR') {
+        setMarketFloor(null);
+        setPriceError('');
+        return;
+      }
+
+      setMarketLoading(true);
+      try {
+        const floorInfo = await getMandiFloorForProduce(produce);
+        setMarketFloor(floorInfo);
+      } catch (err) {
+        setMarketFloor(null);
+        setPriceError(err.response?.data?.message || err.message || 'Mandi rate check nahi ho paya');
+      } finally {
+        setMarketLoading(false);
+      }
+    };
+
+    refreshFloor();
+  }, [produce, form.transferType]);
+
+  useEffect(() => {
+    if (!produce || form.transferType !== 'FARM_TO_DISTRIBUTOR' || marketLoading) {
+      return;
+    }
+
+    const priceValue = Number(form.price);
+    const floorPrice = marketFloor?.floorPrice ?? marketFloor?.mandiPrice;
+    if (!floorPrice) {
+      setPriceError(`${produce.cropType} ka mandi rate ya MSP abhi available nahi hai, isliye sale allow nahi hai.`);
+    } else if (Number.isFinite(priceValue) && priceValue > 0 && priceValue < floorPrice) {
+      setPriceError(`Price ${marketFloor.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+    } else {
+      setPriceError('');
+    }
+  }, [produce, form.transferType, form.price, marketFloor, marketLoading]);
 
   const runSplit = async () => {
     setError(''); setSplitError('');
@@ -71,6 +115,22 @@ export default function Transfer() {
     setLoading(true); setError('');
     try {
       if (!transferLotId) { setError('Transfer lot select nahi hua'); setLoading(false); return; }
+      const enteredPrice = Number(form.price);
+      if (form.transferType === 'FARM_TO_DISTRIBUTOR') {
+        const floorPrice = marketFloor?.floorPrice ?? marketFloor?.mandiPrice;
+        if (!floorPrice) {
+          setError(`${produce?.cropType || 'Is fasal'} ka mandi rate ya MSP available nahi hai, sale allow nahi hai.`);
+          setLoading(false);
+          return;
+        }
+
+        if (!Number.isFinite(enteredPrice) || enteredPrice < floorPrice) {
+          setError(`Price ${marketFloor?.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const produceRes = await api.get(`/api/produce/${transferLotId}`);
       setTransferProduceDetails(produceRes.data);
       const res = await api.post('/api/payment/request', {
@@ -231,13 +291,49 @@ export default function Transfer() {
                 <input style={s.input} type="email" placeholder="Email address" value={form.toEmail} onChange={(e) => setForm({ ...form, toEmail: e.target.value })} required />
 
                 <label style={s.label}>💰 Aapka Price (₹/kg)</label>
-                <input style={s.input} type="number" placeholder="Price per kg" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />
+                <input
+                  style={s.input}
+                  type="number"
+                  placeholder="Price per kg"
+                  value={form.price}
+                  onChange={(e) => {
+                    const nextPrice = e.target.value;
+                    setForm({ ...form, price: nextPrice });
+                      const floorPrice = marketFloor?.floorPrice ?? marketFloor?.mandiPrice;
+                      if (form.transferType === 'FARM_TO_DISTRIBUTOR' && floorPrice) {
+                      const numericPrice = Number(nextPrice);
+                        if (Number.isFinite(numericPrice) && numericPrice > 0 && numericPrice < floorPrice) {
+                          setPriceError(`Price ${marketFloor?.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+                      } else {
+                        setPriceError('');
+                      }
+                    }
+                  }}
+                  required
+                />
+                {marketLoading && form.transferType === 'FARM_TO_DISTRIBUTOR' && (
+                  <div style={s.alertWarn}>⏳ Mandi rate verify kiya ja raha hai...</div>
+                )}
+                  {form.transferType === 'FARM_TO_DISTRIBUTOR' && (marketFloor?.floorPrice || marketFloor?.mandiPrice) && (
+                  <div style={s.marketHint}>
+                      {marketFloor.floorLabel || `Current floor: ₹${(marketFloor.floorPrice || marketFloor.mandiPrice).toFixed(2)}/kg`}
+                      {marketFloor.commodity ? ` (${marketFloor.commodity})` : ''}
+                  </div>
+                )}
+                {priceError && <div style={s.alertErr}>⚠️ {priceError}</div>}
 
                 <label style={s.label}>📍 Location</label>
                 <input style={s.input} placeholder="Jaise: Pune, Maharashtra" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
 
-                <button type="submit" style={s.primaryBtn} disabled={loading}>
-                  {loading ? '⏳ Bheji ja rahi hai...' : '🚀 Transfer Request Bhejo'}
+                <button
+                  type="submit"
+                  style={{
+                    ...s.primaryBtn,
+                    ...(loading || Boolean(priceError) ? s.primaryBtnDisabled : {})
+                  }}
+                  disabled={loading || Boolean(priceError)}
+                >
+                  {loading ? '⏳ Bheji ja rahi hai...' : priceError ? '🚫 Transfer Request Locked' : '🚀 Transfer Request Bhejo'}
                 </button>
               </form>
             </div>
@@ -261,9 +357,11 @@ const s = {
   label: { display: 'block', color: '#2d4428', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem', marginTop: '0.6rem' },
   input: { width: '100%', padding: '0.8rem 1rem', border: '1.5px solid #d4e4c8', borderRadius: 10, background: '#f3fae8', fontSize: '0.95rem', color: '#0f1f0d', outline: 'none', boxSizing: 'border-box', marginBottom: '0.1rem' },
   primaryBtn: { width: '100%', padding: '0.9rem', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg, #27500a, #3a7510)', color: '#fff', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(39,80,10,0.3)', marginTop: '0.75rem', transition: 'all 0.2s' },
+  primaryBtnDisabled: { background: '#9ca3af', boxShadow: 'none', cursor: 'not-allowed', opacity: 0.75 },
   alertErr: { background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 10, padding: '0.7rem 0.9rem', fontWeight: 600, fontSize: '0.88rem', marginTop: '0.5rem' },
   alertOk: { background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 10, padding: '0.7rem 0.9rem', fontWeight: 600, fontSize: '0.88rem' },
   alertWarn: { background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', borderRadius: 10, padding: '0.7rem 0.9rem', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.88rem' },
+  marketHint: { background: '#eef5e9', border: '1px solid #dbe5d8', color: '#4f6b45', borderRadius: 10, padding: '0.65rem 0.9rem', marginTop: '0.35rem', fontSize: '0.85rem', fontWeight: 600 },
   produceCard: { background: '#fff', borderRadius: 18, padding: '1.25rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)' },
   produceHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' },
   cropName: { color: '#0f1f0d', fontWeight: 900, fontSize: '1.15rem', margin: 0 },

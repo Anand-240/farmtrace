@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
+import { getMandiFloorForProduce } from '../lib/market';
 
 const compressImage = (file) => {
   return new Promise((resolve, reject) => {
@@ -81,6 +82,7 @@ export default function AIAssistant() {
   const [form, setForm] = useState({});
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [sellMarketFloor, setSellMarketFloor] = useState(null);
   const fileInputRef = useRef(null);
 
   const produceOptions = useMemo(
@@ -100,6 +102,23 @@ export default function AIAssistant() {
     })),
     [bootstrapData.distributors]
   );
+
+  const loadSellMarketFloor = async (produceId) => {
+    const selectedProduce = bootstrapData.produces.find((produce) => produce._id === produceId);
+    if (!selectedProduce) {
+      setSellMarketFloor(null);
+      return null;
+    }
+
+    try {
+      const floorInfo = await getMandiFloorForProduce(selectedProduce);
+      setSellMarketFloor(floorInfo);
+      return floorInfo;
+    } catch (err) {
+      setSellMarketFloor(null);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const loadAssistant = async () => {
@@ -179,6 +198,7 @@ export default function AIAssistant() {
 
     setFlow('sell');
     setForm({ produceId: '', receiverEmail: '', pricePerKg: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR' });
+    setSellMarketFloor(null);
     setPrompt({
       key: 'produceId',
       type: 'option',
@@ -499,6 +519,12 @@ export default function AIAssistant() {
         return;
       }
       nextForm.produceId = selected.value;
+      const floorInfo = await loadSellMarketFloor(selected.value);
+      if (!floorInfo?.floorPrice) {
+        pushAiMessage(`${selected.label.split(' • ')[0]} ka mandi rate ya MSP abhi available nahi hai. Isliye ye fasal sell nahi ki ja sakti.`);
+        startSellFlow();
+        return;
+      }
     }
 
     if (currentPrompt.key === 'receiverEmail') {
@@ -517,6 +543,12 @@ export default function AIAssistant() {
       const numericValue = Number(value);
       if (!Number.isFinite(numericValue) || numericValue <= 0) {
         pushAiMessage('Price ke liye valid number likho.');
+        setPrompt(currentPrompt);
+        return;
+      }
+      const floorPrice = sellMarketFloor?.floorPrice ?? sellMarketFloor?.mandiPrice;
+      if (floorPrice && numericValue < floorPrice) {
+        pushAiMessage(`Price ${sellMarketFloor?.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
         setPrompt(currentPrompt);
         return;
       }
@@ -598,6 +630,12 @@ export default function AIAssistant() {
   const submitSell = async () => {
     setSubmitting(true);
     try {
+      const floorPrice = sellMarketFloor?.floorPrice ?? sellMarketFloor?.mandiPrice;
+      if (floorPrice && Number(form.pricePerKg) < floorPrice) {
+        pushAiMessage(`Price ${sellMarketFloor?.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+        return;
+      }
+
       const res = await api.post('/api/ai/confirm-transfer', {
         produceId: form.produceId,
         receiverEmail: form.receiverEmail,
