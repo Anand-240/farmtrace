@@ -1,0 +1,4 @@
+window.__FARMTRACE_CONFIG__ = {
+  REACT_APP_API_URL: '/api',
+  REACT_APP_RAZORPAY_KEY_ID: ''
+};

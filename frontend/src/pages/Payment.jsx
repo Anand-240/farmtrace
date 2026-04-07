@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
+const getRazorpayKeyId = () => {
+  if (typeof window !== 'undefined' && window.__FARMTRACE_CONFIG__?.REACT_APP_RAZORPAY_KEY_ID) {
+    return window.__FARMTRACE_CONFIG__.REACT_APP_RAZORPAY_KEY_ID;
+  }
+
+  return process.env.REACT_APP_RAZORPAY_KEY_ID;
+};
+
 export default function Payment() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +35,11 @@ export default function Payment() {
   const handlePayment = async (transfer) => {
     setPayingId(transfer._id);
     try {
+      const razorpayKeyId = getRazorpayKeyId();
+      if (!razorpayKeyId) {
+        throw new Error('Razorpay key missing. Frontend env config nahi mili.');
+      }
+
       // Step 1: Razorpay order banao
       const orderRes = await api.post('/api/payment/create-order', {
         transferId: transfer._id
@@ -36,7 +49,7 @@ export default function Payment() {
 
       // Step 2: Razorpay checkout kholo
       const options = {
-        key: process.env.REACT_APP_RAZORPAY_KEY_ID,
+        key: razorpayKeyId,
         amount: amount,
         currency: 'INR',
         name: 'FarmTrace',

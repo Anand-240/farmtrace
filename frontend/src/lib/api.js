@@ -1,11 +1,25 @@
 import axios from 'axios';
 
+const getRuntimeConfig = () => {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  return window.__FARMTRACE_CONFIG__ || {};
+};
+
 const getBaseURL = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (['localhost', '127.0.0.1'].includes(hostname)) {
       return 'http://localhost:4000';
     }
+  }
+
+  const runtimeConfig = getRuntimeConfig();
+  const runtimeBaseUrl = runtimeConfig.REACT_APP_API_URL?.trim();
+  if (runtimeBaseUrl) {
+    return runtimeBaseUrl;
   }
 
   const configuredBaseUrl = process.env.REACT_APP_API_URL?.trim();
