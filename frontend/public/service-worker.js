@@ -1,4 +1,4 @@
-const CACHE_NAME = 'farmtrace-pwa-v1';
+const CACHE_NAME = 'farmtrace-pwa-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -35,8 +35,13 @@ self.addEventListener('fetch', event => {
     return;
   }
   
-  // Skip API calls from caching, always fetch from network
-  if (event.request.url.includes('/api/') || event.request.url.includes('api.')) {
+  // Skip API/config/payment SDK calls from caching, always fetch from network
+  if (
+    event.request.url.includes('/api/')
+    || event.request.url.includes('api.')
+    || event.request.url.includes('/runtime-env.js')
+    || event.request.url.includes('checkout.razorpay.com')
+  ) {
     return;
   }
 

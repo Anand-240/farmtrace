@@ -16,6 +16,10 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
+function ensureRazorpayConfigured() {
+  return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+}
+
 function statusLabel(status) {
   if (status === 'PENDING_DISPATCH') return 'Pending Dispatch';
   if (status === 'PICKUP_DISPATCHED') return 'Pickup Dispatched';
@@ -144,6 +148,10 @@ router.get('/pending', auth, async (req, res) => {
 // Razorpay order create
 router.post('/create-order', auth, async (req, res) => {
   try {
+    if (!ensureRazorpayConfigured()) {
+      return res.status(500).json({ message: 'Razorpay config missing on server' });
+    }
+
     const { transferId } = req.body;
 
     const transfer = await Transfer.findById(transferId);
@@ -175,6 +183,7 @@ router.post('/create-order', auth, async (req, res) => {
 
     res.json({
       success: true,
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
       orderId: order.id,
       amount: bookingAmount,
       currency: 'INR',
@@ -197,6 +206,10 @@ router.post('/create-order', auth, async (req, res) => {
 // Payment verify + blockchain transfer
 router.post('/verify', auth, async (req, res) => {
   try {
+    if (!ensureRazorpayConfigured()) {
+      return res.status(500).json({ message: 'Razorpay config missing on server' });
+    }
+
     const {
       razorpay_order_id,
       razorpay_payment_id,

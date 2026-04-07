@@ -10,6 +10,10 @@ const getRazorpayKeyId = () => {
   return process.env.REACT_APP_RAZORPAY_KEY_ID;
 };
 
+const getApiErrorMessage = (err, fallback) => {
+  return err?.response?.data?.message || err?.message || fallback;
+};
+
 export default function Payment() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,17 +39,21 @@ export default function Payment() {
   const handlePayment = async (transfer) => {
     setPayingId(transfer._id);
     try {
-      const razorpayKeyId = getRazorpayKeyId();
-      if (!razorpayKeyId) {
-        throw new Error('Razorpay key missing. Frontend env config nahi mili.');
-      }
-
       // Step 1: Razorpay order banao
       const orderRes = await api.post('/api/payment/create-order', {
         transferId: transfer._id
       });
 
-      const { orderId, amount, produce } = orderRes.data;
+      const { orderId, amount, produce, razorpayKeyId: serverRazorpayKeyId } = orderRes.data;
+      const razorpayKeyId = serverRazorpayKeyId || getRazorpayKeyId();
+
+      if (!razorpayKeyId) {
+        throw new Error('Razorpay key missing. Server ya frontend config check karo.');
+      }
+
+      if (!window.Razorpay) {
+        throw new Error('Razorpay SDK load nahi hua. Internet ya script block check karo.');
+      }
 
       // Step 2: Razorpay checkout kholo
       const options = {
@@ -71,7 +79,8 @@ export default function Payment() {
               navigate('/dashboard');
             }
           } catch (err) {
-            alert('Payment verify nahi hua: ' + err.message);
+            alert('Payment verify nahi hua: ' + getApiErrorMessage(err, 'Verification failed'));
+            setPayingId(null);
           }
         },
         prefill: {
@@ -89,7 +98,7 @@ export default function Payment() {
       rzp.open();
 
     } catch (err) {
-      alert('Payment shuru nahi hua: ' + err.message);
+      alert('Payment shuru nahi hua: ' + getApiErrorMessage(err, 'Checkout start failed'));
       setPayingId(null);
     }
   };
