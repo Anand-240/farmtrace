@@ -99,46 +99,189 @@ export default function Dashboard() {
   const [mandiLoading, setMandiLoading] = useState(false);
   const [cropFilter, setCropFilter] = useState('');
   const [liveState, setLiveState] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [locationPermission, setLocationPermission] = useState('checking');
+  const [weatherPromptMessage, setWeatherPromptMessage] = useState('');
 
   useEffect(() => {
+    const fetchWeatherByCoords = async (latitude, longitude) => {
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+      const weatherData = await weatherRes.json();
+
+      if (!weatherData?.current_weather) {
+        throw new Error('Weather data unavailable for current location');
+      }
+
+      let locationName = 'Live Location';
+      try {
+        const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+        const titleData = await titleRes.json();
+        locationName = titleData.city || titleData.locality || locationName;
+        if (titleData.principalSubdivision) {
+          setLiveState(titleData.principalSubdivision);
+        }
+      } catch (e) {
+        // Reverse geocode best-effort hai; weather render ko block nahi karte.
+      }
+
+      setWeather({
+        temp: weatherData.current_weather.temperature,
+        windspeed: weatherData.current_weather.windspeed,
+        code: weatherData.current_weather.weathercode,
+        location: `${locationName} 📍`
+      });
+    };
+
     const fetchWeatherByCity = async (city) => {
       try {
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
         const geoData = await geoRes.json();
         if (geoData.results && geoData.results.length > 0) {
           const { latitude, longitude, name } = geoData.results[0];
-          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-          const weatherData = await weatherRes.json();
-          setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: name });
+          await fetchWeatherByCoords(latitude, longitude);
+          setWeather((prev) => ({ ...prev, location: `${name} (Profile City)` }));
         }
       } catch (err) { console.error('Weather error:', err); }
     };
 
-    const loadWeather = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            try {
-              const { latitude, longitude } = position.coords;
-              const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-              const weatherData = await weatherRes.json();
-              let locationName = 'GPS Location';
-              try {
-                const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
-                const titleData = await titleRes.json();
-                locationName = titleData.city || titleData.locality || 'Live Location';
-                if (titleData.principalSubdivision) setLiveState(titleData.principalSubdivision);
-              } catch (e) {}
-              setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: `${locationName} 📍` });
-            } catch (err) { fetchWeatherByCity(user.city || 'Lucknow'); }
-          },
-          () => fetchWeatherByCity(user.city || 'Lucknow')
-        );
-      } else { fetchWeatherByCity(user.city || 'Lucknow'); }
+    const requestLocationWeather = () => {
+      if (!navigator.geolocation) {
+        setLocationPermission('unsupported');
+        setWeatherPromptMessage('Aapke browser mein location support nahi hai.');
+        return;
+      }
+
+      setWeatherLoading(true);
+      setWeatherPromptMessage('');
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords;
+            await fetchWeatherByCoords(latitude, longitude);
+            setLocationPermission('granted');
+          } catch (err) {
+            console.error('Weather by location error:', err);
+            await fetchWeatherByCity(user.city || 'Lucknow');
+            setWeatherPromptMessage('Live location weather load nahi hua, profile city weather dikhaya gaya hai.');
+          } finally {
+            setWeatherLoading(false);
+          }
+        },
+        async (error) => {
+          if (error.code === 1) {
+            setLocationPermission('denied');
+            setWeather(null);
+            setWeatherPromptMessage('Location access blocked hai. Enable Location par click karke browser permission allow karein.');
+          } else {
+            await fetchWeatherByCity(user.city || 'Lucknow');
+            setWeatherPromptMessage('Live location unavailable hai, profile city weather dikhaya gaya hai.');
+          }
+          setWeatherLoading(false);
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+      );
+    };
+
+    const loadWeather = async () => {
+      if (!navigator.geolocation) {
+        setLocationPermission('unsupported');
+        await fetchWeatherByCity(user.city || 'Lucknow');
+        return;
+      }
+
+      if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        setLocationPermission('unsupported');
+        setWeatherPromptMessage('Location permission ke liye HTTPS zaroori hai. Production domain par secure HTTPS check karein.');
+        await fetchWeatherByCity(user.city || 'Lucknow');
+        return;
+      }
+
+      if (navigator.permissions?.query) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
+          setLocationPermission(permissionStatus.state);
+
+          if (permissionStatus.state === 'denied') {
+            setWeatherPromptMessage('Location weather dekhne ke liye browser location permission enable karein.');
+            return;
+          }
+
+          requestLocationWeather();
+
+          permissionStatus.onchange = () => {
+            setLocationPermission(permissionStatus.state);
+            if (permissionStatus.state === 'granted') {
+              requestLocationWeather();
+            }
+          };
+          return;
+        } catch (err) {
+          console.error('Permission query failed:', err);
+        }
+      }
+
+      requestLocationWeather();
     };
 
     if (user.role === 'FARMER') loadWeather();
   }, [user.city, user.role]);
+
+  const handleEnableLocationWeather = () => {
+    if (user.role !== 'FARMER') return;
+
+    if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      setWeatherPromptMessage('HTTPS ke bina browser location prompt nahi dikhata. AWS deployment par SSL certificate ensure karein.');
+      return;
+    }
+
+    setLocationPermission('prompt');
+    setWeather(null);
+    setWeatherLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
+          const weatherData = await weatherRes.json();
+          if (!weatherData?.current_weather) throw new Error('Weather data missing');
+
+          let locationName = 'Live Location';
+          try {
+            const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
+            const titleData = await titleRes.json();
+            locationName = titleData.city || titleData.locality || locationName;
+            if (titleData.principalSubdivision) setLiveState(titleData.principalSubdivision);
+          } catch (e) {}
+
+          setWeather({
+            temp: weatherData.current_weather.temperature,
+            windspeed: weatherData.current_weather.windspeed,
+            code: weatherData.current_weather.weathercode,
+            location: `${locationName} 📍`
+          });
+          setLocationPermission('granted');
+          setWeatherPromptMessage('');
+        } catch (err) {
+          console.error('Enable location weather error:', err);
+          setWeatherPromptMessage('Weather load nahi hua. Dobara try karein.');
+        } finally {
+          setWeatherLoading(false);
+        }
+      },
+      (error) => {
+        if (error.code === 1) {
+          setLocationPermission('denied');
+          setWeatherPromptMessage('Location abhi blocked hai. Browser site settings me jaake Location ko Allow karein, phir dobara Enable Location dabayein.');
+        } else {
+          setWeatherPromptMessage('Location fetch fail hua. Network ya GPS issue ho sakta hai.');
+        }
+        setWeatherLoading(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   useEffect(() => {
     const loadMandi = async () => {
@@ -426,9 +569,27 @@ export default function Dashboard() {
                       <p>📍 <strong>{weather.location}</strong></p>
                       <p>💨 Hawa: {weather.windspeed} km/h</p>
                     </div>
+                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
                   </>
-                ) : (
+                ) : weatherLoading ? (
                   <p style={{ opacity: 0.7, fontWeight: 600 }} className="ft-loading-pulse">Mausam aa raha hai...</p>
+                ) : locationPermission === 'denied' || locationPermission === 'prompt' || locationPermission === 'checking' ? (
+                  <div className="weather-permission-box">
+                    <p className="weather-permission-title">Location enable karo tab live weather dikh sakta hai.</p>
+                    <p className="weather-permission-sub">Tap karke permission allow karein. Agar pehle deny kiya hai to browser site settings me Location ko Allow karna hoga.</p>
+                    <button type="button" className="weather-enable-btn" onClick={handleEnableLocationWeather}>
+                      Enable Location
+                    </button>
+                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
+                  </div>
+                ) : (
+                  <div className="weather-permission-box">
+                    <p className="weather-permission-title">Live location weather available nahi hai.</p>
+                    <button type="button" className="weather-enable-btn" onClick={handleEnableLocationWeather}>
+                      Retry Location Weather
+                    </button>
+                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
+                  </div>
                 )}
               </div>
 

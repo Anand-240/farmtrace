@@ -654,6 +654,67 @@
   letter-spacing: -0.05em;
 }
 
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.weather-details {
+  margin-top: 0.75rem;
+}
+
+.weather-details p {
+  margin: 0.35rem 0;
+  font-weight: 600;
+}
+
+.weather-permission-box {
+  margin-top: 0.75rem;
+  padding: 0.9rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.weather-permission-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.weather-permission-sub {
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.84rem;
+  opacity: 0.95;
+  line-height: 1.45;
+}
+
+.weather-enable-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: #ffffff;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.weather-enable-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+}
+
+.weather-inline-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0.95;
+}
+
 .msp-widget {
   background: #fff;
   border: 1px solid var(--border-soft);
