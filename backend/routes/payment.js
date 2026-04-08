@@ -9,16 +9,43 @@ const Transaction = require('../models/Transaction');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Escrow = require('../models/Escrow');
+const ComplianceAudit = require('../models/ComplianceAudit');
+const ComplianceSequence = require('../models/ComplianceSequence');
+const ComplianceDocument = require('../models/ComplianceDocument');
 const { transferOnChain } = require('../blockchain/blockchainService');
 const { validateSellPrice } = require('../utils/marketPricing');
+const {
+  buildInvoicePayload,
+  buildChallanPayload,
+  buildSettlementPayload,
+  buildInvoicePdf,
+  buildChallanPdf,
+  buildSettlementPdf,
+  toAuditRows,
+  toAuditCsv,
+  createChecksum
+} = require('../utils/complianceDocs');
+const {
+  TRANSPORTERS,
+  buildLogisticsPlan,
+  parseSlotDateTime
+} = require('../utils/logisticsPlanner');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay = null;
 
 function ensureRazorpayConfigured() {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+}
+
+function getRazorpayClient() {
+  if (!ensureRazorpayConfigured()) return null;
+  if (!razorpay) {
+    razorpay = new Razorpay({
+      key_id: process.env.RAZORPAY_KEY_ID,
+      key_secret: process.env.RAZORPAY_KEY_SECRET
+    });
+  }
+  return razorpay;
 }
 
 function statusLabel(status) {
@@ -77,6 +104,126 @@ async function notifyDeliveryParticipants({ transfer, actorPhone, title, message
       ...data
     }
   })));
+}
+
+function getClientIp(req) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || req.ip || '';
+}
+
+function getFinancialYearTag(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const startYear = month >= 3 ? year : year - 1;
+  const endYear = (startYear + 1).toString().slice(-2);
+  return `${startYear}-${endYear}`;
+}
+
+function toDocPrefix(documentType) {
+  if (documentType === 'INVOICE') return 'INV';
+  if (documentType === 'CHALLAN') return 'CHL';
+  if (documentType === 'SETTLEMENT') return 'SET';
+  return 'DOC';
+}
+
+async function nextDocumentNumber(documentType, createdAt = new Date()) {
+  const prefix = toDocPrefix(documentType);
+  const fy = getFinancialYearTag(createdAt);
+  const sequenceKey = `${prefix}:${fy}`;
+
+  const sequence = await ComplianceSequence.findOneAndUpdate(
+    { key: sequenceKey },
+    { $inc: { value: 1 } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+
+  return `${prefix}/${fy}/${String(sequence.value).padStart(6, '0')}`;
+}
+
+async function getOrCreateComplianceDocument({ transferId, documentType, metadata = {}, createdAt }) {
+  const existing = await ComplianceDocument.findOne({ transferId, documentType });
+  if (existing) return existing;
+
+  const documentNumber = await nextDocumentNumber(documentType, createdAt || new Date());
+  return ComplianceDocument.create({
+    transferId,
+    documentType,
+    documentNumber,
+    metadata
+  });
+}
+
+async function createComplianceAudit({ req, transferId, documentType, action, checksum, metadata = {} }) {
+  try {
+    await ComplianceAudit.create({
+      transferId,
+      documentType,
+      action,
+      requestedByPhone: req.user.phone,
+      requestedByRole: req.user.role,
+      ipAddress: getClientIp(req),
+      userAgent: req.get('user-agent') || '',
+      checksum,
+      metadata
+    });
+  } catch (err) {
+    console.error('Compliance audit log error:', err.message);
+  }
+}
+
+async function fetchDocumentContext(transferId, actorPhone) {
+  const transfer = await Transfer.findById(transferId);
+  if (!transfer) {
+    return { status: 404, error: 'Transfer nahi mila' };
+  }
+
+  if (transfer.fromPhone !== actorPhone && transfer.toPhone !== actorPhone) {
+    return { status: 403, error: 'Access denied: aap is transfer ka hissa nahi ho' };
+  }
+
+  let produce = null;
+  if (transfer.produceId) {
+    produce = await Produce.findById(transfer.produceId);
+    if (!produce) {
+      produce = await Produce.findOne({ produceId: transfer.produceId });
+    }
+  }
+
+  const [fromUser, toUser, escrow] = await Promise.all([
+    User.findOne({ phone: transfer.fromPhone }).select('name phone village city district state pincode businessName gstin pan'),
+    User.findOne({ phone: transfer.toPhone }).select('name phone village city district state pincode businessName gstin pan'),
+    Escrow.findOne({ transferId: transfer._id })
+  ]);
+
+  return {
+    transfer,
+    produce,
+    fromUser,
+    toUser,
+    escrow
+  };
+}
+
+function streamPdf(res, buffer, filename) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', String(buffer.length));
+  return res.send(buffer);
+}
+
+function streamJson(res, payload, filename) {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  return res.send(JSON.stringify(payload, null, 2));
+}
+
+function streamCsv(res, csv, filename) {
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  return res.send(csv);
 }
 
 // Transfer request banao
@@ -171,6 +318,7 @@ router.post('/create-order', auth, async (req, res) => {
     if (!ensureRazorpayConfigured()) {
       return res.status(500).json({ message: 'Razorpay config missing on server' });
     }
+    const razorpayClient = getRazorpayClient();
 
     const { transferId } = req.body;
 
@@ -188,7 +336,7 @@ router.post('/create-order', auth, async (req, res) => {
     const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
 
     // Razorpay order ke liye sirf BOOKING amount charge karo
-    const order = await razorpay.orders.create({
+    const order = await razorpayClient.orders.create({
       amount: bookingAmount,
       currency: 'INR',
       receipt: `transfer_${transferId}`,
@@ -229,6 +377,7 @@ router.post('/verify', auth, async (req, res) => {
     if (!ensureRazorpayConfigured()) {
       return res.status(500).json({ message: 'Razorpay config missing on server' });
     }
+    getRazorpayClient();
 
     const {
       razorpay_order_id,
@@ -422,7 +571,8 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
       vehicleNumber,
       vehicleType,
       expectedDeliveryTime,
-      currentLocation
+      currentLocation,
+      destinationLocation
     } = req.body;
 
     const transfer = await Transfer.findById(req.params.transferId);
@@ -458,6 +608,7 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     if (vehicleNumber !== undefined) transfer.vehicleNumber = vehicleNumber;
     if (vehicleType !== undefined) transfer.vehicleType = vehicleType;
     if (currentLocation !== undefined) transfer.currentLocation = currentLocation;
+    if (destinationLocation !== undefined) transfer.destinationLocation = destinationLocation;
     if (expectedDeliveryTime !== undefined) {
       transfer.expectedDeliveryTime = expectedDeliveryTime ? new Date(expectedDeliveryTime) : null;
     }
@@ -503,6 +654,180 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     res.json({ success: true, transfer, message: 'Logistics update ho gaya' });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/logistics/:transferId/preview', auth, async (req, res) => {
+  try {
+    const { destinationLocation, preferredVehicleType } = req.body;
+
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
+
+    if (transfer.fromPhone !== req.user.phone && transfer.toPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const produce = await Produce.findById(transfer.produceId);
+    const quantityKg = Number(produce?.quantity || 0);
+
+    const origin = transfer.currentLocation || transfer.location;
+    const destination = destinationLocation || transfer.destinationLocation;
+    if (!destination) {
+      return res.status(400).json({ message: 'Destination location required hai' });
+    }
+
+    const plan = buildLogisticsPlan({
+      origin,
+      destination,
+      quantityKg,
+      preferredVehicleType
+    });
+
+    return res.json({
+      transferId: transfer._id,
+      origin,
+      destination,
+      quantityKg,
+      ...plan
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/logistics/:transferId', auth, async (req, res) => {
+  try {
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
+
+    if (transfer.fromPhone !== req.user.phone && transfer.toPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    return res.json({
+      transferId: transfer._id,
+      destinationLocation: transfer.destinationLocation || '',
+      routeDistanceKm: transfer.routeDistanceKm || 0,
+      routeEtaMinutes: transfer.routeEtaMinutes || 0,
+      freightEstimateAmount: transfer.freightEstimateAmount || 0,
+      freightCurrency: transfer.freightCurrency || 'INR',
+      matchedTransporter: transfer.matchedTransporter || null,
+      deliverySlotDate: transfer.deliverySlotDate || null,
+      deliverySlotLabel: transfer.deliverySlotLabel || '',
+      deliverySlotBookedAt: transfer.deliverySlotBookedAt || null,
+      slots: buildLogisticsPlan({
+        origin: transfer.currentLocation || transfer.location,
+        destination: transfer.destinationLocation || transfer.location,
+        quantityKg: 0,
+        preferredVehicleType: transfer.vehicleType || ''
+      }).availableSlots
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+router.post('/logistics/:transferId/book-slot', auth, async (req, res) => {
+  try {
+    const {
+      destinationLocation,
+      preferredVehicleType,
+      transporterId,
+      slotDate,
+      slotLabel
+    } = req.body;
+
+    const transfer = await Transfer.findById(req.params.transferId);
+    if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
+
+    if (transfer.fromPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Sirf sender slot book kar sakta hai' });
+    }
+
+    if (!destinationLocation || !slotDate || !slotLabel) {
+      return res.status(400).json({ message: 'Destination, slot date aur slot label required hain' });
+    }
+
+    const produce = await Produce.findById(transfer.produceId);
+    const quantityKg = Number(produce?.quantity || 0);
+
+    const plan = buildLogisticsPlan({
+      origin: transfer.currentLocation || transfer.location,
+      destination: destinationLocation,
+      quantityKg,
+      preferredVehicleType
+    });
+
+    const selectedTransporter = plan.matchedTransporters.find((item) => item.transporterId === transporterId)
+      || TRANSPORTERS.find((item) => item.transporterId === transporterId)
+      || plan.matchedTransporters[0]
+      || null;
+
+    if (!selectedTransporter) {
+      return res.status(400).json({ message: 'No transporter available for selected criteria' });
+    }
+
+    const slotDateTime = parseSlotDateTime(slotDate, slotLabel);
+    if (!slotDateTime) {
+      return res.status(400).json({ message: 'Invalid slot date/time' });
+    }
+
+    transfer.destinationLocation = destinationLocation;
+    transfer.routeDistanceKm = plan.route.distanceKm;
+    transfer.routeEtaMinutes = plan.route.etaMinutes;
+    transfer.freightEstimateAmount = plan.freight.amount;
+    transfer.freightCurrency = plan.freight.currency;
+    transfer.expectedDeliveryTime = new Date(slotDateTime.getTime() + (plan.route.etaMinutes * 60000));
+
+    transfer.matchedTransporter = {
+      transporterId: selectedTransporter.transporterId,
+      name: selectedTransporter.name,
+      phone: selectedTransporter.phone,
+      vehicleType: selectedTransporter.vehicleType,
+      vehicleCapacityKg: selectedTransporter.vehicleCapacityKg,
+      rating: selectedTransporter.rating,
+      pricePerKm: selectedTransporter.pricePerKm
+    };
+
+    transfer.vehicleType = selectedTransporter.vehicleType;
+    transfer.driverPhone = selectedTransporter.phone;
+    transfer.deliverySlotDate = slotDateTime;
+    transfer.deliverySlotLabel = slotLabel;
+    transfer.deliverySlotBookedAt = new Date();
+    transfer.deliverySlotBookedBy = req.user.phone;
+
+    await transfer.save();
+
+    await notifyDeliveryParticipants({
+      transfer,
+      actorPhone: req.user.phone,
+      title: 'Delivery Slot Booked',
+      message: `${selectedTransporter.name} assigned | ${slotDate} ${slotLabel} | ETA ${Math.ceil(plan.route.etaMinutes / 60)}h`,
+      type: 'DELIVERY_UPDATE',
+      data: {
+        destinationLocation,
+        slotDate,
+        slotLabel,
+        transporterId: selectedTransporter.transporterId,
+        routeDistanceKm: plan.route.distanceKm,
+        etaMinutes: plan.route.etaMinutes,
+        freightEstimateAmount: plan.freight.amount
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Delivery slot booked successfully',
+      transfer,
+      logistics: {
+        route: plan.route,
+        freight: plan.freight,
+        transporter: selectedTransporter
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 });
 
@@ -623,6 +948,278 @@ router.post('/escrow/:transferId/request-refund', auth, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Production-grade compliance docs: invoice PDF
+router.get('/docs/:transferId/invoice', auth, async (req, res) => {
+  try {
+    const context = await fetchDocumentContext(req.params.transferId, req.user.phone);
+    if (context.error) {
+      return res.status(context.status).json({ message: context.error });
+    }
+
+    const docRecord = await getOrCreateComplianceDocument({
+      transferId: context.transfer._id,
+      documentType: 'INVOICE',
+      metadata: { transferType: context.transfer.transferType },
+      createdAt: context.transfer.createdAt
+    });
+
+    const invoicePayload = buildInvoicePayload({ ...context, documentNumber: docRecord.documentNumber });
+    const checksum = createChecksum(invoicePayload);
+    const buffer = await buildInvoicePdf(invoicePayload);
+
+    docRecord.checksum = checksum;
+    docRecord.generatedAt = new Date();
+    await docRecord.save();
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'INVOICE',
+      action: 'GENERATED',
+      checksum,
+      metadata: {
+        documentNumber: invoicePayload.documentNumber,
+        grossTotal: invoicePayload.grossTotal,
+        transferType: context.transfer.transferType
+      }
+    });
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'INVOICE',
+      action: 'DOWNLOADED',
+      checksum,
+      metadata: { filename: `${invoicePayload.documentNumber}.pdf` }
+    });
+
+    return streamPdf(res, buffer, `${invoicePayload.documentNumber}.pdf`);
+  } catch (err) {
+    console.error('Invoice doc error:', err.message);
+    return res.status(500).json({ message: 'Invoice generate nahi ho paya' });
+  }
+});
+
+// Production-grade compliance docs: delivery challan PDF
+router.get('/docs/:transferId/challan', auth, async (req, res) => {
+  try {
+    const context = await fetchDocumentContext(req.params.transferId, req.user.phone);
+    if (context.error) {
+      return res.status(context.status).json({ message: context.error });
+    }
+
+    const docRecord = await getOrCreateComplianceDocument({
+      transferId: context.transfer._id,
+      documentType: 'CHALLAN',
+      metadata: { transferType: context.transfer.transferType },
+      createdAt: context.transfer.createdAt
+    });
+
+    const challanPayload = buildChallanPayload({ ...context, documentNumber: docRecord.documentNumber });
+    const checksum = createChecksum(challanPayload);
+    const buffer = await buildChallanPdf(challanPayload);
+
+    docRecord.checksum = checksum;
+    docRecord.generatedAt = new Date();
+    await docRecord.save();
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'CHALLAN',
+      action: 'GENERATED',
+      checksum,
+      metadata: {
+        documentNumber: challanPayload.documentNumber,
+        deliveryStatus: context.transfer.deliveryStatus
+      }
+    });
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'CHALLAN',
+      action: 'DOWNLOADED',
+      checksum,
+      metadata: { filename: `${challanPayload.documentNumber}.pdf` }
+    });
+
+    return streamPdf(res, buffer, `${challanPayload.documentNumber}.pdf`);
+  } catch (err) {
+    console.error('Challan doc error:', err.message);
+    return res.status(500).json({ message: 'Challan generate nahi ho paya' });
+  }
+});
+
+// Production-grade compliance docs: settlement statement PDF
+router.get('/docs/:transferId/settlement', auth, async (req, res) => {
+  try {
+    const context = await fetchDocumentContext(req.params.transferId, req.user.phone);
+    if (context.error) {
+      return res.status(context.status).json({ message: context.error });
+    }
+
+    const docRecord = await getOrCreateComplianceDocument({
+      transferId: context.transfer._id,
+      documentType: 'SETTLEMENT',
+      metadata: { transferType: context.transfer.transferType },
+      createdAt: context.transfer.createdAt
+    });
+
+    const settlementPayload = buildSettlementPayload({ ...context, documentNumber: docRecord.documentNumber });
+    const checksum = createChecksum(settlementPayload);
+    const buffer = await buildSettlementPdf(settlementPayload);
+
+    docRecord.checksum = checksum;
+    docRecord.generatedAt = new Date();
+    await docRecord.save();
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'SETTLEMENT',
+      action: 'GENERATED',
+      checksum,
+      metadata: {
+        documentNumber: settlementPayload.documentNumber,
+        status: settlementPayload.status
+      }
+    });
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'SETTLEMENT',
+      action: 'DOWNLOADED',
+      checksum,
+      metadata: { filename: `${settlementPayload.documentNumber}.pdf` }
+    });
+
+    return streamPdf(res, buffer, `${settlementPayload.documentNumber}.pdf`);
+  } catch (err) {
+    console.error('Settlement doc error:', err.message);
+    return res.status(500).json({ message: 'Settlement statement generate nahi ho paya' });
+  }
+});
+
+// Downloadable audit trail for compliance and B2B buyers
+router.get('/docs/:transferId/audit-trail', auth, async (req, res) => {
+  try {
+    const context = await fetchDocumentContext(req.params.transferId, req.user.phone);
+    if (context.error) {
+      return res.status(context.status).json({ message: context.error });
+    }
+
+    const [invoiceDoc, challanDoc, settlementDoc] = await Promise.all([
+      getOrCreateComplianceDocument({
+        transferId: context.transfer._id,
+        documentType: 'INVOICE',
+        metadata: { transferType: context.transfer.transferType },
+        createdAt: context.transfer.createdAt
+      }),
+      getOrCreateComplianceDocument({
+        transferId: context.transfer._id,
+        documentType: 'CHALLAN',
+        metadata: { transferType: context.transfer.transferType },
+        createdAt: context.transfer.createdAt
+      }),
+      getOrCreateComplianceDocument({
+        transferId: context.transfer._id,
+        documentType: 'SETTLEMENT',
+        metadata: { transferType: context.transfer.transferType },
+        createdAt: context.transfer.createdAt
+      })
+    ]);
+
+    const invoicePayload = buildInvoicePayload({ ...context, documentNumber: invoiceDoc.documentNumber });
+    const challanPayload = buildChallanPayload({ ...context, documentNumber: challanDoc.documentNumber });
+    const settlementPayload = buildSettlementPayload({ ...context, documentNumber: settlementDoc.documentNumber });
+    const timelineRows = toAuditRows({
+      transfer: context.transfer,
+      produce: context.produce,
+      escrow: context.escrow,
+      invoice: invoicePayload,
+      challan: challanPayload,
+      settlement: settlementPayload,
+      requestedByPhone: req.user.phone
+    });
+
+    const persistedLogs = await ComplianceAudit.find({ transferId: context.transfer._id })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      transferId: String(context.transfer._id),
+      documents: {
+        invoice: invoicePayload.documentNumber,
+        challan: challanPayload.documentNumber,
+        settlement: settlementPayload.documentNumber
+      },
+      checksums: {
+        invoice: createChecksum(invoicePayload),
+        challan: createChecksum(challanPayload),
+        settlement: createChecksum(settlementPayload)
+      },
+      timelineRows,
+      auditLogs: persistedLogs.map((item) => ({
+        when: item.createdAt,
+        documentType: item.documentType,
+        action: item.action,
+        by: item.requestedByPhone,
+        role: item.requestedByRole,
+        ipAddress: item.ipAddress,
+        checksum: item.checksum,
+        metadata: item.metadata || null
+      }))
+    };
+
+    const checksum = createChecksum(payload);
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'AUDIT',
+      action: 'GENERATED',
+      checksum,
+      metadata: {
+        format: req.query.format === 'csv' ? 'csv' : 'json',
+        events: payload.timelineRows.length,
+        logs: payload.auditLogs.length
+      }
+    });
+
+    await createComplianceAudit({
+      req,
+      transferId: context.transfer._id,
+      documentType: 'AUDIT',
+      action: 'DOWNLOADED',
+      checksum,
+      metadata: {
+        format: req.query.format === 'csv' ? 'csv' : 'json'
+      }
+    });
+
+    if (req.query.format === 'csv') {
+      const csv = toAuditCsv([
+        ...timelineRows,
+        ...payload.auditLogs.map((item) => ({
+          event: `${item.documentType}_${item.action}`,
+          timestamp: item.when,
+          transferId: payload.transferId,
+          actor: item.by,
+          details: JSON.stringify(item.metadata || {})
+        }))
+      ]);
+      return streamCsv(res, csv, `AUD-${payload.transferId.slice(-6).toUpperCase()}.csv`);
+    }
+
+    return streamJson(res, { ...payload, checksum }, `AUD-${payload.transferId.slice(-6).toUpperCase()}.json`);
+  } catch (err) {
+    console.error('Audit trail error:', err.message);
+    return res.status(500).json({ message: 'Audit trail generate nahi ho paya' });
   }
 });
 

@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const PINCODE_REGEX = /^[1-9][0-9]{5}$/;
+
+const optionalRegexValidator = (regex, message) => ({
+  validator: (value) => !value || regex.test(String(value).trim().toUpperCase()),
+  message
+});
+
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -13,6 +22,24 @@ const userSchema = new mongoose.Schema({
   city: String,
   district: String,
   state: String,
+  pincode: {
+    type: String,
+    trim: true,
+    validate: optionalRegexValidator(PINCODE_REGEX, 'Invalid pincode format')
+  },
+  businessName: String,
+  gstin: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    validate: optionalRegexValidator(GSTIN_REGEX, 'Invalid GSTIN format')
+  },
+  pan: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    validate: optionalRegexValidator(PAN_REGEX, 'Invalid PAN format')
+  },
   resetPasswordToken: String,
   resetPasswordExpires: Date
 }, { timestamps: true });

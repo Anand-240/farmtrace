@@ -7,6 +7,7 @@ export default function Escrow() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
   const [refundData, setRefundData] = useState({});
+  const [downloading, setDownloading] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,6 +40,39 @@ export default function Escrow() {
       setRefundData({...refundData, [transferId]: ''});
     } catch (err) {
       alert('Refund request fail: ' + err.message);
+    }
+  };
+
+  const triggerBrowserDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleDocDownload = async (transferId, type, format = '') => {
+    const key = `${transferId}-${type}-${format || 'default'}`;
+    setDownloading((prev) => ({ ...prev, [key]: true }));
+
+    try {
+      const query = format ? `?format=${format}` : '';
+      const response = await api.get(`/api/payment/docs/${transferId}/${type}${query}`, {
+        responseType: 'blob'
+      });
+
+      const ext = type === 'audit-trail'
+        ? (format === 'csv' ? 'csv' : 'json')
+        : 'pdf';
+      const filename = `${type}-${String(transferId).slice(-6)}.${ext}`;
+      triggerBrowserDownload(response.data, filename);
+    } catch (err) {
+      alert(`Document download fail hua: ${err?.response?.data?.message || err.message}`);
+    } finally {
+      setDownloading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
@@ -147,6 +181,47 @@ export default function Escrow() {
                   </p>
                 </div>
 
+                <div style={styles.docSection}>
+                  <p style={styles.docTitle}>Compliance Documents</p>
+                  <div style={styles.docGrid}>
+                    <button
+                      onClick={() => handleDocDownload(id, 'invoice')}
+                      disabled={Boolean(downloading[`${id}-invoice-default`])}
+                      style={styles.docBtn}
+                    >
+                      {downloading[`${id}-invoice-default`] ? 'Downloading...' : 'Invoice PDF'}
+                    </button>
+                    <button
+                      onClick={() => handleDocDownload(id, 'challan')}
+                      disabled={Boolean(downloading[`${id}-challan-default`])}
+                      style={styles.docBtn}
+                    >
+                      {downloading[`${id}-challan-default`] ? 'Downloading...' : 'Challan PDF'}
+                    </button>
+                    <button
+                      onClick={() => handleDocDownload(id, 'settlement')}
+                      disabled={Boolean(downloading[`${id}-settlement-default`])}
+                      style={styles.docBtn}
+                    >
+                      {downloading[`${id}-settlement-default`] ? 'Downloading...' : 'Settlement PDF'}
+                    </button>
+                    <button
+                      onClick={() => handleDocDownload(id, 'audit-trail', 'json')}
+                      disabled={Boolean(downloading[`${id}-audit-trail-json`])}
+                      style={styles.docBtnSecondary}
+                    >
+                      {downloading[`${id}-audit-trail-json`] ? 'Downloading...' : 'Audit JSON'}
+                    </button>
+                    <button
+                      onClick={() => handleDocDownload(id, 'audit-trail', 'csv')}
+                      disabled={Boolean(downloading[`${id}-audit-trail-csv`])}
+                      style={styles.docBtnSecondary}
+                    >
+                      {downloading[`${id}-audit-trail-csv`] ? 'Downloading...' : 'Audit CSV'}
+                    </button>
+                  </div>
+                </div>
+
                 {/* Refund Option */}
                 {escrow.status !== 'REFUNDED' && (
                   <div style={styles.refundSection}>
@@ -229,6 +304,11 @@ const styles = {
   milestoneGrid: { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.6rem', margin:'1rem 0' },
   deliveryStatus: { background:'#f9f9f9', padding:'0.7rem', borderRadius:'8px', margin:'0.8rem 0' },
   refundSection: { marginTop:'1rem', borderTop:'1px solid #eee', paddingTop:'1rem' },
+  docSection: { marginTop:'1rem', borderTop:'1px solid #eee', paddingTop:'1rem' },
+  docTitle: { margin:'0 0 0.6rem', color:'#1f3320', fontWeight:'700', fontSize:'0.9rem' },
+  docGrid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' },
+  docBtn: { width:'100%', padding:'0.55rem', background:'#27500A', color:'#fff', border:'none', borderRadius:'8px', fontSize:'0.82rem', cursor:'pointer', fontWeight:'600' },
+  docBtnSecondary: { width:'100%', padding:'0.55rem', background:'#fff', color:'#27500A', border:'1px solid #27500A', borderRadius:'8px', fontSize:'0.82rem', cursor:'pointer', fontWeight:'600' },
   refundBtn: { width:'100%', padding:'0.6rem', background:'#ff9800', color:'white', border:'none', borderRadius:'8px', fontSize:'0.9rem', cursor:'pointer', fontWeight:'600' },
   refundForm: { marginTop:'0.8rem' },
   textarea: { width:'100%', padding:'0.6rem', borderRadius:'8px', border:'1px solid #ddd', fontSize:'0.9rem', minHeight:'60px', fontFamily:'inherit', boxSizing:'border-box' },
