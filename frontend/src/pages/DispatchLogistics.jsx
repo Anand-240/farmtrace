@@ -189,10 +189,10 @@ export default function DispatchLogistics() {
   };
 
   const badge = {
-    PENDING_DISPATCH: { bg: '#f0f2f7', color: '#414f66', text: 'Pending Dispatch' },
+    PENDING_DISPATCH: { bg: 'var(--ft-sage-light)', color: 'var(--ft-forest)', text: 'Pending Dispatch' },
     PICKUP_DISPATCHED: { bg: '#e8edff', color: '#2d3f9e', text: 'Pickup Dispatched' },
     IN_TRANSIT: { bg: '#ffeeda', color: '#8b5318', text: 'In Transit' },
-    DELIVERED: { bg: '#e1f5ee', color: '#085041', text: 'Delivered' }
+    DELIVERED: { bg: 'var(--ft-white)', color: 'var(--ft-forest)', text: 'Delivered' }
   };
 
   const summary = useMemo(() => {
@@ -230,42 +230,34 @@ export default function DispatchLogistics() {
       <div style={styles.header}>
         <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Dashboard</button>
         <div>
-          <h2 style={styles.title}>Dispatch & Delivery Control Center</h2>
-          <p style={styles.subTitle}>Shipment planning, slot booking, transporter assignment aur live dispatch tracking ek hi jagah.</p>
+          <h2 style={styles.title}>Dispatch & Logistics</h2>
+          <p style={styles.subTitle}>Shipment planning, slot booking, and live tracking control center.</p>
         </div>
       </div>
 
       <div style={styles.summaryGrid}>
-        <div style={styles.summaryCard}>
-          <p style={styles.summaryLabel}>Total Shipments</p>
-          <p style={styles.summaryValue}>{summary.total}</p>
-        </div>
-        <div style={styles.summaryCard}>
-          <p style={styles.summaryLabel}>Pending Dispatch</p>
-          <p style={styles.summaryValue}>{summary.pending}</p>
-        </div>
-        <div style={styles.summaryCard}>
-          <p style={styles.summaryLabel}>In Transit</p>
-          <p style={styles.summaryValue}>{summary.transit}</p>
-        </div>
-        <div style={styles.summaryCard}>
-          <p style={styles.summaryLabel}>Delivered</p>
-          <p style={styles.summaryValue}>{summary.delivered}</p>
-        </div>
-        <div style={styles.summaryCard}>
-          <p style={styles.summaryLabel}>Slots Booked</p>
-          <p style={styles.summaryValue}>{summary.slotBooked}</p>
-        </div>
+        {[
+          { label: 'Total Shipments', val: summary.total },
+          { label: 'Pending Dispatch', val: summary.pending },
+          { label: 'In Transit', val: summary.transit },
+          { label: 'Delivered', val: summary.delivered },
+          { label: 'Slots Booked', val: summary.slotBooked }
+        ].map(s => (
+          <div key={s.label} style={styles.summaryCard}>
+            <p style={styles.summaryLabel}>{s.label}</p>
+            <p style={styles.summaryValue}>{s.val}</p>
+          </div>
+        ))}
       </div>
 
       {loading ? (
-        <div style={styles.empty}>Load ho raha hai...</div>
+        <div style={styles.empty}><div className="ft-spinner" style={{ margin: '0 auto' }} /></div>
       ) : deliveries.length === 0 ? (
         <div style={styles.empty}>
           Payment verified deliveries abhi available nahi hain.
         </div>
       ) : (
-        deliveries.map((d) => {
+        deliveries.map((d, idx) => {
           const b = badge[d.deliveryStatus] || badge.PENDING_DISPATCH;
           const f = forms[d._id] || {};
           const lf = logisticsForms[d._id] || {};
@@ -276,12 +268,14 @@ export default function DispatchLogistics() {
           const isExpanded = Boolean(expandedCards[d._id]);
 
           return (
-            <div key={d._id} style={styles.card}>
+            <div key={d._id} className="animate-slide-up" style={{ ...styles.card, animationDelay: `${idx * 0.05}s` }}>
               <div style={styles.cardHead}>
-                <div>
+                <div style={{ flex: 1 }}>
                   <p style={styles.crop}>{d.produce?.cropType || 'Produce'}</p>
-                  <p style={styles.info}>Lot: {d.produce?.lotCode || d.produceId}</p>
-                  <p style={styles.info}>Qty: {d.produce?.quantity || 0} kg</p>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                    <p style={styles.info}>Lot: <strong>{d.produce?.lotCode || d.produceId}</strong></p>
+                    <p style={styles.info}>Qty: <strong>{d.produce?.quantity || 0} kg</strong></p>
+                  </div>
                 </div>
                 <div style={styles.cardHeadRight}>
                   <span style={{ ...styles.status, background: b.bg, color: b.color }}>{b.text}</span>
@@ -295,14 +289,14 @@ export default function DispatchLogistics() {
                 <div style={styles.quickStatChip}><span style={styles.quickStatKey}>ETA</span><span style={styles.quickStatVal}>{formatEta(d.routeEtaMinutes)}</span></div>
                 <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Distance</span><span style={styles.quickStatVal}>{d.routeDistanceKm ? `${d.routeDistanceKm} km` : 'N/A'}</span></div>
                 <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Freight</span><span style={styles.quickStatVal}>{formatCurrency(d.freightEstimateAmount, d.freightCurrency || 'INR')}</span></div>
-                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Slot</span><span style={styles.quickStatVal}>{deliverySlotBooked ? 'Booked' : 'Pending'}</span></div>
+                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Slot</span><span style={styles.quickStatVal}>{deliverySlotBooked ? '✅ Booked' : '⏳ Pending'}</span></div>
               </div>
 
               <div style={styles.metaGrid}>
                 <div style={styles.metaCell}><p style={styles.metaLabel}>Source</p><p style={styles.metaValue}>{d.location || 'N/A'}</p></div>
                 <div style={styles.metaCell}><p style={styles.metaLabel}>Current</p><p style={styles.metaValue}>{d.currentLocation || 'N/A'}</p></div>
                 <div style={styles.metaCell}><p style={styles.metaLabel}>Destination</p><p style={styles.metaValue}>{d.destinationLocation || 'Not booked'}</p></div>
-                <div style={styles.metaCell}><p style={styles.metaLabel}>Counterparty</p><p style={styles.metaValue}>{`${d.fromPhone} → ${d.toPhone}`}</p></div>
+                <div style={styles.metaCell}><p style={styles.metaLabel}>Exchange</p><p style={styles.metaValue}>{`${d.fromPhone.slice(-4)} → ${d.toPhone.slice(-4)}`}</p></div>
               </div>
 
               {matched && (
@@ -310,7 +304,7 @@ export default function DispatchLogistics() {
                   <p style={styles.matchTitle}>Matched Transporter</p>
                   <div style={styles.metaGrid}>
                     <div style={styles.metaCell}><p style={styles.metaLabel}>Name</p><p style={styles.metaValue}>{matched.name}</p></div>
-                    <div style={styles.metaCell}><p style={styles.metaLabel}>Transporter ID</p><p style={styles.metaValue}>{matched.transporterId}</p></div>
+                    <div style={styles.metaCell}><p style={styles.metaLabel}>ID</p><p style={styles.metaValue}>{matched.transporterId}</p></div>
                     <div style={styles.metaCell}><p style={styles.metaLabel}>Phone</p><p style={styles.metaValue}>{matched.phone}</p></div>
                     <div style={styles.metaCell}><p style={styles.metaLabel}>Vehicle</p><p style={styles.metaValue}>{matched.vehicleType}</p></div>
                   </div>
@@ -319,7 +313,7 @@ export default function DispatchLogistics() {
 
               {deliverySlotBooked && (
                 <div style={styles.slotInfo}>
-                  Slot Booked: {prettyDate(d.deliverySlotDate)} | {d.deliverySlotLabel}
+                  Slot Booked: <strong>{prettyDate(d.deliverySlotDate).split(',')[0]}</strong> at <strong>{d.deliverySlotLabel}</strong>
                 </div>
               )}
 
@@ -347,11 +341,12 @@ export default function DispatchLogistics() {
                       />
 
                       <button
-                        style={styles.previewBtn}
+                        className="ft-btn ft-btn-secondary ft-btn-full"
+                        style={{ marginTop: '1rem' }}
                         onClick={() => previewPlan(d._id)}
                         disabled={planningId === d._id}
                       >
-                        {planningId === d._id ? 'Planning...' : 'Preview Logistics Plan'}
+                        {planningId === d._id ? <div className="ft-spinner" /> : 'Preview Logistics Plan'}
                       </button>
 
                       {plan && (
@@ -360,8 +355,8 @@ export default function DispatchLogistics() {
                           <p style={styles.planRoute}>{plan.origin} → {plan.destination}</p>
                           <div style={styles.quickStatsRow}>
                             <div style={styles.quickStatChip}><span style={styles.quickStatKey}>ETA</span><span style={styles.quickStatVal}>{formatEta(plan.route?.etaMinutes)}</span></div>
-                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Distance</span><span style={styles.quickStatVal}>{plan.route?.distanceKm || 0} km</span></div>
-                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Freight</span><span style={styles.quickStatVal}>{formatCurrency(plan.freight?.amount, plan.freight?.currency || 'INR')}</span></div>
+                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Dist</span><span style={styles.quickStatVal}>{plan.route?.distanceKm || 0} km</span></div>
+                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Cost</span><span style={styles.quickStatVal}>{formatCurrency(plan.freight?.amount, plan.freight?.currency || 'INR')}</span></div>
                           </div>
 
                           <label style={styles.label}>Select Transporter</label>
@@ -372,14 +367,14 @@ export default function DispatchLogistics() {
                           >
                             {plan.matchedTransporters?.map((t) => (
                               <option key={t.transporterId} value={t.transporterId}>
-                                {`${t.name} | ${t.vehicleType} | ${t.rating}★ | Pickup ETA ${t.pickupEtaMinutes}m`}
+                                {`${t.name} | ${t.vehicleType} | ${t.rating}★`}
                               </option>
                             ))}
                           </select>
 
                           <div style={styles.inlineFieldGrid(isMobile)}>
                             <div>
-                              <label style={styles.label}>Delivery Slot Date</label>
+                              <label style={styles.label}>Date</label>
                               <select
                                 style={styles.input}
                                 value={lf.slotDate || ''}
@@ -392,7 +387,7 @@ export default function DispatchLogistics() {
                             </div>
 
                             <div>
-                              <label style={styles.label}>Delivery Slot Window</label>
+                              <label style={styles.label}>Slot Window</label>
                               <select
                                 style={styles.input}
                                 value={lf.slotLabel || ''}
@@ -408,11 +403,12 @@ export default function DispatchLogistics() {
                           </div>
 
                           <button
-                            style={styles.bookBtn}
+                            className="ft-btn ft-btn-primary ft-btn-full"
+                            style={{ marginTop: '1rem' }}
                             onClick={() => bookSlot(d._id)}
                             disabled={bookingId === d._id}
                           >
-                            {bookingId === d._id ? 'Booking...' : 'Book Delivery Slot'}
+                            {bookingId === d._id ? <div className="ft-spinner" /> : 'Book Delivery Slot'}
                           </button>
                         </div>
                       )}
@@ -421,7 +417,7 @@ export default function DispatchLogistics() {
                     <div style={styles.sectionCard}>
                       <div style={styles.panelTitle}>2) Dispatch Tracking Updates</div>
 
-                      <label style={styles.label}>Status</label>
+                      <label style={styles.label}>Current Delivery Status</label>
                       <select style={styles.input} value={f.deliveryStatus || 'PENDING_DISPATCH'} onChange={(e) => setField(d._id, 'deliveryStatus', e.target.value)}>
                         <option value="PENDING_DISPATCH">Pending Dispatch</option>
                         <option value="PICKUP_DISPATCHED">Pickup Dispatched</option>
@@ -452,7 +448,7 @@ export default function DispatchLogistics() {
                       </div>
 
                       <div style={styles.inlineFieldGrid(isMobile)}>
-                        <div>
+                        <div style={{ flex: 1.5 }}>
                           <label style={styles.label}>Current Location</label>
                           <LocationAutocompleteInput
                             inputStyle={styles.input}
@@ -463,19 +459,19 @@ export default function DispatchLogistics() {
                           />
                         </div>
                         <div>
-                          <label style={styles.label}>Expected Delivery Time</label>
+                          <label style={styles.label}>Expected Delivery</label>
                           <input type="datetime-local" style={styles.input} value={f.expectedDeliveryTime || ''} onChange={(e) => setField(d._id, 'expectedDeliveryTime', e.target.value)} />
                         </div>
                       </div>
 
-                      <button style={styles.saveBtn} onClick={() => save(d._id)} disabled={savingId === d._id}>
-                        {savingId === d._id ? 'Saving...' : 'Update Dispatch'}
+                      <button className="ft-btn ft-btn-primary ft-btn-full" style={{ marginTop: '1.25rem' }} onClick={() => save(d._id)} disabled={savingId === d._id}>
+                        {savingId === d._id ? <div className="ft-spinner" /> : 'Update Dispatch Info'}
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                isExpanded && <p style={styles.readOnly}>Aap read-only mode me ho. Dispatch sender update karega.</p>
+                isExpanded && <p style={styles.readOnly}>ℹ️ Aap read-only mode me ho. Dispatch sender update karega.</p>
               )}
             </div>
           );
@@ -486,45 +482,42 @@ export default function DispatchLogistics() {
 }
 
 const styles = {
-  page: { minHeight: '100vh', background: 'radial-gradient(circle at top right, #e9f5df 0%, #f6f9f4 36%, #edf5ea 100%)', padding: '1rem' },
-  header: { display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '0.9rem', background: '#fff', border: '1px solid #dbe5d8', borderRadius: '14px', padding: '1rem 1.1rem', boxShadow: '0 10px 26px rgba(18, 45, 23, 0.07)' },
-  backBtn: { background: '#f4faef', border: '1px solid #d2e8c4', color: '#27500A', cursor: 'pointer', padding: '0.45rem 0.7rem', borderRadius: '8px', fontWeight: 700 },
-  title: { margin: 0, color: '#19331d', fontSize: '1.25rem', letterSpacing: '0.02em' },
-  subTitle: { margin: '0.3rem 0 0', color: '#607266', fontSize: '0.88rem' },
-  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem', marginBottom: '0.8rem' },
-  summaryCard: { background: '#fff', border: '1px solid #dbe5d8', borderRadius: '12px', padding: '0.7rem 0.8rem', boxShadow: '0 5px 14px rgba(18, 45, 23, 0.05)' },
-  summaryLabel: { margin: 0, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6a7c72', fontWeight: 700 },
-  summaryValue: { margin: '0.28rem 0 0', color: '#18351e', fontSize: '1.15rem', fontWeight: 800 },
-  empty: { background: '#fff', border: '1px solid #dbe5d8', borderRadius: '12px', padding: '1rem', color: '#55655d' },
-  card: { background: '#fff', border: '1px solid #dbe5d8', borderRadius: '14px', padding: '1rem', marginBottom: '0.85rem', boxShadow: '0 9px 24px rgba(18, 45, 23, 0.05)' },
-  cardHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.35rem' },
-  cardHeadRight: { display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap', justifyContent: 'flex-end' },
-  toggleBtn: { border: '1px solid #d3dfd0', background: '#fff', color: '#33473a', borderRadius: '999px', fontSize: '0.75rem', padding: '0.3rem 0.6rem', cursor: 'pointer', fontWeight: 700 },
-  crop: { margin: 0, color: '#223a26', fontWeight: 800, fontSize: '1rem' },
-  status: { fontSize: '0.73rem', fontWeight: 800, borderRadius: '999px', padding: '0.26rem 0.7rem', letterSpacing: '0.01em' },
-  info: { margin: '0.2rem 0', color: '#55655d', fontSize: '0.86rem' },
-  quickStatsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.45rem', marginTop: '0.45rem' },
-  quickStatChip: { border: '1px solid #dcead4', background: '#f7fcf3', borderRadius: '9px', padding: '0.4rem 0.55rem', display: 'flex', justifyContent: 'space-between', gap: '0.6rem' },
-  quickStatKey: { color: '#708277', fontSize: '0.73rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' },
-  quickStatVal: { color: '#224225', fontSize: '0.83rem', fontWeight: 800 },
-  metaGrid: { marginTop: '0.55rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '0.45rem' },
-  metaCell: { background: '#f9fcf7', border: '1px solid #deead7', borderRadius: '9px', padding: '0.45rem 0.55rem' },
-  metaLabel: { margin: 0, fontSize: '0.69rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#72857b', fontWeight: 700 },
-  metaValue: { margin: '0.2rem 0 0', fontSize: '0.85rem', color: '#263d2b', fontWeight: 700 },
-  form: { marginTop: '0.8rem', borderTop: '1px dashed #dbe5d8', paddingTop: '0.8rem' },
-  panelWrap: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.06fr 1fr', gap: '0.75rem' }),
-  sectionCard: { border: '1px solid #dde9d6', background: '#fcfefb', borderRadius: '11px', padding: '0.7rem' },
-  panelTitle: { margin: '0.1rem 0 0.5rem', color: '#234126', fontSize: '0.79rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' },
-  label: { display: 'block', margin: '0.35rem 0 0.2rem', color: '#3f5346', fontWeight: 700, fontSize: '0.78rem' },
-  input: { width: '100%', boxSizing: 'border-box', border: '1px solid #d3dfd0', borderRadius: '8px', padding: '0.52rem 0.6rem', background: '#fff', fontSize: '0.84rem', color: '#243a2a' },
-  inlineFieldGrid: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0.55rem' }),
-  previewBtn: { marginTop: '0.7rem', width: '100%', border: '1px solid #27500A', borderRadius: '9px', background: '#fff', color: '#27500A', padding: '0.68rem', fontWeight: 800, cursor: 'pointer' },
-  planBox: { marginTop: '0.65rem', background: '#f6fbf4', border: '1px solid #d8e8d3', borderRadius: '9px', padding: '0.6rem' },
-  planRoute: { margin: '0.16rem 0 0.35rem', color: '#1f3d24', fontSize: '0.86rem', fontWeight: 800 },
-  bookBtn: { marginTop: '0.7rem', width: '100%', border: 'none', borderRadius: '9px', background: '#2f5d0c', color: '#fff', padding: '0.68rem', fontWeight: 800, cursor: 'pointer' },
-  saveBtn: { marginTop: '0.72rem', width: '100%', border: 'none', borderRadius: '9px', background: '#27500A', color: '#fff', padding: '0.68rem', fontWeight: 800, cursor: 'pointer' },
-  readOnly: { marginTop: '0.6rem', color: '#6a7388', fontSize: '0.82rem', fontWeight: 700 },
-  matchInfo: { marginTop: '0.6rem', background: '#eef6ea', border: '1px solid #d4e7cd', borderRadius: '10px', padding: '0.6rem' },
-  matchTitle: { margin: '0 0 0.25rem', color: '#1d3a1b', fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
-  slotInfo: { marginTop: '0.5rem', fontSize: '0.8rem', color: '#1d3a1b', background: '#e9f4e4', border: '1px solid #d4e7cd', borderRadius: '8px', padding: '0.45rem 0.55rem', fontWeight: 700 }
+  page: { minHeight: '100vh', background: 'var(--ft-bg)', padding: '1.5rem', fontFamily: 'var(--ft-font-main)', color: 'var(--ft-text)' },
+  header: { display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem', boxShadow: 'var(--ft-shadow-sm)', position: 'sticky', top: '1rem', zIndex: 10 },
+  backBtn: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', color: 'var(--ft-forest)', cursor: 'pointer', padding: '0.6rem 1rem', borderRadius: '12px', fontWeight: 800, transition: 'var(--ft-transition)' },
+  title: { margin: 0, color: 'var(--ft-forest)', fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' },
+  subTitle: { margin: '0.25rem 0 0', color: 'var(--ft-text-muted)', fontSize: '0.9rem' },
+  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' },
+  summaryCard: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius)', padding: '1.25rem', boxShadow: 'var(--ft-shadow-sm)' },
+  summaryLabel: { margin: 0, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ft-text-muted)', fontWeight: 800 },
+  summaryValue: { margin: '0.5rem 0 0', color: 'var(--ft-forest)', fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' },
+  empty: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius)', padding: '3rem', textAlign: 'center', color: 'var(--ft-text-muted)', fontWeight: 600 },
+  card: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem', marginBottom: '1.5rem', boxShadow: 'var(--ft-shadow-sm)', transition: 'var(--ft-transition)' },
+  cardHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', marginBottom: '1rem' },
+  cardHeadRight: { display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end' },
+  toggleBtn: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-white)', color: 'var(--ft-forest)', borderRadius: '12px', fontSize: '0.85rem', padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: 800, transition: 'var(--ft-transition)' },
+  crop: { margin: 0, color: 'var(--ft-forest)', fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' },
+  status: { fontSize: '0.7rem', fontWeight: 800, borderRadius: '999px', padding: '0.25rem 0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase' },
+  info: { margin: 0, color: 'var(--ft-text-muted)', fontSize: '0.9rem' },
+  quickStatsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginTop: '1rem' },
+  quickStatChip: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-bg)', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' },
+  quickStatKey: { color: 'var(--ft-text-muted)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' },
+  quickStatVal: { color: 'var(--ft-forest)', fontSize: '0.9rem', fontWeight: 800 },
+  metaGrid: { marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' },
+  metaCell: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: '12px', padding: '1rem' },
+  metaLabel: { margin: 0, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ft-text-muted)', fontWeight: 800 },
+  metaValue: { margin: '0.4rem 0 0', fontSize: '0.95rem', color: 'var(--ft-text)', fontWeight: 700 },
+  form: { marginTop: '1.5rem', borderTop: '1px dashed var(--ft-border)', paddingTop: '1.5rem' },
+  panelWrap: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }),
+  sectionCard: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-bg)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem' },
+  panelTitle: { margin: '0 0 1.25rem', color: 'var(--ft-forest)', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', borderLeft: '3px solid var(--ft-forest)', paddingLeft: '0.75rem' },
+  label: { display: 'block', margin: '0.75rem 0 0.4rem', color: 'var(--ft-text)', fontWeight: 700, fontSize: '0.85rem' },
+  input: { width: '100%', boxSizing: 'border-box', border: '1.5px solid var(--ft-border)', borderRadius: '12px', padding: '0.75rem 1rem', background: 'var(--ft-white)', fontSize: '0.95rem', color: 'var(--ft-text)', outline: 'none', transition: 'var(--ft-transition)' },
+  inlineFieldGrid: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }),
+  planBox: { marginTop: '1.25rem', background: 'var(--ft-white)', border: '1.5px solid var(--ft-border)', borderRadius: '16px', padding: '1.25rem', boxShadow: 'var(--ft-shadow-sm)' },
+  planRoute: { margin: '0.25rem 0 1rem', color: 'var(--ft-forest)', fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em' },
+  readOnly: { marginTop: '1rem', color: 'var(--ft-text-muted)', fontSize: '0.9rem', fontWeight: 600, textAlign: 'center', background: 'var(--ft-bg)', padding: '1rem', borderRadius: '12px' },
+  matchInfo: { marginTop: '1.25rem', background: 'var(--ft-sage-light)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem' },
+  matchTitle: { margin: '0 0 0.75rem', color: 'var(--ft-forest)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' },
+  slotInfo: { marginTop: '1rem', fontSize: '0.9rem', color: 'var(--ft-forest)', background: 'var(--ft-sage-light)', border: '1px solid var(--ft-border)', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 600 }
 };
