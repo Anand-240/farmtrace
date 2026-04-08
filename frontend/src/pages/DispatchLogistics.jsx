@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import { fullLocationSuggestions } from '../lib/locationSuggestions';
 
 export default function DispatchLogistics() {
   const [deliveries, setDeliveries] = useState([]);
@@ -328,11 +330,12 @@ export default function DispatchLogistics() {
                       <div style={styles.panelTitle}>1) Logistics Matching + ETA</div>
 
                       <label style={styles.label}>Destination Location</label>
-                      <input
-                        style={styles.input}
-                        placeholder="e.g. Jaipur"
+                      <LocationAutocompleteInput
+                        inputStyle={styles.input}
+                        placeholder="e.g. Jaipur, Rajasthan"
                         value={lf.destinationLocation || ''}
                         onChange={(e) => setLogisticsField(d._id, 'destinationLocation', e.target.value)}
+                        suggestions={fullLocationSuggestions}
                       />
 
                       <label style={styles.label}>Preferred Vehicle</label>
@@ -451,7 +454,13 @@ export default function DispatchLogistics() {
                       <div style={styles.inlineFieldGrid(isMobile)}>
                         <div>
                           <label style={styles.label}>Current Location</label>
-                          <input style={styles.input} value={f.currentLocation || ''} onChange={(e) => setField(d._id, 'currentLocation', e.target.value)} />
+                          <LocationAutocompleteInput
+                            inputStyle={styles.input}
+                            value={f.currentLocation || ''}
+                            onChange={(e) => setField(d._id, 'currentLocation', e.target.value)}
+                            suggestions={fullLocationSuggestions}
+                            placeholder="Current location"
+                          />
                         </div>
                         <div>
                           <label style={styles.label}>Expected Delivery Time</label>

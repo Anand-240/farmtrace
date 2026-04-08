@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
 import { getMandiFloorForProduce } from '../lib/market';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import { fullLocationSuggestions } from '../lib/locationSuggestions';
 
 const compressImage = (file) => {
   return new Promise((resolve, reject) => {
@@ -255,15 +257,6 @@ export default function AIAssistant() {
     }
 
     if (!nextForm.quantity) {
-      setPrompt({
-        key: 'quantity',
-        type: 'number',
-        text: 'Kitna kg hai? Sirf number likho.'
-      });
-      return;
-    }
-
-    if (!nextForm.qualityGrade) {
       setPrompt({
         key: 'qualityGrade',
         type: 'option',
@@ -838,15 +831,26 @@ export default function AIAssistant() {
             </div>
           ) : showTextInput ? (
             <div style={styles.inputRow}>
-              <input
-                style={styles.input}
-                type={isNumericPrompt ? 'number' : 'text'}
-                placeholder={isNumericPrompt ? 'Sirf number likho' : 'Yahan jawab likho'}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleTypedSubmit()}
-                disabled={loading || submitting}
-              />
+              {['origin', 'location'].includes(currentPrompt?.key) && !isNumericPrompt ? (
+                <LocationAutocompleteInput
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  suggestions={fullLocationSuggestions}
+                  placeholder={currentPrompt?.key === 'origin' ? 'Jaise: Nashik, Maharashtra' : 'Jaise: Pune, Maharashtra'}
+                  inputStyle={styles.locationInput}
+                  disabled={loading || submitting}
+                />
+              ) : (
+                <input
+                  style={styles.input}
+                  type={isNumericPrompt ? 'number' : 'text'}
+                  placeholder={isNumericPrompt ? 'Sirf number likho' : 'Yahan jawab likho'}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTypedSubmit()}
+                  disabled={loading || submitting}
+                />
+              )}
               <button
                 onClick={handleTypedSubmit}
                 style={styles.sendBtn}
@@ -882,6 +886,7 @@ const styles = {
   inputWrap: { padding: '1rem', background: '#fff', borderTop: '1px solid #dbe5d8' },
   inputRow: { display: 'flex', gap: '0.6rem' },
   input: { flex: 1, padding: '0.82rem 0.95rem', border: '1px solid #d3dfd0', borderRadius: '10px', fontSize: '0.98rem', background: '#fbfdfb' },
+  locationInput: { flex: 1 },
   sendBtn: { padding: '0.82rem 1.3rem', background: '#27500A', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '0.92rem', fontWeight: '700' },
   resultCard: { margin: '1rem', background: '#fff', borderRadius: '14px', padding: '1.1rem', boxShadow: '0 8px 20px rgba(26, 44, 33, 0.08)', border: '1px solid #dbe5d8' },
   resultTitle: { margin: '0 0 0.4rem', color: '#27500A' },

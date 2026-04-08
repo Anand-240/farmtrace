@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { countryPhoneConfigs, locationData } from '../data/locationData';
+import { countryPhoneConfigs } from '../data/locationData';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
 import { User, Mail, MapPin, Phone, Lock, Hash, Activity, LogIn, UserPlus, Eye, EyeOff } from 'lucide-react';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import {
+  citySuggestions,
+  getCitySuggestionsForState,
+  getVillageSuggestionsForLocation,
+  stateSuggestions
+} from '../lib/locationSuggestions';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
 let googleSignInInitialized = false;
@@ -119,11 +126,9 @@ export default function Login() {
   const navigate = useNavigate();
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID?.trim();
   const selectedPhoneConfig = countryPhoneConfigs[form.countryCode];
-  const states = Object.keys(locationData);
-  const cities = form.state ? Object.keys(locationData[form.state] || {}) : [];
-  const villages = form.state && form.city
-    ? locationData[form.state]?.[form.city] || []
-    : [];
+  const states = stateSuggestions;
+  const cities = getCitySuggestionsForState(form.state);
+  const villages = getVillageSuggestionsForLocation(form.state, form.city);
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -300,51 +305,47 @@ export default function Login() {
               </div>
 
               <div className="auth-input-group">
-                <select value={form.state}
-                  onChange={e => setForm((current) => ({
+                <LocationAutocompleteInput
+                  value={form.state}
+                  onChange={(e) => setForm((current) => ({
                     ...current,
-                    state: e.target.value,
-                    city: '',
-                    district: '',
-                    village: ''
+                    state: e.target.value
                   }))}
-                  required={form.role === 'FARMER'}>
-                  <option value="">{t('login_state_select')}</option>
-                  {states.map((state) => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
-                </select>
+                  suggestions={states}
+                  placeholder={t('login_state_select')}
+                  inputStyle={styles.authAutocompleteInput}
+                  required={form.role === 'FARMER'}
+                />
                 <MapPin size={18} className="auth-input-icon" />
               </div>
 
               <div className="auth-input-group">
-                <select value={form.city}
-                  onChange={e => setForm((current) => ({
+                <LocationAutocompleteInput
+                  value={form.city}
+                  onChange={(e) => setForm((current) => ({
                     ...current,
                     city: e.target.value,
-                    district: e.target.value,
-                    village: ''
+                    district: e.target.value
                   }))}
-                  disabled={!form.state}
-                  required={form.role === 'FARMER'}>
-                  <option value="">{form.state ? t('login_city_select') : t('login_city_select_first')}</option>
-                  {cities.map((city) => (
-                    <option key={city} value={city}>{city}</option>
-                  ))}
-                </select>
+                  suggestions={cities.length ? cities : citySuggestions}
+                  placeholder={form.state ? t('login_city_select') : t('login_city_select_first')}
+                  inputStyle={styles.authAutocompleteInput}
+                  disabled={!form.state && form.role === 'FARMER'}
+                  required={form.role === 'FARMER'}
+                />
                 <MapPin size={18} className="auth-input-icon" />
               </div>
 
               <div className="auth-input-group">
-                <select value={form.village}
-                  onChange={e => updateField('village', e.target.value)}
-                  disabled={!form.city}
-                  required={form.role === 'FARMER'}>
-                  <option value="">{form.city ? t('login_village_select') : t('login_village_select_first')}</option>
-                  {villages.map((village) => (
-                    <option key={village} value={village}>{village}</option>
-                  ))}
-                </select>
+                <LocationAutocompleteInput
+                  value={form.village}
+                  onChange={(e) => updateField('village', e.target.value)}
+                  suggestions={villages.length ? villages : getVillageSuggestionsForLocation(form.state, form.city)}
+                  placeholder={form.city ? t('login_village_select') : t('login_village_select_first')}
+                  inputStyle={styles.authAutocompleteInput}
+                  disabled={!form.city && form.role === 'FARMER'}
+                  required={form.role === 'FARMER'}
+                />
                 <MapPin size={18} className="auth-input-icon" />
               </div>
 
@@ -538,6 +539,18 @@ const styles = {
     width: '100%',
     padding: '0.92rem 1rem',
     marginBottom: '0.85rem',
+    border: '1px solid #d7dfcf',
+    borderRadius: '10px',
+    fontSize: '0.98rem',
+    boxSizing: 'border-box',
+    background: '#fbfdfb',
+    color: '#1d2718',
+    outline: 'none'
+  },
+  authAutocompleteInput: {
+    width: '100%',
+    padding: '0.92rem 1rem',
+    marginBottom: 0,
     border: '1px solid #d7dfcf',
     borderRadius: '10px',
     fontSize: '0.98rem',

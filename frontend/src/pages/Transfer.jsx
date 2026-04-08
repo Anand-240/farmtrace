@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useNotification } from '../context/NotificationContext';
 import { getMandiFloorForProduce } from '../lib/market';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import { fullLocationSuggestions } from '../lib/locationSuggestions';
 
 export default function Transfer() {
   const { showNotification } = useNotification();
@@ -323,7 +325,14 @@ export default function Transfer() {
                 {priceError && <div style={s.alertErr}>⚠️ {priceError}</div>}
 
                 <label style={s.label}>📍 Location</label>
-                <input style={s.input} placeholder="Jaise: Pune, Maharashtra" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} required />
+                <LocationAutocompleteInput
+                  inputStyle={s.input}
+                  placeholder="Jaise: Pune, Maharashtra"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  suggestions={fullLocationSuggestions}
+                  required
+                />
 
                 <button
                   type="submit"

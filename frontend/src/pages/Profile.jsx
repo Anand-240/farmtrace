@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import {
+  citySuggestions,
+  stateSuggestions,
+  villageSuggestions
+} from '../lib/locationSuggestions';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -92,9 +98,6 @@ export default function Profile() {
                 {[
                   { label: 'Aapka Naam', key: 'name', icon: '👤', placeholder: 'Jaise: Ram Singh' },
                   { label: 'Phone Number', key: 'phone', icon: '📱', placeholder: '+91...' },
-                  { label: 'Village / Gaon', key: 'village', icon: '🏘️', placeholder: 'Aapka gaon' },
-                  { label: 'City / Shahar', key: 'city', icon: '🏙️', placeholder: 'Aapka shahar' },
-                  { label: 'State / Pradesh', key: 'state', icon: '📍', placeholder: 'Jaise: Uttar Pradesh' },
                 ].map(({ label, key, icon, placeholder }) => (
                   <div key={key} style={s.fieldWrap}>
                     <label style={s.label}>{icon} {label}</label>
@@ -106,6 +109,39 @@ export default function Profile() {
                     />
                   </div>
                 ))}
+
+                <div style={s.fieldWrap}>
+                  <label style={s.label}>🏘️ Village / Gaon</label>
+                  <LocationAutocompleteInput
+                    inputStyle={s.input}
+                    value={form.village}
+                    onChange={(e) => updateField('village', e.target.value)}
+                    suggestions={villageSuggestions}
+                    placeholder="Aapka gaon"
+                  />
+                </div>
+
+                <div style={s.fieldWrap}>
+                  <label style={s.label}>🏙️ City / Shahar</label>
+                  <LocationAutocompleteInput
+                    inputStyle={s.input}
+                    value={form.city}
+                    onChange={(e) => updateField('city', e.target.value)}
+                    suggestions={citySuggestions}
+                    placeholder="Aapka shahar"
+                  />
+                </div>
+
+                <div style={s.fieldWrap}>
+                  <label style={s.label}>📍 State / Pradesh</label>
+                  <LocationAutocompleteInput
+                    inputStyle={s.input}
+                    value={form.state}
+                    onChange={(e) => updateField('state', e.target.value)}
+                    suggestions={stateSuggestions}
+                    placeholder="Jaise: Uttar Pradesh"
+                  />
+                </div>
 
                 <div style={s.fieldWrap}>
                   <label style={s.label}>🖼️ Avatar URL (optional)</label>

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
+import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
+import { fullLocationSuggestions } from '../lib/locationSuggestions';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -99,9 +101,14 @@ export default function Register() {
           </select>
 
           <label style={styles.label}>Mool Sthan</label>
-          <input style={styles.input} placeholder="Nashik, Maharashtra"
+          <LocationAutocompleteInput
+            inputStyle={styles.input}
+            placeholder="Nashik, Maharashtra"
             value={form.origin}
-            onChange={e => setForm({...form, origin: e.target.value})} required />
+            onChange={(e) => setForm({ ...form, origin: e.target.value })}
+            suggestions={fullLocationSuggestions}
+            required
+          />
 
           <label style={styles.label}>Maatra (kg)</label>
           <input style={styles.input} type="number" placeholder="500"
