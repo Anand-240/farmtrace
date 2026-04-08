@@ -51,7 +51,7 @@ export default function Profile() {
     } finally { setSaving(false); }
   };
 
-  const roleColor = { FARMER: '#1a4a0f', DISTRIBUTOR: '#0c4a6e', RETAILER: '#78350f' };
+  const roleColor = { FARMER: 'var(--ft-forest)', DISTRIBUTOR: '#0c4a6e', RETAILER: '#78350f' };
   const roleEmoji = { FARMER: '👨‍🌾', DISTRIBUTOR: '🚛', RETAILER: '🏪' };
 
   return (
@@ -59,41 +59,40 @@ export default function Profile() {
       {/* TOP BAR */}
       <div style={s.topbar}>
         <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-          <span style={{ fontSize: '1.2rem' }}>👤</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
           <span style={s.topbarText}>Mera Profile</span>
         </div>
       </div>
 
       <div style={s.inner}>
         {loading ? (
-          <div style={s.loadingWrap}><p style={s.loadingText}>Profile load ho raha hai...</p></div>
+          <div style={s.loadingWrap}><div className="ft-spinner" style={{ margin: '0 auto 1rem' }} /><p style={s.loadingText}>Profile load ho raha hai...</p></div>
         ) : (
           <>
             {/* AVATAR CARD */}
-            <div style={s.avatarCard}>
+            <div style={s.avatarCard} className="animate-slide-up">
               <div style={s.avatarCircle}>
                 {form.avatar && !avatarBroken ? (
                   <img src={form.avatar} alt="Avatar" style={s.avatarImg} onError={() => setAvatarBroken(true)} />
                 ) : (
-                  <span style={{ fontSize: '2.8rem' }}>{roleEmoji[user.role] || '👤'}</span>
+                  <span style={{ fontSize: '3rem' }}>{roleEmoji[user.role] || '👤'}</span>
                 )}
               </div>
               <div>
                 <div style={s.avatarName}>{form.name || user.name}</div>
                 <div style={s.avatarEmail}>{user.email}</div>
-                <span style={{ ...s.roleBadge, background: roleColor[user.role] || '#1a4a0f' }}>
+                <span style={{ ...s.roleBadge, background: roleColor[user.role] || 'var(--ft-forest)' }}>
                   {user.role}
                 </span>
               </div>
             </div>
 
-            {error && <div style={s.alertErr}>⚠️ {error}</div>}
-            {success && <div style={s.alertOk}>{success}</div>}
+            {error && <div className="ft-alert ft-alert-error">{error}</div>}
+            {success && <div className="ft-alert ft-alert-success">{success}</div>}
 
             {/* FORM CARD */}
-            <div style={s.formCard}>
-              <p style={s.sectionLabel}>✏️ Profile Edit Karo</p>
+            <div style={s.formCard} className="animate-slide-up">
+              <p style={s.sectionLabel}>EDIT PROFILE</p>
               <form onSubmit={handleSubmit}>
                 {[
                   { label: 'Aapka Naam', key: 'name', icon: '👤', placeholder: 'Jaise: Ram Singh' },
@@ -103,6 +102,7 @@ export default function Profile() {
                     <label style={s.label}>{icon} {label}</label>
                     <input
                       style={s.input}
+                      className="ft-input"
                       value={form[key]}
                       onChange={(e) => updateField(key, e.target.value)}
                       placeholder={placeholder}
@@ -113,7 +113,7 @@ export default function Profile() {
                 <div style={s.fieldWrap}>
                   <label style={s.label}>🏘️ Village / Gaon</label>
                   <LocationAutocompleteInput
-                    inputStyle={s.input}
+                    inputStyle={{ width: '100%', padding: '0.9rem 1.25rem', border: '1.5px solid var(--ft-border)', borderRadius: '12px', background: 'var(--ft-white)', fontSize: '1rem', color: 'var(--ft-text)', outline: 'none' }}
                     value={form.village}
                     onChange={(e) => updateField('village', e.target.value)}
                     suggestions={villageSuggestions}
@@ -124,7 +124,7 @@ export default function Profile() {
                 <div style={s.fieldWrap}>
                   <label style={s.label}>🏙️ City / Shahar</label>
                   <LocationAutocompleteInput
-                    inputStyle={s.input}
+                    inputStyle={{ width: '100%', padding: '0.9rem 1.25rem', border: '1.5px solid var(--ft-border)', borderRadius: '12px', background: 'var(--ft-white)', fontSize: '1rem', color: 'var(--ft-text)', outline: 'none' }}
                     value={form.city}
                     onChange={(e) => updateField('city', e.target.value)}
                     suggestions={citySuggestions}
@@ -135,7 +135,7 @@ export default function Profile() {
                 <div style={s.fieldWrap}>
                   <label style={s.label}>📍 State / Pradesh</label>
                   <LocationAutocompleteInput
-                    inputStyle={s.input}
+                    inputStyle={{ width: '100%', padding: '0.9rem 1.25rem', border: '1.5px solid var(--ft-border)', borderRadius: '12px', background: 'var(--ft-white)', fontSize: '1rem', color: 'var(--ft-text)', outline: 'none' }}
                     value={form.state}
                     onChange={(e) => updateField('state', e.target.value)}
                     suggestions={stateSuggestions}
@@ -145,20 +145,20 @@ export default function Profile() {
 
                 <div style={s.fieldWrap}>
                   <label style={s.label}>🖼️ Avatar URL (optional)</label>
-                  <input style={s.input} value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://..." />
+                  <input style={s.input} className="ft-input" value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://..." />
                   {form.avatar && avatarBroken && <p style={s.helperErr}>URL se image load nahi hui, sahi URL daalo</p>}
                 </div>
 
-                <button type="submit" style={s.primaryBtn} disabled={saving}>
-                  {saving ? '⏳ Save ho raha hai...' : '💾 Profile Save Karo'}
+                <button type="submit" className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" disabled={saving}>
+                  {saving ? <div className="ft-spinner" /> : '💾 Profile Save Karo'}
                 </button>
               </form>
             </div>
 
             {/* SECONDARY ACTIONS */}
-            <div style={s.formCard}>
-              <p style={s.sectionLabel}>🔐 Security</p>
-              <button onClick={() => navigate('/change-password')} style={s.secondaryBtn}>
+            <div style={s.formCard} className="animate-slide-up">
+              <p style={s.sectionLabel}>SECURITY</p>
+              <button onClick={() => navigate('/change-password')} className="ft-btn ft-btn-secondary ft-btn-full">
                 🔑 Password Change Karo
               </button>
             </div>
@@ -170,27 +170,24 @@ export default function Profile() {
 }
 
 const s = {
-  page: { minHeight: '100vh', background: 'linear-gradient(160deg, #f4f8f0 0%, #eef5e7 50%, #e8f0e0 100%)', fontFamily: "'Outfit', sans-serif" },
-  topbar: { position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.93)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #d4e4c8', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 2px 10px rgba(15,45,9,0.07)' },
-  backBtn: { width: 38, height: 38, borderRadius: 10, background: '#f3fae8', border: '1px solid #d4e4c8', color: '#27500a', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  topbarText: { fontWeight: 800, fontSize: '1.05rem', color: '#0f1f0d' },
-  inner: { maxWidth: 560, margin: '0 auto', padding: '1rem 1rem 3rem' },
-  loadingWrap: { textAlign: 'center', marginTop: '4rem' },
-  loadingText: { color: '#5a7050', fontWeight: 600, fontSize: '1rem' },
-  avatarCard: { background: '#fff', borderRadius: 18, padding: '1.5rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)', display: 'flex', alignItems: 'center', gap: '1.25rem' },
-  avatarCircle: { width: 80, height: 80, borderRadius: '50%', background: '#f3fae8', border: '3px solid #d4e4c8', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
+  page: { minHeight: '100vh', background: 'var(--ft-bg)', fontFamily: 'var(--ft-font-main)' },
+  topbar: { position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(15px)', borderBottom: '1px solid var(--ft-border)', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' },
+  backBtn: { width: 44, height: 44, borderRadius: 12, background: 'var(--ft-white)', border: '1px solid var(--ft-border)', color: 'var(--ft-forest)', cursor: 'pointer', fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'var(--ft-transition)' },
+  topbarText: { fontWeight: 800, fontSize: '1.25rem', color: 'var(--ft-forest)', letterSpacing: '-0.02em' },
+  inner: { maxWidth: 640, margin: '0 auto', padding: '1.5rem 1.5rem 4rem' },
+  loadingWrap: { textAlign: 'center', marginTop: '6rem' },
+  loadingText: { color: 'var(--ft-text-muted)', fontWeight: 600, fontSize: '1rem', marginTop: '1rem' },
+  avatarCard: { background: 'var(--ft-white)', borderRadius: 'var(--ft-radius-lg)', padding: '2rem', marginBottom: '1.5rem', border: '1px solid var(--ft-border)', boxShadow: 'var(--ft-shadow-sm)', display: 'flex', alignItems: 'center', gap: '1.5rem' },
+  avatarCircle: { width: 96, height: 96, borderRadius: '24px', background: 'var(--ft-sage-light)', border: '2px solid var(--ft-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
   avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  avatarName: { fontWeight: 900, fontSize: '1.2rem', color: '#0f1f0d', marginBottom: '0.25rem' },
-  avatarEmail: { fontSize: '0.82rem', color: '#5a7050', marginBottom: '0.4rem' },
-  roleBadge: { color: '#fff', borderRadius: 999, padding: '0.2rem 0.7rem', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' },
-  alertErr: { background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.85rem', fontWeight: 600, fontSize: '0.9rem' },
-  alertOk:  { background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: 12, padding: '0.75rem 1rem', marginBottom: '0.85rem', fontWeight: 600, fontSize: '0.9rem' },
-  formCard: { background: '#fff', borderRadius: 18, padding: '1.25rem', marginBottom: '1rem', border: '1.5px solid #d4e4c8', boxShadow: '0 4px 16px rgba(15,45,9,0.10)' },
-  sectionLabel: { fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#5a7050', marginBottom: '1rem' },
-  fieldWrap: { marginBottom: '0.85rem' },
-  label: { display: 'block', color: '#2d4428', fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.35rem' },
-  input: { width: '100%', padding: '0.8rem 1rem', border: '1.5px solid #d4e4c8', borderRadius: 10, background: '#f3fae8', fontSize: '0.95rem', color: '#0f1f0d', outline: 'none', transition: 'all 0.2s', boxSizing: 'border-box' },
-  helperErr: { fontSize: '0.8rem', color: '#b45309', marginTop: '0.3rem', fontWeight: 600 },
-  primaryBtn: { width: '100%', padding: '0.9rem', border: 'none', borderRadius: 12, background: 'linear-gradient(135deg, #27500a, #3a7510)', color: '#fff', fontWeight: 800, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(39,80,10,0.3)', marginTop: '0.5rem', transition: 'all 0.2s' },
-  secondaryBtn: { width: '100%', padding: '0.85rem', border: '1.5px solid #d4e4c8', borderRadius: 12, background: '#f3fae8', color: '#27500a', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' },
+  avatarName: { fontWeight: 800, fontSize: '1.5rem', color: 'var(--ft-forest)', marginBottom: '0.25rem', letterSpacing: '-0.03em' },
+  avatarEmail: { fontSize: '0.9rem', color: 'var(--ft-text-muted)', marginBottom: '0.75rem' },
+  roleBadge: { color: '#fff', borderRadius: 999, padding: '0.25rem 0.85rem', fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' },
+  formCard: { background: 'var(--ft-white)', borderRadius: 'var(--ft-radius-lg)', padding: '2rem', marginBottom: '1.5rem', border: '1px solid var(--ft-border)', boxShadow: 'var(--ft-shadow-sm)' },
+  sectionLabel: { fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--ft-text-muted)', marginBottom: '1.75rem', borderLeft: '3px solid var(--ft-forest)', paddingLeft: '0.75rem' },
+  fieldWrap: { marginBottom: '1.5rem' },
+  label: { display: 'block', color: 'var(--ft-text)', fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.6rem' },
+  input: { border: 'none', background: 'transparent', padding: 0 },
+  helperErr: { fontSize: '0.85rem', color: 'var(--ft-error)', marginTop: '0.5rem', fontWeight: 600 },
 };
+
