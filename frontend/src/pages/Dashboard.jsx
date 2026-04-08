@@ -359,10 +359,24 @@ export default function Dashboard() {
 
   const showQR = async (produceId) => {
     try {
+      setLoading(true);
+      const res = await api.get(`/api/produce/${produceId}`);
+      const produceData = res.data;
+      
       const verifyUrl = `${window.location.origin}/verify/${produceId}`;
       const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 2 });
-      setQrModal({ qr: qrDataUrl, url: verifyUrl });
-    } catch (err) { alert('QR load nahi hua'); }
+      
+      setQrModal({ 
+        qr: qrDataUrl, 
+        url: verifyUrl, 
+        details: produceData 
+      });
+    } catch (err) { 
+      console.error(err);
+      showNotification('QR journey load nahi hua. Network check karein.', { type: 'sms', tone: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -428,26 +442,93 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      {/* ── QR MODAL ── */}
+      {/* ── UNIFIED QR & TRACEABILITY MODAL ── */}
       {qrModal && (
-        <div className="dashboard-modal-overlay" onClick={() => setQrModal(null)}>
-          <div className="dashboard-modal-card" onClick={e => e.stopPropagation()}>
+        <div className="ft-modal-overlay" onClick={() => setQrModal(null)}>
+          <div className="ft-modal dashboard-qr-trace-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(700px, 95%)', maxHeight: '90vh', overflowY: 'auto' }}>
             <button
               type="button"
               className="dashboard-modal-close"
               onClick={() => setQrModal(null)}
-              aria-label="Close QR modal"
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', border: 'none', background: 'var(--ft-bg)', padding: '8px', borderRadius: '50%', cursor: 'pointer', zIndex: 5 }}
             >
-              <X size={18} strokeWidth={2.5} />
+              <X size={20} strokeWidth={2.5} />
             </button>
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📱</div>
-            <h3 className="dashboard-modal-title">{t('dash_qr_title')}</h3>
-            <p className="dashboard-modal-sub">{t('dash_qr_sub')}</p>
-            <img src={qrModal.qr} alt="QR Code" className="dashboard-modal-qr" />
-            <p className="dashboard-modal-url">{qrModal.url}</p>
-            <button onClick={() => setQrModal(null)} className="btn btn-full btn-action-primary" style={{ borderRadius: '12px', padding: '0.75rem' }}>
-              {t('dash_close')}
-            </button>
+
+            <div className="modal-inner-grid">
+              <div className="modal-qr-section">
+                <div className="modal-header-mini">
+                  <div className="dashboard-brand-icon" style={{ width: 32, height: 32, fontSize: '1rem' }}>🌱</div>
+                  <h3 className="ft-modal-title">Product Passport</h3>
+                </div>
+                
+                <div className="qr-container-premium">
+                  <img src={qrModal.qr} alt="QR Code" className="modal-qr-img" />
+                  <p className="modal-qr-sub">Scan to trace on blockchain</p>
+                </div>
+
+                <div className="produce-info-mini">
+                  <h4 className="mini-crop-name">{getCropEmoji(qrModal.details.cropType)} {qrModal.details.cropType}</h4>
+                  <div className="mini-details-row">
+                    <span>📍 {qrModal.details.origin}</span>
+                    <span>⚖️ {qrModal.details.quantity}kg</span>
+                  </div>
+                  <div className="mini-id-badge">ID: {qrModal.details._id.slice(-8).toUpperCase()}</div>
+                </div>
+              </div>
+
+              <div className="modal-trace-section">
+                <h4 className="trace-section-title">Timeline — Journey to You</h4>
+                <div className="trace-timeline">
+                  {/* Start Point */}
+                  <div className="trace-step">
+                    <div className="trace-marker green"></div>
+                    <div className="trace-content">
+                      <p className="trace-step-title">Farm Origin — {qrModal.details.farmerName}</p>
+                      <p className="trace-step-sub">{qrModal.details.origin}</p>
+                      <p className="trace-step-price">₹{qrModal.details.farmPrice}/kg</p>
+                    </div>
+                  </div>
+
+                  {/* Transfer Points */}
+                  {(qrModal.details.dbTransfers || []).map((t, i) => (
+                    <div key={i} className="trace-step">
+                      <div className="trace-marker blue"></div>
+                      <div className="trace-content">
+                        <p className="trace-step-title">{t.transferType.replace(/_/g, ' ')}</p>
+                        <p className="trace-step-sub">{t.location}</p>
+                        <p className="trace-step-price">₹{t.price}/kg</p>
+                        {t.txHash && <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="trace-proof-link">View Proof →</a>}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(!qrModal.details.dbTransfers || qrModal.details.dbTransfers.length === 0) && (
+                    <p className="trace-empty-note">Awaiting shipment transfers...</p>
+                  )}
+                </div>
+                
+                {qrModal.details.isBlockchainVerified && (
+                  <div className="modal-blockchain-verified">
+                    <ShieldCheck size={16} /> Immutable Blockchain Verified 
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setQrModal(null)} className="ft-btn ft-btn-ghost ft-btn-full">
+                Close
+              </button>
+              <button 
+                onClick={() => {
+                  window.open(qrModal.url, '_blank');
+                }} 
+                className="ft-btn ft-btn-primary ft-btn-full"
+              >
+                Full History Page
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -774,7 +855,7 @@ export default function Dashboard() {
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-card-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                      <div style={{ fontSize: '2.5rem', background: 'var(--p50)', borderRadius: '14px', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyCenter: 'center', boxShadow: 'inset 0 2px 4px var(--border-soft)' }}>
+                      <div style={{ fontSize: '2.5rem', background: 'var(--p50)', borderRadius: '14px', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px var(--border-soft)' }}>
                         {getCropEmoji(p.cropType)}
                       </div>
                       <div>
