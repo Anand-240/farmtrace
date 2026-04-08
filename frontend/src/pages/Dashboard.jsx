@@ -160,6 +160,7 @@ export default function Dashboard() {
             const { latitude, longitude } = position.coords;
             await fetchWeatherByCoords(latitude, longitude);
             setLocationPermission('granted');
+            setWeatherPromptMessage('');
           } catch (err) {
             console.error('Weather by location error:', err);
             await fetchWeatherByCity(user.city || 'Lucknow');
@@ -169,17 +170,18 @@ export default function Dashboard() {
           }
         },
         async (error) => {
+          console.log('Geo error:', error.code, error.message);
           if (error.code === 1) {
             setLocationPermission('denied');
             setWeather(null);
-            setWeatherPromptMessage('Location access blocked hai. Enable Location par click karke browser permission allow karein.');
+            setWeatherPromptMessage('Permission denied. Browser site settings mein location enable karein.');
           } else {
             await fetchWeatherByCity(user.city || 'Lucknow');
-            setWeatherPromptMessage('Live location unavailable hai, profile city weather dikhaya gaya hai.');
+            setWeatherPromptMessage('Signal weak hai, profile city weather dikhaya gaya hai.');
           }
           setWeatherLoading(false);
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
       );
     };
 
@@ -203,16 +205,21 @@ export default function Dashboard() {
           setLocationPermission(permissionStatus.state);
 
           if (permissionStatus.state === 'denied') {
-            setWeatherPromptMessage('Location weather dekhne ke liye browser location permission enable karein.');
+            setWeatherPromptMessage('Blocked 🚫: Site settings se location allow karein.');
             return;
           }
 
-          requestLocationWeather();
+          if (permissionStatus.state === 'granted') {
+            requestLocationWeather();
+          }
 
           permissionStatus.onchange = () => {
-            setLocationPermission(permissionStatus.state);
-            if (permissionStatus.state === 'granted') {
+            const newState = permissionStatus.state;
+            setLocationPermission(newState);
+            if (newState === 'granted') {
               requestLocationWeather();
+            } else if (newState === 'denied') {
+              setWeatherPromptMessage('Permission blocked.');
             }
           };
           return;

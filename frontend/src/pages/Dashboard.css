@@ -355,7 +355,56 @@
   padding: 0.85rem 1.5rem;
 }
 
-.btn-action-primary:hover {
-  background: var(--ft-forest-soft);
+.weather-permission-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: var(--ft-radius);
+  padding: 1.5rem;
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.weather-permission-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #fff;
+}
+
+.weather-permission-sub {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.weather-enable-btn {
+  background: #fff;
+  color: var(--ft-forest);
+  border: none;
+  padding: 0.6rem 1.25rem;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--ft-transition);
+}
+
+.weather-enable-btn:hover {
+  background: var(--ft-sage-light);
   transform: translateY(-2px);
+}
+
+.weather-inline-note {
+  font-size: 0.75rem;
+  margin-top: 1rem;
+  color: var(--ft-wheat);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.weather-temp {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
 }
