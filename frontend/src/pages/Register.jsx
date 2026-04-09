@@ -4,25 +4,56 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
 import { fullLocationSuggestions } from '../lib/locationSuggestions';
-import { ArrowLeft, MapPin, IndianRupee, ShieldCheck, CheckCircle, ExternalLink, QrCode as QrIcon, Package, Plus, Wheat } from 'lucide-react';
+import { ArrowLeft, MapPin, IndianRupee, ShieldCheck, ChevronDown, CheckCircle, ExternalLink, QrCode as QrIcon, Package, Plus, Wheat } from 'lucide-react';
 
-const CROP_OPTIONS = [
-  { value: 'Tamatar', label: '🍅 Tamatar' },
-  { value: 'Pyaaz', label: '🧅 Pyaaz' },
-  { value: 'Aalu', label: '🥔 Aalu' },
-  { value: 'Gehun', label: '🌾 Gehun' },
-  { value: 'Chawal', label: '🍚 Chawal' },
-  { value: 'Other', label: '📂 Other' }
-];
+const CROP_EMOJIS = {
+  wheat: '🌾', gehu: '🌾', rice: '🌾', dhaan: '🌾', paddy: '🌾',
+  tomato: '🍅', tamatar: '🍅', potato: '🥔', aloo: '🥔',
+  onion: '🧅', pyaaz: '🧅', apple: '🍎', seb: '🍎',
+  cotton: '🪴', kapas: '🪴', mustard: '🌻', sarson: '🌻',
+  sugarcane: '🎋', ganna: '🎋', corn: '🌽', maize: '🌽', makka: '🌽',
+  mango: '🥭', aam: '🥭',
+};
+
+function getCropEmoji(cropType = '') {
+  const key = cropType.toLowerCase().split(' ')[0];
+  return CROP_EMOJIS[key] || '🌱';
+}
 
 export default function Register() {
-  const [form, setForm] = useState({ farmerName: '', cropType: 'Tamatar', origin: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
+  const [form, setForm] = useState({ farmerName: '', cropType: '', origin: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
+  const [cropOptions, setCropOptions] = useState([]);
+  const [loadingCrops, setLoadingCrops] = useState(true);
   const [result, setResult] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    const fetchCrops = async () => {
+      try {
+        const res = await api.get('/api/market/commodities');
+        if (res.data && res.data.commodities) {
+          const fetchedCrops = res.data.commodities.map(c => ({ 
+            value: c.name, 
+            floorPrice: Number(c.price),
+            label: `${getCropEmoji(c.name)} ${c.name} (Floor: ₹${c.price}/kg)` 
+          }));
+          if (fetchedCrops.length > 0) {
+            setCropOptions(fetchedCrops);
+            setForm(prev => ({ ...prev, cropType: fetchedCrops[0].value }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load mandi crops', err);
+      } finally {
+        setLoadingCrops(false);
+      }
+    };
+    fetchCrops();
+  }, []);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -32,9 +63,31 @@ export default function Register() {
     return () => observer.disconnect();
   }, [result]);
 
+  const selectedCrop = cropOptions.find(c => c.value === form.cropType);
+  const currentFloorPrice = selectedCrop ? selectedCrop.floorPrice : 0;
+  
+  const isFormComplete = form.origin && form.quantity && form.farmPrice && form.cropType;
+  const isPriceValid = Number(form.farmPrice) >= currentFloorPrice;
+  const isFormValid = isFormComplete && isPriceValid;
+
+  const priceWarning = (form.farmPrice !== '' && !isPriceValid) 
+    ? `Kisan samman portal! You cannot register below the Floor/MSP rate of ₹${currentFloorPrice}/kg.` 
+    : null;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError('');
+    setError('');
+
+    if (!form.cropType) {
+      setError('Please select a valid Mandi crop before registering.');
+      return;
+    }
+
+    if (!isFormValid) {
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await api.post('/api/produce/register', { ...form, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
       const qr = await QRCode.toDataURL(`${window.location.origin}/verify/${res.data.produce._id}`, { width: 300 });
@@ -111,21 +164,29 @@ export default function Register() {
           <form onSubmit={handleSubmit}>
             <div className="ft-card" style={{ marginBottom: '2rem' }} data-reveal>
               <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Produce Identity</h3>
+              {error && <p style={{ color: 'var(--ft-error)', marginBottom: '1rem', fontWeight: 'bold' }}>{error}</p>}
               <div className="ft-input-group">
                 <label className="ft-label">Kisan ka Naam / Farmer Identity</label>
                 <input className="ft-input" placeholder={user.name} value={form.farmerName} onChange={e => setForm({...form, farmerName: e.target.value})} />
               </div>
               <div className="ft-input-group">
-                <label className="ft-label">Crop Type / फसल चयन</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
-                  {CROP_OPTIONS.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setForm({...form, cropType: opt.value})} 
-                      className={`ft-btn ft-btn-ghost ${form.cropType === opt.value ? 'active-crop-p' : ''}`}
-                      style={{ height: 'auto', padding: '1.25rem', border: form.cropType === opt.value ? '3px solid var(--ft-forest)' : '1px solid var(--ft-border)' }}>
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <label className="ft-label">Crop Type (Via Live Govt Mandi API) / फसल चयन</label>
+                {loadingCrops ? (
+                  <div className="ft-loading-pulse" style={{ padding: '1rem', border: '1.5px solid var(--ft-border)', borderRadius: '12px' }}>
+                    Fetching available live Mandi crops...
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <select className="ft-input" value={form.cropType} onChange={e => setForm({...form, cropType: e.target.value})} required style={{ appearance: 'none' }}>
+                      {cropOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown style={{ position: 'absolute', right: '1.25rem', top: '1.2rem', opacity: 0.5, pointerEvents: 'none' }} size={20} />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -149,10 +210,15 @@ export default function Register() {
                 <label className="ft-label">Farm Gate Price (₹/KG)</label>
                 <div style={{ position: 'relative' }}>
                   <IndianRupee size={20} style={{ position: 'absolute', left: '1.25rem', top: '1.15rem', opacity: 0.5 }} />
-                  <input className="ft-input" style={{ paddingLeft: '3.5rem' }} type="number" placeholder="15" value={form.farmPrice} onChange={e => setForm({...form, farmPrice: e.target.value})} required />
+                  <input className="ft-input" style={{ paddingLeft: '3.5rem', borderColor: priceWarning ? 'var(--ft-error)' : 'var(--ft-border)' }} type="number" placeholder="15" value={form.farmPrice} onChange={e => setForm({...form, farmPrice: e.target.value})} required />
                 </div>
+                {priceWarning && (
+                  <p style={{ color: 'var(--ft-error)', marginTop: '0.75rem', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                    {priceWarning}
+                  </p>
+                )}
               </div>
-              <button type="submit" className="ft-btn ft-btn-primary ft-btn-full" disabled={loading} style={{ height: '72px', fontSize: '1.25rem', marginTop: '2rem' }}>
+              <button type="submit" className="ft-btn ft-btn-primary ft-btn-full" disabled={loading || !isFormValid} style={{ height: '72px', fontSize: '1.25rem', marginTop: '2rem' }}>
                 {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register Harvest on Ledger'}
               </button>
             </div>

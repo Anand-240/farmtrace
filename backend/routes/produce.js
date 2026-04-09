@@ -6,6 +6,7 @@ const auth = require('../middleware/authMiddleware');
 const Produce = require('../models/Produce');
 const Transfer = require('../models/Transfer');
 const { registerOnChain, getHistoryFromChain } = require('../blockchain/blockchainService');
+const { validateSellPrice } = require('../utils/marketPricing');
 
 function getFrontendBaseUrl(req) {
   return (process.env.FRONTEND_URL || req.get('origin') || 'http://localhost:3000').trim();
@@ -39,6 +40,16 @@ function weightedPrice(lots) {
 router.post('/register', auth, async (req, res) => {
   try {
     const { farmerName, cropType, origin, quantity, qualityGrade, farmPrice } = req.body;
+
+    const validation = await validateSellPrice({ 
+      produce: { cropType, origin }, 
+      requestedPrice: farmPrice, 
+      transferType: 'FARM_TO_DISTRIBUTOR' 
+    });
+    
+    if (!validation.allowed) {
+      return res.status(400).json({ message: validation.reason });
+    }
 
     const produce = await Produce.create({
       farmerName, cropType, origin, quantity,

@@ -1,7 +1,7 @@
 const express = require('express');
 
 const router = express.Router();
-const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord } = require('../utils/marketPricing');
+const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop } = require('../utils/marketPricing');
 
 const parseLimit = (rawLimit) => {
   const limit = Number(rawLimit);
@@ -52,6 +52,38 @@ router.get('/floor', async (req, res) => {
   } catch (err) {
     console.error('Market floor error:', err.message);
     return res.status(502).json({ message: 'Market floor fetch nahi ho paya' });
+  }
+});
+
+router.get('/commodities', async (req, res) => {
+  try {
+    const { records, error } = await fetchMandiRecords({ limit: 400 });
+    if (error) throw new Error(error);
+
+    const priceMap = {};
+    records.forEach(r => {
+      const comm = r.commodity || r.comm;
+      if (!comm) return;
+      const price = Number(r.modal_price) / 100;
+      if (price > 0 && (!priceMap[comm] || price > priceMap[comm])) {
+        priceMap[comm] = price;
+      }
+    });
+
+    const commoditiesRaw = [...new Set(records.map(r => r.commodity || r.comm).filter(Boolean))];
+    const commoditiesObjects = commoditiesRaw
+      .filter(c => getMspPriceForCrop(c) !== null)
+      .map(c => {
+        const msp = getMspPriceForCrop(c) || 0;
+        const mandi = priceMap[c] || 0;
+        const bestPrice = Math.max(mandi, msp).toFixed(2);
+        return { name: c, price: bestPrice };
+      });
+
+    return res.json({ commodities: commoditiesObjects.sort((a, b) => a.name.localeCompare(b.name)) });
+  } catch (err) {
+    console.error('Commodities fetch error:', err.message);
+    return res.status(502).json({ message: 'Available commodities fetch nahi ho payin' });
   }
 });
 

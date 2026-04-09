@@ -147,6 +147,13 @@ h1, h2, h3, h4, h5 {
   transition: all 0.1s;
 }
 
+.ft-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .ft-btn-primary {
   background: var(--ft-forest);
   color: #fff;
