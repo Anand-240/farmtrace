@@ -179,7 +179,7 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(400).json({ message: 'User nahi mila' });
+      return res.status(400).json({ message: 'password or email dono galat hai' });
     }
 
     if (!user.password) {
@@ -188,7 +188,7 @@ router.post('/login', async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Password galat hai' });
+      return res.status(400).json({ message: 'password or email dono galat hai' });
     }
 
     res.json(buildAuthResponse(user));
