@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
 import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
 import { fullLocationSuggestions } from '../lib/locationSuggestions';
+import { ArrowLeft, MapPin, IndianRupee, ShieldCheck, CheckCircle, ExternalLink, QrCode as QrIcon, Package, Plus, Wheat } from 'lucide-react';
+
+const CROP_OPTIONS = [
+  { value: 'Tamatar', label: '🍅 Tamatar' },
+  { value: 'Pyaaz', label: '🧅 Pyaaz' },
+  { value: 'Aalu', label: '🥔 Aalu' },
+  { value: 'Gehun', label: '🌾 Gehun' },
+  { value: 'Chawal', label: '🍚 Chawal' },
+  { value: 'Other', label: '📂 Other' }
+];
 
 export default function Register() {
-  const [form, setForm] = useState({
-    farmerName: '', cropType: 'Tamatar', origin: '',
-    quantity: '', qualityGrade: 'A', farmPrice: ''
-  });
+  const [form, setForm] = useState({ farmerName: '', cropType: 'Tamatar', origin: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
   const [result, setResult] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -17,148 +24,145 @@ export default function Register() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('revealed'); });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('[data-reveal]').forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [result]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
-      const res = await api.post('/api/produce/register', {
-        ...form,
-        farmerName: form.farmerName || user.name,
-        quantity: Number(form.quantity),
-        farmPrice: Number(form.farmPrice)
-      });
-
-      // Frontend se QR generate karo — window.location use karo
-      const verifyUrl = `${window.location.origin}/verify/${res.data.produce._id}`;
-      const qr = await QRCode.toDataURL(verifyUrl, { width: 300 });
-
+      const res = await api.post('/api/produce/register', { ...form, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
+      const qr = await QRCode.toDataURL(`${window.location.origin}/verify/${res.data.produce._id}`, { width: 300 });
       setResult(res.data);
       setQrDataUrl(qr);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Kuch galat hua');
-    }
-    setLoading(false);
+    } catch (err) { setError('Registration failed. Check network.'); }
+    finally { setLoading(false); }
   };
 
   if (result) {
     return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h2 style={{color:'#27500A', textAlign:'center'}}>
-            Blockchain pe Register Ho Gaya!
-          </h2>
-          <div style={styles.qrBox}>
-            <img src={qrDataUrl} alt="QR Code"
-              style={{width:'220px', height:'220px'}} />
+      <div className="ft-page planetono-flow">
+        <nav className="ft-top-nav glass">
+          <div className="ft-container nav-flex">
+            <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-ghost ft-btn-sm"><ArrowLeft size={18} /> Home</button>
+            <span className="nav-title">Smart Harvest Success</span>
+            <div style={{ width: 80 }} />
           </div>
-          <p style={styles.verifyUrl}>
-            {window.location.origin}/verify/{result.produce._id}
-          </p>
-          <p style={styles.detail}>
-            TX: <span style={styles.hash}>{result.txHash?.slice(0,25)}...</span>
-          </p>
-          <a href={result.etherscanUrl} target="_blank"
-            rel="noreferrer" style={styles.ethLink}>
-            Etherscan pe verify karo →
-          </a>
-          <button onClick={() => navigate('/dashboard')} style={styles.button}>
-            Dashboard pe Wapas Jao
-          </button>
+        </nav>
+
+        <div className="ft-container" style={{ paddingTop: '5rem' }}>
+          <div className="ft-anim-reveal" style={{ maxWidth: 800, margin: '0 auto' }}>
+            <div className="ft-card" style={{ background: 'var(--ft-forest)', color: '#fff', border: 'none', textAlign: 'center', padding: '5rem 3rem', borderRadius: '48px' }}>
+              <div className="ft-anim-float" style={{ fontSize: '5rem', marginBottom: '1.5rem' }}>✨</div>
+              <h1 style={{ fontSize: '3rem', fontWeight: 900, marginBottom: '1rem' }}>Fasli Suraksha Live</h1>
+              <p style={{ opacity: 0.8, fontSize: '1.2rem', marginBottom: '3rem' }}>Your harvest is now an immutable asset on the blockchain.</p>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                <div className="ft-card" style={{ background: '#fff', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#000' }}>
+                  <img src={qrDataUrl} alt="QR" style={{ width: 200, borderRadius: '12px' }} />
+                  <p className="ft-label" style={{ marginTop: '1.5rem' }}>Product Passport</p>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '1.5rem', borderRadius: '24px', backdropFilter: 'blur(10px)' }}>
+                    <ShieldCheck size={32} style={{ marginBottom: '1rem' }} />
+                    <p className="ft-label" style={{ color: '#fff' }}>Transaction Hash</p>
+                    <p style={{ wordBreak: 'break-all', fontSize: '0.8rem', opacity: 0.7, fontFamily: 'monospace', marginTop: '0.5rem' }}>{result.txHash}</p>
+                    <a href={result.etherscanUrl} target="_blank" rel="noreferrer" className="ft-btn ft-btn-ghost ft-btn-full" style={{ marginTop: '1.5rem', color: '#fff', borderColor: 'rgba(255,255,255,0.3)' }}>Explore Ledger</a>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-primary ft-btn-full" style={{ background: '#fff', color: '#000', marginTop: '3rem', height: '64px' }}>Back to Command Center</button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card} className="animate-slide-up">
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
-          ← Wapas
-        </button>
-        <h2 style={styles.title}>Nayi Fasal Register Karo</h2>
-        {error && <p style={styles.error}>{error}</p>}
-        {loading && (
-          <p style={styles.loading}>
-            Blockchain pe register ho raha hai... (15-30 second)
-          </p>
-        )}
-        <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Kisan ka Naam</label>
-          <input style={styles.input} placeholder={user.name}
-            value={form.farmerName}
-            onChange={e => setForm({...form, farmerName: e.target.value})} />
+    <div className="ft-page planetono-flow">
+      <div className="giant-bg-text">REGISTER</div>
+      <nav className="ft-top-nav glass">
+        <div className="ft-container nav-flex">
+          <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-ghost ft-btn-sm"><ArrowLeft size={18} /> Dashboard</button>
+          <span className="nav-title">Smart Registration</span>
+          <div style={{ width: 80 }} />
+        </div>
+      </nav>
 
-          <label style={styles.label}>Fasal ka Prakar</label>
-          <select style={styles.input} value={form.cropType}
-            onChange={e => setForm({...form, cropType: e.target.value})}>
-            <option>Tamatar</option>
-            <option>Pyaaz</option>
-            <option>Aalu</option>
-            <option>Gehun</option>
-            <option>Chawal</option>
-            <option>Other</option>
-          </select>
-
-          <label style={styles.label}>Mool Sthan</label>
-          <LocationAutocompleteInput
-            inputStyle={styles.input}
-            placeholder="Nashik, Maharashtra"
-            value={form.origin}
-            onChange={(e) => setForm({ ...form, origin: e.target.value })}
-            suggestions={fullLocationSuggestions}
-            required
-          />
-
-          <label style={styles.label}>Maatra (kg)</label>
-          <input style={styles.input} type="number" placeholder="500"
-            value={form.quantity}
-            onChange={e => setForm({...form, quantity: e.target.value})} required />
-
-          <label style={styles.label}>Gunvatta Grade</label>
-          <div style={styles.gradeRow}>
-            {['A', 'B', 'C'].map(g => (
-              <button type="button" key={g}
-                style={{
-                  ...styles.gradeBtn,
-                  background: form.qualityGrade === g ? '#27500A' : '#EAF3DE',
-                  color: form.qualityGrade === g ? 'white' : '#27500A'
-                }}
-                onClick={() => setForm({...form, qualityGrade: g})}>
-                Grade {g}
-              </button>
-            ))}
+      <div className="ft-container" style={{ paddingTop: '3rem', paddingBottom: '6rem' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          
+          <div className="ft-card" style={{ background: 'var(--ft-forest)', color: '#fff', border: 'none', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+              <div className="ft-anim-float" style={{ fontSize: '4rem' }}>🚜</div>
+              <div>
+                <h1 style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>Harvest Narrative</h1>
+                <p style={{ opacity: 0.8 }}>Start your produce's journey by anchoring it to the global supply chain Ledger.</p>
+              </div>
+            </div>
           </div>
 
-          <label style={styles.label}>Khet par Mool (₹/kg)</label>
-          <input style={styles.input} type="number" placeholder="12"
-            value={form.farmPrice}
-            onChange={e => setForm({...form, farmPrice: e.target.value})} required />
+          <form onSubmit={handleSubmit}>
+            <div className="ft-card" style={{ marginBottom: '2rem' }} data-reveal>
+              <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Produce Identity</h3>
+              <div className="ft-input-group">
+                <label className="ft-label">Kisan ka Naam / Farmer Identity</label>
+                <input className="ft-input" placeholder={user.name} value={form.farmerName} onChange={e => setForm({...form, farmerName: e.target.value})} />
+              </div>
+              <div className="ft-input-group">
+                <label className="ft-label">Crop Type / फसल चयन</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem' }}>
+                  {CROP_OPTIONS.map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setForm({...form, cropType: opt.value})} 
+                      className={`ft-btn ft-btn-ghost ${form.cropType === opt.value ? 'active-crop-p' : ''}`}
+                      style={{ height: 'auto', padding: '1.25rem', border: form.cropType === opt.value ? '3px solid var(--ft-forest)' : '1px solid var(--ft-border)' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Register ho raha hai...' : 'Blockchain pe Register Karo'}
-          </button>
-        </form>
+            <div className="ft-card" style={{ marginBottom: '2rem' }} data-reveal>
+              <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Volume & Origin</h3>
+              <div className="ft-input-group" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
+                <div>
+                  <label className="ft-label">Origin Location</label>
+                  <LocationAutocompleteInput className="ft-input" placeholder="Nashik, Maharashtra" value={form.origin} onChange={e => setForm({...form, origin: e.target.value})} suggestions={fullLocationSuggestions} />
+                </div>
+                <div>
+                  <label className="ft-label">Quantity (KG)</label>
+                  <input className="ft-input" type="number" placeholder="500" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} required />
+                </div>
+              </div>
+            </div>
+
+            <div className="ft-card" style={{ marginBottom: '2rem' }} data-reveal>
+              <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Economic Anchoring</h3>
+              <div className="ft-input-group">
+                <label className="ft-label">Farm Gate Price (₹/KG)</label>
+                <div style={{ position: 'relative' }}>
+                  <IndianRupee size={20} style={{ position: 'absolute', left: '1.25rem', top: '1.15rem', opacity: 0.5 }} />
+                  <input className="ft-input" style={{ paddingLeft: '3.5rem' }} type="number" placeholder="15" value={form.farmPrice} onChange={e => setForm({...form, farmPrice: e.target.value})} required />
+                </div>
+              </div>
+              <button type="submit" className="ft-btn ft-btn-primary ft-btn-full" disabled={loading} style={{ height: '72px', fontSize: '1.25rem', marginTop: '2rem' }}>
+                {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register Harvest on Ledger'}
+              </button>
+            </div>
+          </form>
+
+        </div>
       </div>
+      <style>{`
+        .active-crop-p { background: var(--ft-sage-light) !important; color: var(--ft-forest) !important; transform: scale(1.05); }
+      `}</style>
     </div>
   );
 }
-
-const styles = {
-  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem' },
-  card: { background:'#fff', padding:'1.5rem', borderRadius:'16px', width:'100%', maxWidth:'480px', border:'1px solid #dbe5d8', boxShadow:'0 10px 24px rgba(26, 44, 33, 0.09)' },
-  title: { color:'#1f3320', marginBottom:'1.2rem' },
-  label: { display:'block', color:'#3f5346', marginBottom:'0.32rem', fontSize:'0.9rem', fontWeight:'700' },
-  input: { width:'100%', padding:'0.78rem 0.85rem', marginBottom:'0.95rem', border:'1px solid #d3dfd0', borderRadius:'10px', fontSize:'0.98rem', boxSizing:'border-box', background:'#fbfdfb' },
-  button: { width:'100%', padding:'0.8rem', background:'#27500A', color:'white', border:'none', borderRadius:'10px', fontSize:'0.98rem', cursor:'pointer', marginTop:'0.4rem', fontWeight:'700' },
-  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', marginBottom:'1rem', fontSize:'0.9rem', padding:0 },
-  error: { color:'#a22929', marginBottom:'1rem', background:'#fdecec', border:'1px solid #f4cfcf', borderRadius:'10px', padding:'0.6rem 0.75rem' },
-  loading: { color:'#8b5318', background:'#fff1df', padding:'0.72rem', borderRadius:'10px', marginBottom:'1rem', fontSize:'0.9rem' },
-  gradeRow: { display:'flex', gap:'0.5rem', marginBottom:'1rem' },
-  gradeBtn: { flex:1, padding:'0.6rem', border:'1px solid #d3dfd0', borderRadius:'10px', cursor:'pointer', fontWeight:'700' },
-  qrBox: { display:'flex', justifyContent:'center', margin:'1.5rem 0' },
-  verifyUrl: { color:'#6f7d74', fontSize:'0.75rem', textAlign:'center', margin:'0 0 1rem', wordBreak:'break-all' },
-  detail: { color:'#526259', fontSize:'0.9rem' },
-  hash: { fontFamily:'monospace', color:'#27500A' },
-  ethLink: { display:'block', color:'#0a5a79', marginBottom:'1rem', fontWeight:'700' }
-};

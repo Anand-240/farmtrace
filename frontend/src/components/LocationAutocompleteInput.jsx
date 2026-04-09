@@ -34,6 +34,7 @@ export default function LocationAutocompleteInput({
   onChange,
   suggestions = [],
   placeholder = 'Location daalo',
+  className = '',
   inputStyle = {},
   listStyle = {},
   disabled = false,
@@ -71,6 +72,7 @@ export default function LocationAutocompleteInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        className={className}
         style={inputStyle}
         disabled={disabled}
         required={required}
