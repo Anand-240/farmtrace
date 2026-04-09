@@ -1,17 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { countryPhoneConfigs } from '../data/locationData';
 import LanguageToggle from '../components/LanguageToggle';
-import { useLanguage } from '../lib/language';
-import { User, Mail, MapPin, Phone, Lock, LogIn, UserPlus, Eye, EyeOff, Shield } from 'lucide-react';
-import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
-import {
-  citySuggestions,
-  getCitySuggestionsForState,
-  getVillageSuggestionsForLocation,
-  stateSuggestions
-} from '../lib/locationSuggestions';
+import { User, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
 import './Login.css';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
@@ -45,7 +36,6 @@ function GoogleSignInButton({ clientId, disabled, onCredential }) {
 }
 
 export default function Login() {
-  const { t } = useLanguage();
   const [isRegister, setIsRegister] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', countryCode: '+91', phone: '', password: '', role: 'FARMER', village: '', city: '', district: '', state: '' });
   const [error, setError] = useState('');
