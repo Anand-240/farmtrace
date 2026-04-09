@@ -4,7 +4,7 @@ import QRCode from 'qrcode';
 import api from '../lib/api';
 import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
 import { fullLocationSuggestions } from '../lib/locationSuggestions';
-import { ArrowLeft, MapPin, IndianRupee, ShieldCheck, ChevronDown, CheckCircle, ExternalLink, QrCode as QrIcon, Package, Plus, Wheat } from 'lucide-react';
+import { ArrowLeft, IndianRupee, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const CROP_EMOJIS = {
   wheat: '🌾', gehu: '🌾', rice: '🌾', dhaan: '🌾', paddy: '🌾',
