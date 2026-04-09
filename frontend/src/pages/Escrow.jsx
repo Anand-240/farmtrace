@@ -86,232 +86,154 @@ export default function Escrow() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
-          ← Dashboard
-        </button>
-        <h2 style={styles.title}>Escrow & Milestone Payments</h2>
-      </div>
-
-      {loading ? (
-        <p style={styles.loading}>Load ho raha hai...</p>
-      ) : escrows.length === 0 ? (
-        <div style={styles.empty}>
-          <p>Koi escrow record nahi hai</p>
-          <p style={{fontSize:'0.85rem', color:'#888'}}>
-            Jab payment hoga tab escrow records yahan dikhenge
-          </p>
+    <div className="ft-page planetono-flow">
+      <nav className="ft-top-nav glass">
+        <div className="ft-container" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-ghost ft-btn-sm">
+            ← Dashboard
+          </button>
+          <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>Escrow & Milestone Payments</span>
         </div>
-      ) : (
-        <div style={styles.grid}>
-          {escrows.map(item => {
-            const { transfer, escrow, produce } = item;
-            const progress = calculateProgress(escrow);
-            const id = transfer._id;
+      </nav>
 
-            return (
-              <div key={id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <div>
-                    <h3 style={styles.cropName}>{produce?.cropType}</h3>
-                    <p style={styles.transferType}>{transfer.transferType}</p>
-                  </div>
-                  <span style={{...styles.badge, background: statusColor(escrow.status)}}>
-                    {escrow.status}
-                  </span>
-                </div>
+      <div className="ft-container" style={{ paddingTop: '6rem', paddingBottom: '4rem' }}>
+        {loading ? (
+          <div style={{ padding: '4rem', textAlign: 'center' }}>
+            <div className="ft-loading-pulse">Authenticating Escrow Ledger...</div>
+          </div>
+        ) : escrows.length === 0 ? (
+          <div className="ft-card ft-anim-reveal" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+            <p style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--ft-forest)' }}>Koi escrow record nahi hai</p>
+            <p style={{ marginTop: '0.5rem', color: 'var(--ft-text-muted)' }}>Jab payment hoga tab escrow records yahan dikhenge.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1.5rem' }}>
+            {escrows.map((item, idx) => {
+              const { transfer, escrow, produce } = item;
+              const progress = calculateProgress(escrow);
+              const id = transfer._id;
 
-                <div style={styles.partyInfo}>
-                  <p><strong>From:</strong> {transfer.fromPhone}</p>
-                  <p><strong>To:</strong> {transfer.toPhone}</p>
-                  <p><strong>Location:</strong> {transfer.location}</p>
-                </div>
-
-                {/* Total Amount */}
-                <div style={styles.totalBox}>
-                  <p style={{margin:'0 0 0.5rem', color:'#666', fontSize:'0.85rem'}}>Total Amount</p>
-                  <p style={{margin:0, fontSize:'1.3rem', fontWeight:'bold', color:'#27500A'}}>
-                    ₹{escrow.totalAmount.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Progress Bar */}
-                <div style={styles.progressContainer}>
-                  <div style={{...styles.progressBar, width: `${progress}%`}}></div>
-                  <p style={{margin:'0.3rem 0 0', fontSize:'0.8rem', color:'#888'}}>
-                    {progress}% Released
-                  </p>
-                </div>
-
-                {/* Milestone Details */}
-                <div style={styles.milestoneGrid}>
-                  <div style={milestoneItemStyle(escrow.bookingPaid)}>
-                    <p style={{margin:0, fontSize:'0.75rem', color:'#666'}}>Booking (40%)</p>
-                    <p style={{margin:'0.25rem 0 0', fontWeight:'bold', fontSize:'0.95rem'}}>
-                      ₹{escrow.bookingAmount}
-                    </p>
-                    {escrow.bookingPaid && <p style={{margin:'0.2rem 0 0', fontSize:'0.7rem', color:'#27500A', fontWeight:'700'}}>✓ Paid</p>}
+              return (
+                <div key={id} className="ft-card ft-anim-reveal" style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.4rem', color: 'var(--ft-forest)' }}>{produce?.cropType || 'Produce'}</h3>
+                      <p style={{ margin: '0.2rem 0 0', color: 'var(--ft-text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>{transfer.transferType}</p>
+                    </div>
+                    <span className="ft-badge" style={{ background: statusColor(escrow.status), color: '#166534' }}>
+                      {escrow.status}
+                    </span>
                   </div>
 
-                  <div style={milestoneItemStyle(escrow.dispatchReleased)}>
-                    <p style={{margin:0, fontSize:'0.75rem', color:'#666'}}>Dispatch (30%)</p>
-                    <p style={{margin:'0.25rem 0 0', fontWeight:'bold', fontSize:'0.95rem', color: escrow.dispatchReleased ? '#27500A' : '#aaa'}}>
-                      ₹{escrow.dispatchAmount}
-                    </p>
-                    {escrow.dispatchReleased && <p style={{margin:'0.2rem 0 0', fontSize:'0.7rem', color:'#27500A', fontWeight:'700'}}>✓ Released</p>}
-                    {!escrow.dispatchReleased && <p style={{margin:'0.2rem 0 0', fontSize:'0.7rem', color:'#aaa'}}>Pending Dispatch</p>}
+                  <div style={{ background: 'var(--ft-sage-light)', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>From</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{transfer.fromPhone}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>To</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{transfer.toPhone}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Location</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{transfer.location}</span>
+                    </div>
                   </div>
 
-                  <div style={milestoneItemStyle(escrow.deliveryReleased)}>
-                    <p style={{margin:0, fontSize:'0.75rem', color:'#666'}}>Delivery (30%)</p>
-                    <p style={{margin:'0.25rem 0 0', fontWeight:'bold', fontSize:'0.95rem', color: escrow.deliveryReleased ? '#27500A' : '#aaa'}}>
-                      ₹{escrow.deliveryAmount}
-                    </p>
-                    {escrow.deliveryReleased && <p style={{margin:'0.2rem 0 0', fontSize:'0.7rem', color:'#27500A', fontWeight:'700'}}>✓ Released</p>}
-                    {!escrow.deliveryReleased && <p style={{margin:'0.2rem 0 0', fontSize:'0.7rem', color:'#aaa'}}>Pending Delivery</p>}
-                  </div>
-                </div>
-
-                {/* Delivery Status */}
-                <div style={styles.deliveryStatus}>
-                  <p style={{margin:'0 0 0.3rem', fontSize:'0.85rem', color:'#666'}}><strong>Delivery Status:</strong></p>
-                  <p style={{margin:0, fontSize:'0.95rem', color:'#27500A', fontWeight:'bold'}}>
-                    {transfer.deliveryStatus || 'PENDING_DISPATCH'}
-                  </p>
-                </div>
-
-                <div style={styles.docSection}>
-                  <p style={styles.docTitle}>Compliance Documents</p>
-                  <div style={styles.docGrid}>
-                    <button
-                      onClick={() => handleDocDownload(id, 'invoice')}
-                      disabled={Boolean(downloading[`${id}-invoice-default`])}
-                      style={styles.docBtn}
-                    >
-                      {downloading[`${id}-invoice-default`] ? 'Downloading...' : 'Invoice PDF'}
-                    </button>
-                    <button
-                      onClick={() => handleDocDownload(id, 'challan')}
-                      disabled={Boolean(downloading[`${id}-challan-default`])}
-                      style={styles.docBtn}
-                    >
-                      {downloading[`${id}-challan-default`] ? 'Downloading...' : 'Challan PDF'}
-                    </button>
-                    <button
-                      onClick={() => handleDocDownload(id, 'settlement')}
-                      disabled={Boolean(downloading[`${id}-settlement-default`])}
-                      style={styles.docBtn}
-                    >
-                      {downloading[`${id}-settlement-default`] ? 'Downloading...' : 'Settlement PDF'}
-                    </button>
-                    <button
-                      onClick={() => handleDocDownload(id, 'audit-trail', 'json')}
-                      disabled={Boolean(downloading[`${id}-audit-trail-json`])}
-                      style={styles.docBtnSecondary}
-                    >
-                      {downloading[`${id}-audit-trail-json`] ? 'Downloading...' : 'Audit JSON'}
-                    </button>
-                    <button
-                      onClick={() => handleDocDownload(id, 'audit-trail', 'csv')}
-                      disabled={Boolean(downloading[`${id}-audit-trail-csv`])}
-                      style={styles.docBtnSecondary}
-                    >
-                      {downloading[`${id}-audit-trail-csv`] ? 'Downloading...' : 'Audit CSV'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Refund Option */}
-                {escrow.status !== 'REFUNDED' && (
-                  <div style={styles.refundSection}>
-                    <button
-                      onClick={() => setExpandedId(expandedId === id ? null : id)}
-                      style={{...styles.refundBtn, opacity: transfer.deliveryStatus === 'DELIVERED' ? 1 : 0.5}}
-                      disabled={transfer.deliveryStatus !== 'DELIVERED'}>
-                      {expandedId === id ? '✕ Cancel Refund' : 'Request Refund'}
-                    </button>
-
-                    {expandedId === id && (
-                      <div style={styles.refundForm}>
-                        <textarea
-                          placeholder="Refund reason likho..."
-                          value={refundData[id] || ''}
-                          onChange={(e) => setRefundData({...refundData, [id]: e.target.value})}
-                          style={styles.textarea}
-                        />
-                        <button
-                          onClick={() => handleRefundRequest(id)}
-                          style={styles.submitRefundBtn}>
-                          Submit Refund Request
-                        </button>
+                  <div style={{ background: 'var(--ft-forest)', color: '#fff', padding: '1.25rem', borderRadius: '16px', marginBottom: '1.5rem', boxShadow: '0 10px 15px -3px rgba(13, 51, 25, 0.4)' }}>
+                    <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Locked Amount</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '2rem', fontWeight: 900 }}>₹{escrow.totalAmount.toLocaleString()}</p>
+                    
+                    <div style={{ marginTop: '1.25rem' }}>
+                      <div style={{ height: '6px', background: 'rgba(255,255,255,0.2)', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${progress}%`, height: '100%', background: '#fff', borderRadius: '3px', transition: 'width 0.5s ease' }} />
                       </div>
-                    )}
+                      <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', opacity: 0.9 }}>{progress}% Released To Seller</p>
+                    </div>
                   </div>
-                )}
 
-                {escrow.refundReason && (
-                  <div style={styles.refundInfo}>
-                    <p style={{margin:'0 0 0.3rem', fontSize:'0.85rem', color:'#d32f2f'}}><strong>Refund Status:</strong></p>
-                    <p style={{margin:0, fontSize:'0.9rem'}}>Reason: {escrow.refundReason}</p>
-                    <p style={{margin:'0.2rem 0 0', fontSize:'0.9rem', color:'#27500A', fontWeight:'bold'}}>
-                      Amount: ₹{escrow.refundAmount.toLocaleString()}
-                    </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                    <div style={milestoneItemStyle(escrow.bookingPaid)}>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Booking</p>
+                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: 'var(--ft-forest)' }}>₹{escrow.bookingAmount}</p>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.bookingPaid ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.bookingPaid ? '✓ Paid' : 'Pending'}</p>
+                    </div>
+                    <div style={milestoneItemStyle(escrow.dispatchReleased)}>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Dispatch</p>
+                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.dispatchReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.dispatchAmount}</p>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.dispatchReleased ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.dispatchReleased ? '✓ Released' : 'Locked'}</p>
+                    </div>
+                    <div style={milestoneItemStyle(escrow.deliveryReleased)}>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Delivery</p>
+                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.deliveryReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.deliveryAmount}</p>
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.deliveryReleased ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.deliveryReleased ? '✓ Released' : 'Locked'}</p>
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+
+                  <div style={{ background: '#f8fafc', border: '1px solid var(--ft-border)', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+                    <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Delivery Status</p>
+                    <p style={{ margin: 0, fontSize: '1rem', color: 'var(--ft-forest)', fontWeight: 800 }}>{transfer.deliveryStatus || 'PENDING_DISPATCH'}</p>
+                  </div>
+
+                  <div>
+                    <p style={{ margin: '0 0 0.75rem', fontSize: '0.9rem', fontWeight: 800 }}>Compliance Documents</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <button onClick={() => handleDocDownload(id, 'invoice')} disabled={Boolean(downloading[`${id}-invoice-default`])} className="ft-btn ft-btn-secondary ft-btn-sm">Invoice PDF</button>
+                      <button onClick={() => handleDocDownload(id, 'challan')} disabled={Boolean(downloading[`${id}-challan-default`])} className="ft-btn ft-btn-secondary ft-btn-sm">Challan PDF</button>
+                      <button onClick={() => handleDocDownload(id, 'settlement')} disabled={Boolean(downloading[`${id}-settlement-default`])} className="ft-btn ft-btn-secondary ft-btn-sm">Settlement PDF</button>
+                      <button onClick={() => handleDocDownload(id, 'audit-trail', 'json')} disabled={Boolean(downloading[`${id}-audit-trail-json`])} className="ft-btn ft-btn-ghost ft-btn-sm">Audit JSON</button>
+                    </div>
+                  </div>
+
+                  {escrow.status !== 'REFUNDED' && (
+                    <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--ft-border)' }}>
+                      <button 
+                        onClick={() => setExpandedId(expandedId === id ? null : id)} 
+                        className="ft-btn ft-btn-ghost ft-btn-full" 
+                        style={{ color: 'var(--ft-error)', borderColor: 'rgba(185, 28, 28, 0.2)' }}
+                        disabled={transfer.deliveryStatus !== 'DELIVERED'}
+                      >
+                        {expandedId === id ? '✕ Cancel Refund' : 'Request Dispute / Refund'}
+                      </button>
+
+                      {expandedId === id && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <textarea className="ft-input" placeholder="Explain the reason for refund..." value={refundData[id] || ''} onChange={(e) => setRefundData({...refundData, [id]: e.target.value})} style={{ minHeight: '80px', marginBottom: '1rem' }} />
+                          <button onClick={() => handleRefundRequest(id)} className="ft-btn ft-btn-full" style={{ background: 'var(--ft-error)', color: '#fff' }}>Submit Request</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {escrow.refundReason && (
+                    <div style={{ background: '#fef2f2', borderLeft: '4px solid var(--ft-error)', padding: '1rem', borderRadius: '0 8px 8px 0', marginTop: '1.5rem' }}>
+                      <p style={{ margin: '0 0 0.25rem', fontSize: '0.8rem', color: 'var(--ft-error)', fontWeight: 800, textTransform: 'uppercase' }}>Refund Status</p>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: '#7f1d1d' }}>{escrow.refundReason}</p>
+                      <p style={{ margin: '0.5rem 0 0', fontSize: '1rem', color: 'var(--ft-error)', fontWeight: 900 }}>Amount: ₹{escrow.refundAmount.toLocaleString()}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 const statusColor = (status) => {
-  if (status === 'COMPLETED') return '#d4edda';
-  if (status === 'REFUNDED') return '#f8d7da';
-  if (status === 'FAILED') return '#f8d7da';
-  return '#fff3cd';
+  if (status === 'COMPLETED') return '#dcfce7';
+  if (status === 'REFUNDED') return '#fee2e2';
+  if (status === 'FAILED') return '#fee2e2';
+  return '#fef9c3';
 };
 
 const milestoneItemStyle = (isCompleted) => ({
-  background: isCompleted ? '#e8f5e9' : '#f5f5f5',
-  padding: '0.6rem',
-  borderRadius: '8px',
-  border: `1px solid ${isCompleted ? '#c8e6c9' : '#e0e0e0'}`,
-  textAlign: 'center'
+  background: isCompleted ? 'var(--ft-sage-light)' : '#f8fafc',
+  padding: '1rem 0.5rem',
+  borderRadius: '12px',
+  border: `1px solid ${isCompleted ? 'var(--ft-sage)' : 'var(--ft-border)'}`,
+  textAlign: 'center',
+  opacity: isCompleted ? 1 : 0.6
 });
-
-const styles = {
-  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', padding:'1rem' },
-  header: { display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1rem', background:'#fff', padding:'1rem 1.2rem', borderRadius:'14px', border:'1px solid #dbe5d8', boxShadow:'0 8px 22px rgba(26, 44, 33, 0.08)' },
-  backBtn: { background:'none', border:'none', color:'#27500A', cursor:'pointer', fontSize:'0.9rem', padding:0 },
-  title: { color:'#1f3320', margin:0, fontSize:'1.2rem' },
-  loading: { textAlign:'center', color:'#5f7167', marginTop:'2rem' },
-  empty: { textAlign:'center', color:'#5f7167', marginTop:'2.4rem', padding:'1.5rem', background:'#fff', borderRadius:'14px', border:'1px solid #dbe5d8' },
-  grid: { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(350px, 1fr))', gap:'1rem' },
-  card: { background:'#fff', padding:'1.2rem', borderRadius:'14px', border:'1px solid #dbe5d8', boxShadow:'0 8px 22px rgba(26, 44, 33, 0.08)' },
-  cardHeader: { display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'1rem' },
-  cropName: { margin:0, color:'#1f3320', fontSize:'1.1rem' },
-  transferType: { margin:'0.3rem 0 0', color:'#888', fontSize:'0.8rem' },
-  badge: { padding:'0.35rem 0.7rem', borderRadius:'20px', fontSize:'0.75rem', fontWeight:'700', color:'#333' },
-  partyInfo: { background:'#f5f5f5', padding:'0.7rem', borderRadius:'8px', margin:'0.8rem 0', fontSize:'0.85rem' },
-  partyInfo_p: { margin:'0.3rem 0' },
-  totalBox: { background:'#eef5e9', padding:'0.8rem', borderRadius:'10px', border:'1px solid #dbe5d8', marginBottom:'0.8rem' },
-  progressContainer: { marginBottom:'1rem' },
-  progressBar: { height:'8px', background:'linear-gradient(90deg, #27500A 0%, #4caf50 100%)', borderRadius:'4px', transition:'width 0.3s' },
-  milestoneGrid: { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'0.6rem', margin:'1rem 0' },
-  deliveryStatus: { background:'#f9f9f9', padding:'0.7rem', borderRadius:'8px', margin:'0.8rem 0' },
-  refundSection: { marginTop:'1rem', borderTop:'1px solid #eee', paddingTop:'1rem' },
-  docSection: { marginTop:'1rem', borderTop:'1px solid #eee', paddingTop:'1rem' },
-  docTitle: { margin:'0 0 0.6rem', color:'#1f3320', fontWeight:'700', fontSize:'0.9rem' },
-  docGrid: { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.5rem' },
-  docBtn: { width:'100%', padding:'0.55rem', background:'#27500A', color:'#fff', border:'none', borderRadius:'8px', fontSize:'0.82rem', cursor:'pointer', fontWeight:'600' },
-  docBtnSecondary: { width:'100%', padding:'0.55rem', background:'#fff', color:'#27500A', border:'1px solid #27500A', borderRadius:'8px', fontSize:'0.82rem', cursor:'pointer', fontWeight:'600' },
-  refundBtn: { width:'100%', padding:'0.6rem', background:'#ff9800', color:'white', border:'none', borderRadius:'8px', fontSize:'0.9rem', cursor:'pointer', fontWeight:'600' },
-  refundForm: { marginTop:'0.8rem' },
-  textarea: { width:'100%', padding:'0.6rem', borderRadius:'8px', border:'1px solid #ddd', fontSize:'0.9rem', minHeight:'60px', fontFamily:'inherit', boxSizing:'border-box' },
-  submitRefundBtn: { width:'100%', marginTop:'0.5rem', padding:'0.6rem', background:'#d32f2f', color:'white', border:'none', borderRadius:'8px', fontSize:'0.9rem', cursor:'pointer', fontWeight:'600' },
-  refundInfo: { background:'#ffebee', padding:'0.7rem', borderRadius:'8px', margin:'0.8rem 0', borderLeft:'3px solid #d32f2f' }
-};

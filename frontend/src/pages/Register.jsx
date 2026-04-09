@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
-import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
-import { fullLocationSuggestions } from '../lib/locationSuggestions';
+import StateCitySelector from '../components/StateCitySelector';
 import { ArrowLeft, IndianRupee, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const CROP_EMOJIS = {
@@ -21,7 +20,7 @@ function getCropEmoji(cropType = '') {
 }
 
 export default function Register() {
-  const [form, setForm] = useState({ farmerName: '', cropType: '', origin: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
+  const [form, setForm] = useState({ farmerName: '', cropType: '', originState: '', originCity: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
   const [cropOptions, setCropOptions] = useState([]);
   const [loadingCrops, setLoadingCrops] = useState(true);
   const [result, setResult] = useState(null);
@@ -66,7 +65,7 @@ export default function Register() {
   const selectedCrop = cropOptions.find(c => c.value === form.cropType);
   const currentFloorPrice = selectedCrop ? selectedCrop.floorPrice : 0;
   
-  const isFormComplete = form.origin && form.quantity && form.farmPrice && form.cropType;
+  const isFormComplete = form.originState && form.originCity && form.quantity && form.farmPrice && form.cropType;
   const isPriceValid = Number(form.farmPrice) >= currentFloorPrice;
   const isFormValid = isFormComplete && isPriceValid;
 
@@ -87,9 +86,11 @@ export default function Register() {
       return;
     }
 
+    const submitOrigin = `${form.originCity}, ${form.originState}`;
+
     setLoading(true);
     try {
-      const res = await api.post('/api/produce/register', { ...form, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
+      const res = await api.post('/api/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
       const qr = await QRCode.toDataURL(`${window.location.origin}/verify/${res.data.produce._id}`, { width: 300 });
       setResult(res.data);
       setQrDataUrl(qr);
@@ -194,8 +195,13 @@ export default function Register() {
               <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Volume & Origin</h3>
               <div className="ft-input-group" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
                 <div>
-                  <label className="ft-label">Origin Location</label>
-                  <LocationAutocompleteInput className="ft-input" placeholder="Nashik, Maharashtra" value={form.origin} onChange={e => setForm({...form, origin: e.target.value})} suggestions={fullLocationSuggestions} />
+                  <label className="ft-label">Origin Location / उत्पत्ति स्थान</label>
+                  <StateCitySelector 
+                    stateValue={form.originState} 
+                    cityValue={form.originCity} 
+                    onStateChange={val => setForm({...form, originState: val})} 
+                    onCityChange={val => setForm({...form, originCity: val})} 
+                  />
                 </div>
                 <div>
                   <label className="ft-label">Quantity (KG)</label>

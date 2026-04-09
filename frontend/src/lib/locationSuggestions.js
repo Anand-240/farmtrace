@@ -1,54 +1,33 @@
-import { locationData } from '../data/locationData';
+import { State, City } from 'country-state-city';
 
-export const countrySuggestions = [
-  'India',
-  'United States',
-  'United Arab Emirates',
-  'United Kingdom',
-  'Canada',
-  'Australia',
-  'Singapore',
-  'Saudi Arabia'
-];
+const indiaStates = State.getStatesOfCountry('IN');
 
-export const stateSuggestions = Object.keys(locationData);
+export const countrySuggestions = ['India'];
+export const stateSuggestions = indiaStates.map(s => s.name).sort((a, b) => a.localeCompare(b));
 
 const flattenUnique = (items) => Array.from(new Set(items.filter(Boolean)));
 
-export const citySuggestions = flattenUnique(
-  Object.values(locationData).flatMap((cities) => Object.keys(cities || {}))
-);
-
-export const villageSuggestions = flattenUnique(
-  Object.values(locationData).flatMap((cities) =>
-    Object.values(cities || {}).flatMap((villages) => villages || [])
-  )
-);
+const allCitiesRaw = City.getCitiesOfCountry('IN') || [];
+export const citySuggestions = flattenUnique(allCitiesRaw.map(c => c.name)).sort((a, b) => a.localeCompare(b));
 
 export const fullLocationSuggestions = flattenUnique([
   ...countrySuggestions,
   ...stateSuggestions,
   ...citySuggestions,
-  ...villageSuggestions,
-  ...stateSuggestions.flatMap((state) =>
-    Object.keys(locationData[state] || {}).map((city) => `${city}, ${state}`)
-  ),
-  ...stateSuggestions.flatMap((state) =>
-    Object.entries(locationData[state] || {}).flatMap(([city, villages]) =>
-      (villages || []).map((village) => `${village}, ${city}, ${state}`)
-    )
-  )
+  ...allCitiesRaw.map(c => {
+    const s = indiaStates.find(st => st.isoCode === c.stateCode);
+    return s ? `${c.name}, ${s.name}` : c.name;
+  })
 ]);
 
-export const getCitySuggestionsForState = (state = '') => {
-  const normalized = String(state).trim();
-  if (!normalized) return citySuggestions;
-  return Object.keys(locationData[normalized] || {});
+export const getCitySuggestionsForState = (stateName = '') => {
+  const normalized = String(stateName).trim();
+  if (!normalized) return [];
+  const stateObj = indiaStates.find(s => s.name === normalized);
+  if (!stateObj) return [];
+  const cities = City.getCitiesOfState('IN', stateObj.isoCode);
+  return flattenUnique(cities.map(c => c.name)).sort((a, b) => a.localeCompare(b));
 };
 
-export const getVillageSuggestionsForLocation = (state = '', city = '') => {
-  const normalizedState = String(state).trim();
-  const normalizedCity = String(city).trim();
-  if (!normalizedState || !normalizedCity) return villageSuggestions;
-  return locationData[normalizedState]?.[normalizedCity] || villageSuggestions;
-};
+export const villageSuggestions = [];
+export const getVillageSuggestionsForLocation = () => [];

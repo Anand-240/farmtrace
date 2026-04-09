@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { User, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import StateCitySelector from '../components/StateCitySelector';
 import './Login.css';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-services';
@@ -48,15 +49,29 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true); setError('');
+    if (isRegister && (!form.state || !form.city)) {
+      setError('Pleas select your complete Home State and City');
+      return;
+    }
+    setError('');
+    setLoading(true);
     try {
-      const url = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const res = await api.post(url, { ...form, email: form.email.trim().toLowerCase() });
+      if (isRegister) {
+        await api.post('/api/auth/register', form);
+      }
+      const res = await api.post('/api/auth/login', { email: form.email, password: form.password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');
-    } catch (err) { setError(err.response?.data?.message || 'Authentication failed'); }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (!isRegister && err.response?.status === 400) {
+         setError('password or email dono galat hai');
+      } else {
+         setError(err.response?.data?.message || 'Error occurred');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,11 +101,19 @@ export default function Login() {
               </div>
               <div className="auth-input-group">
                 <Shield size={20} className="auth-input-icon" />
-                <select className="ft-input" value={form.role} onChange={e => updateField('role', e.target.value)}>
+                <select className="ft-input" value={form.role} onChange={e => updateField('role', e.target.value)} style={{ appearance: 'none', paddingLeft: '3rem' }}>
                   <option value="FARMER">I am a Farmer</option>
                   <option value="DISTRIBUTOR">I am a Distributor</option>
                   <option value="RETAILER">I am a Retailer</option>
                 </select>
+              </div>
+              <div className="auth-input-group" style={{ marginBottom: '1.5rem' }}>
+                 <StateCitySelector
+                   stateValue={form.state}
+                   cityValue={form.city}
+                   onStateChange={val => updateField('state', val)}
+                   onCityChange={val => updateField('city', val)}
+                 />
               </div>
             </div>
           )}

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
-import { fullLocationSuggestions } from '../lib/locationSuggestions';
+import StateCitySelector from '../components/StateCitySelector';
 
 export default function DispatchLogistics() {
   const [deliveries, setDeliveries] = useState([]);
@@ -108,15 +107,16 @@ export default function DispatchLogistics() {
 
   const previewPlan = async (id) => {
     const logistics = logisticsForms[id] || {};
-    if (!logistics.destinationLocation?.trim()) {
-      alert('Destination location fill karo');
+    if (!logistics.destinationState || !logistics.destinationCity) {
+      alert('Destination state aur city dono fill karo');
       return;
     }
+    const destLoc = `${logistics.destinationCity}, ${logistics.destinationState}`;
 
     try {
       setPlanningId(id);
       const res = await api.post(`/api/payment/logistics/${id}/preview`, {
-        destinationLocation: logistics.destinationLocation,
+        destinationLocation: destLoc,
         preferredVehicleType: logistics.preferredVehicleType
       });
       setPlans((prev) => ({ ...prev, [id]: res.data }));
@@ -141,10 +141,12 @@ export default function DispatchLogistics() {
     const logistics = logisticsForms[id] || {};
     const selectedPlan = plans[id];
 
-    if (!logistics.destinationLocation?.trim()) {
-      alert('Destination location required hai');
+    if (!logistics.destinationState || !logistics.destinationCity) {
+      alert('Destination state aur city required hai');
       return;
     }
+    const destLoc = `${logistics.destinationCity}, ${logistics.destinationState}`;
+
     if (!logistics.slotDate || !logistics.slotLabel) {
       alert('Delivery slot select karo');
       return;
@@ -155,7 +157,7 @@ export default function DispatchLogistics() {
     try {
       setBookingId(id);
       await api.post(`/api/payment/logistics/${id}/book-slot`, {
-        destinationLocation: logistics.destinationLocation,
+        destinationLocation: destLoc,
         preferredVehicleType: logistics.preferredVehicleType,
         transporterId: logistics.selectedTransporterId || fallbackTransporterId,
         slotDate: logistics.slotDate,
@@ -226,14 +228,17 @@ export default function DispatchLogistics() {
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>← Dashboard</button>
-        <div>
-          <h2 style={styles.title}>Dispatch & Logistics</h2>
-          <p style={styles.subTitle}>Shipment planning, slot booking, and live tracking control center.</p>
+    <div className="ft-page planetono-flow">
+      <nav className="ft-top-nav glass">
+        <div className="ft-container" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ border: 'none', background: 'none' }}>
+            ← Dashboard
+          </button>
+          <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>Dispatch & Logistics Control</span>
         </div>
-      </div>
+      </nav>
+
+      <div className="ft-container" style={{ paddingTop: '6rem', paddingBottom: '4rem' }}>
 
       <div style={styles.summaryGrid}>
         {[
@@ -323,14 +328,15 @@ export default function DispatchLogistics() {
                     <div style={styles.sectionCard}>
                       <div style={styles.panelTitle}>1) Logistics Matching + ETA</div>
 
-                      <label style={styles.label}>Destination Location</label>
-                      <LocationAutocompleteInput
-                        inputStyle={styles.input}
-                        placeholder="e.g. Jaipur, Rajasthan"
-                        value={lf.destinationLocation || ''}
-                        onChange={(e) => setLogisticsField(d._id, 'destinationLocation', e.target.value)}
-                        suggestions={fullLocationSuggestions}
-                      />
+                      <label style={styles.label}>Destination Location / गंतव्य स्थान</label>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <StateCitySelector
+                          stateValue={lf.destinationState || ''}
+                          cityValue={lf.destinationCity || ''}
+                          onStateChange={(state) => setLogisticsField(d._id, 'destinationState', state)}
+                          onCityChange={(city) => setLogisticsField(d._id, 'destinationCity', city)}
+                        />
+                      </div>
 
                       <label style={styles.label}>Preferred Vehicle</label>
                       <input
@@ -450,12 +456,11 @@ export default function DispatchLogistics() {
                       <div style={styles.inlineFieldGrid(isMobile)}>
                         <div style={{ flex: 1.5 }}>
                           <label style={styles.label}>Current Location</label>
-                          <LocationAutocompleteInput
-                            inputStyle={styles.input}
+                          <input
+                            style={styles.input}
                             value={f.currentLocation || ''}
                             onChange={(e) => setField(d._id, 'currentLocation', e.target.value)}
-                            suggestions={fullLocationSuggestions}
-                            placeholder="Current location"
+                            placeholder="Current highway or city name"
                           />
                         </div>
                         <div>
@@ -477,6 +482,7 @@ export default function DispatchLogistics() {
           );
         })
       )}
+      </div>
     </div>
   );
 }
