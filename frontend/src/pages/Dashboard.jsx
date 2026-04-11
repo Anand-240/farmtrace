@@ -171,17 +171,25 @@ export default function Dashboard() {
         },
         async (error) => {
           console.log('Geo error:', error.code, error.message);
+          let errorInfo = '';
           if (error.code === 1) {
             setLocationPermission('denied');
             setWeather(null);
-            setWeatherPromptMessage('Permission denied. Browser site settings mein location enable karein.');
+            errorInfo = 'Permission denied. Browser site settings mein location enable karein.';
+          } else if (error.code === 2) {
+            await fetchWeatherByCity(user.city || 'Lucknow');
+            errorInfo = 'Signal weak hai, profile city weather dikhaya gaya hai.';
+          } else if (error.code === 3) {
+            await fetchWeatherByCity(user.city || 'Lucknow');
+            errorInfo = 'Location timeout. Profile city show kiya gaya.';
           } else {
             await fetchWeatherByCity(user.city || 'Lucknow');
-            setWeatherPromptMessage('Signal weak hai, profile city weather dikhaya gaya hai.');
+            errorInfo = 'Signal weak hai, profile city weather dikhaya gaya hai.';
           }
+          setWeatherPromptMessage(errorInfo);
           setWeatherLoading(false);
         },
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
       );
     };
 
@@ -281,12 +289,14 @@ export default function Dashboard() {
         if (error.code === 1) {
           setLocationPermission('denied');
           setWeatherPromptMessage('Location abhi blocked hai. Browser site settings me jaake Location ko Allow karein, phir dobara Enable Location dabayein.');
+        } else if (error.code === 3) {
+          setWeatherPromptMessage('Location timeout ho gaya. Signal slow ho sakta hai, dobara try karein.');
         } else {
-          setWeatherPromptMessage('Location fetch fail hua. Network ya GPS issue ho sakta hai.');
+          setWeatherPromptMessage('Location fetch fail hua (Unavailable). GPS on karein aur dobara try karein.');
         }
         setWeatherLoading(false);
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 

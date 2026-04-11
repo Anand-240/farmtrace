@@ -13,6 +13,7 @@ export default function DispatchLogistics() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
   const [expandedCards, setExpandedCards] = useState({});
+  const [gpsLoading, setGpsLoading] = useState({});
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 980);
   const navigate = useNavigate();
 
@@ -103,6 +104,48 @@ export default function DispatchLogistics() {
     } finally {
       setSavingId(null);
     }
+  };
+
+  const fetchCurrentLocation = (id) => {
+    if (!navigator.geolocation) {
+      alert('Geolocation browser me supported nahi hai.');
+      return;
+    }
+    
+    setGpsLoading((prev) => ({ ...prev, [id]: true }));
+    
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          
+          let readableLoc = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          if (data.address) {
+             const { road, suburb, city, town, village, state } = data.address;
+             const localities = [road, suburb, city || town || village, state].filter(Boolean);
+             if (localities.length > 0) readableLoc = localities.join(', ');
+          }
+          
+          setField(id, 'currentLocation', readableLoc);
+        } catch (err) {
+          alert('Location decode fail ho gayi API issue ki wajah se.');
+        } finally {
+          setGpsLoading((prev) => ({ ...prev, [id]: false }));
+        }
+      },
+      (err) => {
+        let msg = 'GPS error occur hua.';
+        if (err.code === 1) msg = 'Location permission denied. Site settings se location enable karein.';
+        else if (err.code === 2) msg = 'Position unavailable. Check karein ki GPS on hai ya nahi.';
+        else if (err.code === 3) msg = 'GPS timeout ho gaya. Signal weak ho sakta hai, dobara try karein.';
+        
+        alert(msg);
+        setGpsLoading((prev) => ({ ...prev, [id]: false }));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   };
 
   const previewPlan = async (id) => {
@@ -455,7 +498,19 @@ export default function DispatchLogistics() {
 
                       <div style={styles.inlineFieldGrid(isMobile)}>
                         <div style={{ flex: 1.5 }}>
-                          <label style={styles.label}>Current Location</label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label style={styles.label}>Current Location</label>
+                            <button
+                               type="button"
+                               onClick={() => fetchCurrentLocation(d._id)}
+                               className="ft-btn ft-btn-ghost ft-btn-sm"
+                               style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: 'var(--ft-forest)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.3rem' }}
+                               disabled={gpsLoading[d._id]}
+                            >
+                              {gpsLoading[d._id] ? <span className="ft-spinner" style={{ width: '12px', height: '12px' }} /> : '📍 Fetch GPS'}
+                              {gpsLoading[d._id] ? ' Locating' : ''}
+                            </button>
+                          </div>
                           <input
                             style={styles.input}
                             value={f.currentLocation || ''}
