@@ -263,3 +263,54 @@ h1, h2, h3, h4, h5 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* ══════════ GLOBAL NAV SEARCH ══════════ */
+.header-search-global {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 2rem;
+}
+
+.global-search-box {
+  background: var(--ft-bg);
+  border: 1px solid var(--ft-border);
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: var(--ft-transition);
+}
+
+.global-search-box:focus-within {
+  background: white;
+  border-color: var(--ft-forest);
+  box-shadow: var(--ft-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.global-search-box input {
+  border: none !important;
+  background: none !important;
+  width: 100%;
+  font-size: 0.85rem;
+  font-weight: 600;
+  outline: none;
+  color: var(--ft-text);
+  padding: 0 !important;
+}
+
+.global-search-box kbd {
+  background: white;
+  border: 1px solid var(--ft-border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--ft-text-muted);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.1);
+}
+
+.global-search-box svg {
+  color: var(--ft-text-muted);
+}

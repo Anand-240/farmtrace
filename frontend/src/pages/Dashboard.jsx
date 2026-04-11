@@ -417,7 +417,7 @@ export default function Dashboard() {
   const filteredList = baseList
     .filter((item) => {
       const searchValue = searchText.trim().toLowerCase();
-      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade].filter(Boolean).join(' ').toLowerCase();
+      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade, item.lotCode, item._id].filter(Boolean).join(' ').toLowerCase();
       if (searchValue && !searchableText.includes(searchValue)) return false;
       if (statusFilter !== 'ALL') {
         const statusValue = item.blockchainStatus === 'CONFIRMED' ? 'VERIFIED' : 'PENDING';
@@ -544,12 +544,30 @@ export default function Dashboard() {
       )}
 
       {/* ── STICKY HEADER ── */}
-      <header className="dashboard-header">
-        <div className="dashboard-brand">
+      <header className="dashboard-header glass">
+        <div className="dashboard-brand" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
           <div className="dashboard-brand-icon">🌱</div>
           <h1 className="dashboard-title">FarmTrace</h1>
           <span className="dashboard-role-badge">{roleLabel}</span>
         </div>
+
+        <div className="header-search-global">
+          <div className="global-search-box">
+            <Search size={16} />
+            <input 
+              type="text" 
+              placeholder="Any Lot ID #001..." 
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = e.target.value.trim();
+                  if (val) navigate(`/verify/${val}`);
+                }
+              }}
+            />
+            <kbd>Enter</kbd>
+          </div>
+        </div>
+
         <div className="dashboard-header-actions">
           <LanguageToggle />
           <button onClick={logout} className="btn-logout">
@@ -613,7 +631,7 @@ export default function Dashboard() {
           </button>
           <button onClick={() => navigate('/lot-ops')} className="action-card">
             <Layers className="action-card-icon" color="#7c3aed" />
-            <span className="action-card-label">Lot Split / Merge</span>
+            <span className="action-card-label">Lot Management</span>
           </button>
           {user.role !== 'CONSUMER' && (
             <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
