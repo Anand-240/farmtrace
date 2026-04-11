@@ -12,11 +12,9 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Info,
-  ChevronRight,
   Package,
   ArrowRight,
   X,
-  Filter,
   RefreshCcw,
   Zap,
   Scale
@@ -44,7 +42,7 @@ export default function LotOperations() {
 
   useEffect(() => {
     fetchLots();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchLots = async () => {
     setLoadingLots(true);

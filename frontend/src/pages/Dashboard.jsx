@@ -599,53 +599,71 @@ export default function Dashboard() {
         <div className="dashboard-actions-row">
           {user.role === 'FARMER' && (
             <button onClick={() => navigate('/register-produce')} className="action-card primary">
-              <Sprout className="action-card-icon" />
+              <div className="action-card-icon-wrap">
+                <Sprout className="action-card-icon" />
+              </div>
               <span className="action-card-label">{t('dash_action_register')}</span>
             </button>
           )}
           {user.role !== 'CONSUMER' && (
             <button onClick={() => navigate('/transfer')} className="action-card">
-              <Truck className="action-card-icon" color="#0369a1" />
+              <div className="action-card-icon-wrap" style={{ background: '#f0f9ff' }}>
+                <Truck className="action-card-icon" color="#0369a1" />
+              </div>
               <span className="action-card-label">{t('dash_action_transfer')}</span>
             </button>
           )}
           {user.role !== 'FARMER' && (
-            <button onClick={() => navigate('/payment')} className={`action-card ${pendingCount > 0 ? 'action-card-alert action-card-alert-pending' : ''}`}>
-              <Coins className="action-card-icon" color="#d97706" />
+            <button onClick={() => navigate('/payment')} className={`action-card ${pendingCount > 0 ? 'action-card-alert-pending' : ''}`}>
+              <div className="action-card-icon-wrap" style={{ background: '#fffbeb' }}>
+                <Coins className="action-card-icon" color="#d97706" />
+              </div>
               <span className="action-card-label">
                 {t('dash_action_pending')}
                 {pendingCount > 0 && <span className="notif-badge notif-badge-pending">{pendingCount > 99 ? '99+' : pendingCount}</span>}
               </span>
             </button>
           )}
-          <button onClick={() => navigate('/transactions')} className={`action-card ${unreadNotifs > 0 ? 'action-card-alert action-card-alert-history' : ''}`}>
-            <History className="action-card-icon" color="#4f46e5" />
+          <button onClick={() => navigate('/transactions')} className={`action-card ${unreadNotifs > 0 ? 'action-card-alert-history' : ''}`}>
+            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
+              <History className="action-card-icon" color="#4f46e5" />
+            </div>
             <span className="action-card-label">
               {t('dash_action_history')}
               {unreadNotifs > 0 && <span className="notif-badge notif-badge-history">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
             </span>
           </button>
           <button onClick={() => navigate('/profile')} className="action-card">
-            <User className="action-card-icon" color="#0f766e" />
+            <div className="action-card-icon-wrap" style={{ background: '#f0fdfa' }}>
+              <User className="action-card-icon" color="#0f766e" />
+            </div>
             <span className="action-card-label">{t('dash_action_profile')}</span>
           </button>
           <button onClick={() => navigate('/lot-ops')} className="action-card">
-            <Layers className="action-card-icon" color="#7c3aed" />
+            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
+              <Layers className="action-card-icon" color="#7c3aed" />
+            </div>
             <span className="action-card-label">Lot Management</span>
           </button>
           {user.role !== 'CONSUMER' && (
             <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
-              <PackageCheck className="action-card-icon" color="#1d4ed8" />
+              <div className="action-card-icon-wrap" style={{ background: '#eff6ff' }}>
+                <PackageCheck className="action-card-icon" color="#1d4ed8" />
+              </div>
               <span className="action-card-label">Dispatch</span>
             </button>
           )}
           <button onClick={() => navigate('/escrow')} className="action-card">
-            <ShieldCheck className="action-card-icon" color="#ea580c" />
+            <div className="action-card-icon-wrap" style={{ background: '#fff7ed' }}>
+              <ShieldCheck className="action-card-icon" color="#ea580c" />
+            </div>
             <span className="action-card-label">Milestone Pay</span>
           </button>
           {user.role === 'FARMER' && (
             <button onClick={() => navigate('/ai')} className="action-card ai-card">
-              <Bot className="action-card-icon" color="#16a34a" />
+              <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
+                <Bot className="action-card-icon" color="#16a34a" />
+              </div>
               <span className="action-card-label">{t('dash_action_ai')}</span>
             </button>
           )}
@@ -881,52 +899,48 @@ export default function Dashboard() {
               {/* FARMER — cards */}
               {user.role === 'FARMER' && filteredList.map((p, idx) => (
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                  <div className="produce-card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                      <div style={{ fontSize: '2.5rem', background: 'var(--p50)', borderRadius: '14px', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 2px 4px var(--border-soft)' }}>
-                        {getCropEmoji(p.cropType)}
-                      </div>
-                      <div>
-                        <h3 className="produce-name" style={{ fontSize: '1.5rem' }}>{p.cropType}</h3>
-                        <span className={`status-badge ${p.blockchainStatus === 'CONFIRMED' ? 'status-ok' : 'status-pending'}`} style={{ marginTop: '0.35rem', display: 'inline-block' }}>
-                          {p.blockchainStatus === 'CONFIRMED' ? '✓ VERIFIED' : '⏳ PENDING'}
-                        </span>
-                      </div>
+                  <div className="produce-header-area">
+                    <div className="produce-meta-row">
+                      <div className="mini-id-badge">LOTID: {p._id.slice(-6).toUpperCase()}</div>
+                      <span className={`ft-badge ${p.blockchainStatus === 'CONFIRMED' ? 'ft-badge-success' : 'ft-badge-pending'}`}>
+                        {p.blockchainStatus === 'CONFIRMED' ? '✓ VERIFIED' : '⏳ PENDING'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.25rem' }}>
+                      <div style={{ fontSize: '2.5rem' }}>{getCropEmoji(p.cropType)}</div>
+                      <h3 className="produce-name">{p.cropType}</h3>
                     </div>
                   </div>
                   
                   <div className="produce-details">
                     <div className="produce-detail">
                       <span className="detail-label">Origin</span>
-                      <span className="detail-val">📍 {p.origin}</span>
+                      <span className="detail-val">{p.origin}</span>
                     </div>
                     <div className="produce-detail">
                       <span className="detail-label">Quantity</span>
-                      <span className="detail-val">⚖️ {p.quantity} kg</span>
+                      <span className="detail-val">{p.quantity} KG</span>
                     </div>
                     <div className="produce-detail">
                       <span className="detail-label">Quality</span>
-                      <span className="detail-val">🏅 {p.qualityGrade}</span>
+                      <span className="detail-val">Grade {p.qualityGrade}</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Date</span>
-                      <span className="detail-val">📅 {new Date(p.createdAt).toLocaleDateString()}</span>
+                      <span className="detail-label">Price/KG</span>
+                      <span className="detail-val">₹{p.farmPrice}</span>
                     </div>
                   </div>
 
-                  <div className="produce-price">
-                    <IndianRupee size={22} style={{ marginRight: '2px' }} />
-                    {p.farmPrice}<small style={{ fontSize: '1rem', opacity: 0.6 }}>/kg</small>
-                  </div>
-
-                  <div className="produce-actions">
-                    <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                      <QrCode size={20} strokeWidth={2.5} /> QR & Traceability
-                    </button>
-                    <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
-                      <Copy size={18} /> Copy ID
-                    </button>
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
+                  <div className="produce-footer-area">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm" style={{ padding: '0.6rem' }}>
+                        <QrCode size={18} /> QR Trace
+                      </button>
+                      <button onClick={() => copyId(p._id)} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ padding: '0.6rem' }}>
+                        <Copy size={16} /> Copy ID
+                      </button>
+                    </div>
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="ft-btn ft-btn-ghost ft-btn-full" style={{ padding: '0.6rem' }}>
                       <Eye size={18} /> Full History
                     </button>
                   </div>
@@ -940,7 +954,7 @@ export default function Dashboard() {
                   <p>{t('dash_empty_received')}</p>
                   <p className="dashboard-empty-sub">{t('dash_empty_received_sub')}</p>
                   {user.role !== 'CONSUMER' && (
-                    <button onClick={() => navigate('/transfer')} className="dashboard-empty-cta dashboard-empty-cta-transfer">
+                    <button onClick={() => navigate('/transfer')} className="ft-btn ft-btn-primary">
                       <Truck size={18} /> {t('dash_empty_transfer_cta')}
                     </button>
                   )}
@@ -953,12 +967,15 @@ export default function Dashboard() {
               {/* DISTRIBUTOR/RETAILER — cards */}
               {user.role !== 'FARMER' && filteredList.map((p, idx) => (
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                  <div className="produce-card-header">
-                    <h3 className="produce-name">
-                      <span className="produce-emoji">{getCropEmoji(p.cropType)}</span>
-                      {p.cropType}
-                    </h3>
-                    <span className="status-badge status-received">📦 Received</span>
+                  <div className="produce-header-area">
+                    <div className="produce-meta-row">
+                      <div className="mini-id-badge">LOTID: {p._id.slice(-6).toUpperCase()}</div>
+                      <span className="ft-badge ft-badge-success">📦 RECEIVED</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.25rem' }}>
+                      <div style={{ fontSize: '2.5rem' }}>{getCropEmoji(p.cropType)}</div>
+                      <h3 className="produce-name">{p.cropType}</h3>
+                    </div>
                   </div>
 
                   <div className="produce-details">
@@ -968,37 +985,28 @@ export default function Dashboard() {
                     </div>
                     <div className="produce-detail">
                       <span className="detail-label">Quantity</span>
-                      <span className="detail-val">{p.quantity} kg</span>
+                      <span className="detail-val">{p.quantity} KG</span>
                     </div>
                     <div className="produce-detail">
                       <span className="detail-label">Origin</span>
                       <span className="detail-val">{p.origin}</span>
                     </div>
                     <div className="produce-detail">
-                      <span className="detail-label">Grade</span>
-                      <span className="detail-val">{p.qualityGrade}</span>
+                      <span className="detail-label">Price/KG</span>
+                      <span className="detail-val">₹{p.receivedPrice || p.farmPrice}</span>
                     </div>
                   </div>
 
-                  <div className="price-row">
-                    <div>
-                      <p className="price-label">Farm Price</p>
-                      <p className="farm-price">₹{p.farmPrice}</p>
+                  <div className="produce-footer-area">
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm" style={{ padding: '0.6rem' }}>
+                        <QrCode size={18} /> QR Trace
+                      </button>
+                      <button onClick={() => copyId(p._id)} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ padding: '0.6rem' }}>
+                        <Copy size={16} /> Copy ID
+                      </button>
                     </div>
-                    <div className="price-right">
-                      <p className="price-label">Batch Price</p>
-                      <p className="received-price">₹{p.receivedPrice || p.farmPrice}</p>
-                    </div>
-                  </div>
-
-                  <div className="produce-actions">
-                    <button onClick={() => showQR(p._id)} className="btn btn-action-primary">
-                      <QrCode size={20} strokeWidth={2.5} /> QR & Traceability
-                    </button>
-                    <button onClick={() => copyId(p._id)} className="btn btn-action-secondary">
-                      <Copy size={18} /> Copy ID
-                    </button>
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="btn btn-verify">
+                    <button onClick={() => navigate(`/verify/${p._id}`)} className="ft-btn ft-btn-ghost ft-btn-full" style={{ padding: '0.6rem' }}>
                       <Eye size={18} /> Full History
                     </button>
                   </div>

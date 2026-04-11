@@ -1,5 +1,4 @@
 import React from 'react';
-import { ChevronDown } from 'lucide-react';
 
 const MAJOR_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 

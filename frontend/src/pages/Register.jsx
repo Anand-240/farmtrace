@@ -72,7 +72,7 @@ export default function Register() {
       }
     };
     fetchCrops();
-  }, [form.originState]);
+  }, [form.originState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
