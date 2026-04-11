@@ -299,5 +299,6 @@ module.exports = {
   pickBestMandiRecord,
   getSellPriceFloor,
   validateSellPrice,
-  getMspPriceForCrop
+  getMspPriceForCrop,
+  parseMspTable
 };

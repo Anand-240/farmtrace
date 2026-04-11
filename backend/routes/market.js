@@ -57,7 +57,8 @@ router.get('/floor', async (req, res) => {
 
 router.get('/commodities', async (req, res) => {
   try {
-    const { records, error } = await fetchMandiRecords({ limit: 400 });
+    const state = String(req.query.state || '').trim();
+    const { records, error } = await fetchMandiRecords({ state, limit: 400 });
     if (error) throw new Error(error);
 
     const priceMap = {};
@@ -70,15 +71,25 @@ router.get('/commodities', async (req, res) => {
       }
     });
 
-    const commoditiesRaw = [...new Set(records.map(r => r.commodity || r.comm).filter(Boolean))];
-    const commoditiesObjects = commoditiesRaw
-      .filter(c => getMspPriceForCrop(c) !== null)
+    // Strategy: Always show all crops that have an MSP, plus any extras from mandi
+    const mspTable = require('../utils/marketPricing').getMspPriceForCrop; // Using the helper
+    const mspCropsInternal = Object.keys(require('../utils/marketPricing').parseMspTable());
+    const mandiCrops = records.map(r => r.commodity || r.comm).filter(Boolean);
+    
+    const allCrops = [...new Set([...mspCropsInternal, ...mandiCrops])];
+
+    const commoditiesObjects = allCrops
       .map(c => {
         const msp = getMspPriceForCrop(c) || 0;
         const mandi = priceMap[c] || 0;
         const bestPrice = Math.max(mandi, msp).toFixed(2);
+        
+        // If no price found at all, skip it (unless it was in mspCropsInternal which means it has a price)
+        if (Number(bestPrice) <= 0) return null;
+        
         return { name: c, price: bestPrice };
-      });
+      })
+      .filter(Boolean);
 
     return res.json({ commodities: commoditiesObjects.sort((a, b) => a.name.localeCompare(b.name)) });
   } catch (err) {

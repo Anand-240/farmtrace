@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
-import StateCitySelector from '../components/StateCitySelector';
+import { State, City } from 'country-state-city';
 import { ArrowLeft, IndianRupee, ShieldCheck, ChevronDown } from 'lucide-react';
 
 const CROP_EMOJIS = {
@@ -21,6 +21,22 @@ function getCropEmoji(cropType = '') {
 
 export default function Register() {
   const [form, setForm] = useState({ farmerName: '', cropType: '', originState: '', originCity: '', quantity: '', qualityGrade: 'A', farmPrice: '' });
+  
+  // Get all Indian States
+  const indianStates = useMemo(() => {
+    return State.getStatesOfCountry('IN').sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  // Get all Cities for selected State
+  const citiesForSelectedState = useMemo(() => {
+    if (!form.originState) return [];
+    const stateObj = indianStates.find(s => s.name === form.originState);
+    if (!stateObj) return [];
+    const cities = City.getCitiesOfState('IN', stateObj.isoCode);
+    // Remove duplicates and sort
+    return Array.from(new Set(cities.map(c => c.name))).sort((a,b) => a.localeCompare(b));
+  }, [form.originState, indianStates]);
+
   const [cropOptions, setCropOptions] = useState([]);
   const [loadingCrops, setLoadingCrops] = useState(true);
   const [result, setResult] = useState(null);
@@ -32,8 +48,9 @@ export default function Register() {
 
   useEffect(() => {
     const fetchCrops = async () => {
+      setLoadingCrops(true);
       try {
-        const res = await api.get('/api/market/commodities');
+        const res = await api.get(`/api/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
         if (res.data && res.data.commodities) {
           const fetchedCrops = res.data.commodities.map(c => ({ 
             value: c.name, 
@@ -42,7 +59,10 @@ export default function Register() {
           }));
           if (fetchedCrops.length > 0) {
             setCropOptions(fetchedCrops);
-            setForm(prev => ({ ...prev, cropType: fetchedCrops[0].value }));
+            // Only set default if nothing is selected or current selected is not in new list
+            if (!form.cropType || !fetchedCrops.find(c => c.value === form.cropType)) {
+              setForm(prev => ({ ...prev, cropType: fetchedCrops[0].value }));
+            }
           }
         }
       } catch (err) {
@@ -52,7 +72,7 @@ export default function Register() {
       }
     };
     fetchCrops();
-  }, []);
+  }, [form.originState]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -193,19 +213,47 @@ export default function Register() {
 
             <div className="ft-card" style={{ marginBottom: '2rem' }} data-reveal>
               <h3 style={{ marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>Volume & Origin</h3>
-              <div className="ft-input-group" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
-                <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <div className="ft-input-group" style={{ marginBottom: 0 }}>
                   <label className="ft-label">Origin Location / उत्पत्ति स्थान</label>
-                  <StateCitySelector 
-                    stateValue={form.originState} 
-                    cityValue={form.originCity} 
-                    onStateChange={val => setForm({...form, originState: val})} 
-                    onCityChange={val => setForm({...form, originCity: val})} 
-                  />
+                  <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
+                    {/* State Selector */}
+                    <div style={{ flex: 1, position: 'relative', zIndex: 100 }}>
+                      <select
+                        className="ft-input"
+                        value={form.originState}
+                        onChange={(e) => setForm({ ...form, originState: e.target.value, originCity: '' })}
+                        required
+                        style={{ width: '100%', cursor: 'pointer', pointerEvents: 'auto', position: 'relative', zIndex: 101 }}
+                      >
+                        <option value="" disabled>Select State / राज्य</option>
+                        {indianStates.map(st => (
+                          <option key={st.isoCode} value={st.name}>{st.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* City Selector */}
+                    <div style={{ flex: 1, position: 'relative', zIndex: 100 }}>
+                      <select
+                        className="ft-input"
+                        value={form.originCity}
+                        onChange={(e) => setForm({ ...form, originCity: e.target.value })}
+                        required
+                        disabled={!form.originState}
+                        style={{ width: '100%', opacity: !form.originState ? 0.6 : 1, cursor: form.originState ? 'pointer' : 'not-allowed', pointerEvents: 'auto', position: 'relative', zIndex: 101 }}
+                      >
+                        <option value="" disabled>{form.originState ? `Select City (${citiesForSelectedState.length} available)` : 'Select State First'}</option>
+                        {citiesForSelectedState.map(ct => (
+                          <option key={ct} value={ct}>{ct}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="ft-label">Quantity (KG)</label>
-                  <input className="ft-input" type="number" placeholder="500" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} required />
+                <div className="ft-input-group" style={{ marginBottom: 0 }}>
+                  <label className="ft-label">Quantity / मात्नी (KG)</label>
+                  <input className="ft-input" type="number" placeholder="e.g. 500" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} required />
                 </div>
               </div>
             </div>
