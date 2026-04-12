@@ -282,9 +282,20 @@ Respond ONLY with this JSON structure:
     const result = await model.generateContent([prompt, ...imageParts]);
     const responseText = result.response.text();
     
-    // Clean potential markdown blocks
-    const cleanText = responseText.replace(/```json|```/g, '').trim();
-    const parsedData = JSON.parse(cleanText);
+    let parsedData;
+    try {
+      const cleanText = responseText.replace(/```json|```/g, '').trim();
+      parsedData = JSON.parse(cleanText);
+    } catch (parseErr) {
+      console.error('Gemini JSON Parse Error:', parseErr, 'Raw Text:', responseText);
+      // Fallback detection if JSON fails
+      parsedData = {
+        disease: "Nirdharit nahi ho paaya (AI error)",
+        severity: "Unknown",
+        remedies: ["Kripya photo dubara saaf karke upload karein."],
+        preventions: []
+      };
+    }
 
     res.json({
       success: true,

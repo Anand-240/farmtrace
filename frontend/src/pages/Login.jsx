@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
-import { User, Mail, Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Shield, Phone } from 'lucide-react';
 import StateCitySelector from '../components/StateCitySelector';
 import './Login.css';
 
@@ -43,7 +43,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { search } = window.location;
   const googleClientId = process.env.REACT_APP_GOOGLE_CLIENT_ID?.trim();
+
+  useEffect(() => {
+    if (search.includes('expired=true')) {
+      setError('Aapka session khatam ho gaya hai. Dobara login karein.');
+    }
+  }, [search]);
 
   const updateField = (f, v) => setForm(c => ({ ...c, [f]: v }));
 
@@ -57,7 +64,8 @@ export default function Login() {
     setLoading(true);
     try {
       if (isRegister) {
-        await api.post('/api/auth/register', form);
+        const fullPhone = `${form.countryCode}${form.phone}`;
+        await api.post('/api/auth/register', { ...form, phone: fullPhone });
       }
       const res = await api.post('/api/auth/login', { email: form.email, password: form.password });
       localStorage.setItem('token', res.data.token);
@@ -123,6 +131,33 @@ export default function Login() {
             <input className="ft-input" type="email" placeholder="Email Address" value={form.email} onChange={e => updateField('email', e.target.value)} required />
           </div>
 
+          {isRegister && (
+            <div className="auth-input-group ft-anim-reveal-delay-1" style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ position: 'relative', width: '110px' }}>
+                <Phone size={20} className="auth-input-icon" style={{ left: '1rem' }} />
+                <select 
+                  className="ft-input" 
+                  style={{ width: '100%', paddingLeft: '3rem' }}
+                  value={form.countryCode}
+                  onChange={e => updateField('countryCode', e.target.value)}
+                >
+                  <option value="+91">+91</option>
+                  <option value="+1">+1</option>
+                  <option value="+44">+44</option>
+                </select>
+              </div>
+              <input 
+                className="ft-input" 
+                type="tel" 
+                style={{ flex: 1, paddingLeft: '1.25rem' }}
+                placeholder="Phone Number" 
+                value={form.phone} 
+                onChange={e => updateField('phone', e.target.value)} 
+                required={isRegister}
+              />
+            </div>
+          )}
+
           <div className="auth-input-group">
             <Lock size={20} className="auth-input-icon" />
             <input className="ft-input" type={showPassword ? "text" : "password"} placeholder="Password" value={form.password} onChange={e => updateField('password', e.target.value)} required />
@@ -138,7 +173,33 @@ export default function Login() {
 
         <div className="login-divider"><span>OR</span></div>
 
-        {googleClientId && <GoogleSignInButton clientId={googleClientId} disabled={loading} onCredential={() => {}} />}
+        {googleClientId && (
+          <GoogleSignInButton 
+            clientId={googleClientId} 
+            disabled={loading} 
+            onCredential={async (credential) => {
+              setError('');
+              setLoading(true);
+              try {
+                const res = await api.post('/api/auth/google', {
+                  idToken: credential,
+                  mode: isRegister ? 'register' : 'login',
+                  role: form.role,
+                  state: form.state,
+                  city: form.city,
+                  phone: `${form.countryCode}${form.phone}`
+                });
+                localStorage.setItem('token', res.data.token);
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+                navigate('/dashboard');
+              } catch (err) {
+                setError(err.response?.data?.message || 'Google Sign-In fail ho gaya');
+              } finally {
+                setLoading(false);
+              }
+            }} 
+          />
+        )}
 
         <div className="login-footer">
           <p className="login-toggle-text">

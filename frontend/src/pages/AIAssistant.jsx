@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import api from '../lib/api';
 import { getMandiFloorForProduce } from '../lib/market';
-import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
-import { fullLocationSuggestions } from '../lib/locationSuggestions';
+import { 
+  Bot, Send, Image as ImageIcon, ArrowLeft, 
+  CheckCircle2, AlertCircle, Sparkles, Loader2 
+} from 'lucide-react';
+import './AIAssistant.css';
 
 const compressImage = (file) => {
   return new Promise((resolve, reject) => {
@@ -56,19 +59,10 @@ const ACTION_OPTIONS = [
   { value: 'detect_disease', label: 'Fasal ki bimari pehchano (Photo)' }
 ];
 
-const CROP_OPTIONS = [
-  { value: 'Tamatar', label: 'Tamatar' },
-  { value: 'Pyaaz', label: 'Pyaaz' },
-  { value: 'Aalu', label: 'Aalu' },
-  { value: 'Gehun', label: 'Gehun' },
-  { value: 'Chawal', label: 'Chawal' },
-  { value: 'OTHER', label: 'Anya fasal' }
-];
-
 const GRADE_OPTIONS = [
-  { value: 'A', label: 'Grade A' },
-  { value: 'B', label: 'Grade B' },
-  { value: 'C', label: 'Grade C' }
+  { value: 'A', label: 'Grade A (Badiya)' },
+  { value: 'B', label: 'Grade B (Theek)' },
+  { value: 'C', label: 'Grade C (Ok)' }
 ];
 
 export default function AIAssistant() {
@@ -80,12 +74,14 @@ export default function AIAssistant() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [bootstrapData, setBootstrapData] = useState({ produces: [], distributors: [] });
+  const [availableCrops, setAvailableCrops] = useState([]);
   const [flow, setFlow] = useState(null);
   const [form, setForm] = useState({});
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [sellMarketFloor, setSellMarketFloor] = useState(null);
   const fileInputRef = useRef(null);
+  const chatEndRef = useRef(null);
 
   const produceOptions = useMemo(
     () => bootstrapData.produces.map((produce) => ({
@@ -105,6 +101,11 @@ export default function AIAssistant() {
     [bootstrapData.distributors]
   );
 
+  const cropOptions = useMemo(() => {
+    const crops = availableCrops.map(c => ({ value: c.name, label: c.name, meta: `Rate: ₹${c.price}/kg` }));
+    return [...crops, { value: 'OTHER', label: 'Anya fasal', meta: 'Manual enter karein' }];
+  }, [availableCrops]);
+
   const loadSellMarketFloor = async (produceId) => {
     const selectedProduce = bootstrapData.produces.find((produce) => produce._id === produceId);
     if (!selectedProduce) {
@@ -123,15 +124,24 @@ export default function AIAssistant() {
   };
 
   useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, submitting]);
+
+  useEffect(() => {
     const loadAssistant = async () => {
       try {
-        const res = await api.get('/api/ai/farmer-assistant/bootstrap');
+        const [bootRes, cropsRes] = await Promise.all([
+          api.get('/api/ai/farmer-assistant/bootstrap'),
+          api.get('/api/market/commodities')
+        ]);
+        
         setBootstrapData({
-          produces: res.data.produces || [],
-          distributors: res.data.distributors || []
+          produces: bootRes.data.produces || [],
+          distributors: bootRes.data.distributors || []
         });
+        setAvailableCrops(cropsRes.data.commodities || []);
 
-        pushAiMessage(res.data.greeting || `Namaste ${user.name}! Main aapka FarmTrace AI assistant hoon.`);
+        pushAiMessage(bootRes.data.greeting || `Namaste ${user.name}! Main aapka FarmTrace AI assistant hoon.`);
         askAction();
       } catch (err) {
         const message = err.response?.data?.message || 'AI assistant load nahi hua.';
@@ -233,7 +243,7 @@ export default function AIAssistant() {
         key: 'cropType',
         type: 'option',
         text: 'Kaunsi fasal register karni hai?',
-        options: CROP_OPTIONS
+        options: cropOptions
       });
       return;
     }
@@ -256,12 +266,21 @@ export default function AIAssistant() {
       return;
     }
 
+    if (!nextForm.qualityGrade) {
+        setPrompt({
+          key: 'qualityGrade',
+          type: 'option',
+          text: 'Gunvatta grade chuno.',
+          options: GRADE_OPTIONS
+        });
+        return;
+      }
+
     if (!nextForm.quantity) {
       setPrompt({
-        key: 'qualityGrade',
-        type: 'option',
-        text: 'Gunvatta grade chuno.',
-        options: GRADE_OPTIONS
+        key: 'quantity',
+        type: 'number',
+        text: 'Maatra (Quantity) kitni hai kg mein? Sirf number likho.'
       });
       return;
     }
@@ -384,6 +403,11 @@ export default function AIAssistant() {
     setInput('');
     pushUserMessage(answer);
 
+    if (currentPrompt.key === 'uploadImage') {
+        pushAiMessage('Kripya photo upload karo button se.');
+        return;
+    }
+
     if (currentPrompt.key === 'action') {
       const normalized = answer.toLowerCase();
       if (normalized.includes('register')) startRegisterFlow();
@@ -424,7 +448,7 @@ export default function AIAssistant() {
     }
 
     if (currentPrompt.key === 'cropType') {
-      const selected = CROP_OPTIONS.find((item) => item.value === value || item.label.toLowerCase() === String(value).toLowerCase());
+      const selected = cropOptions.find((item) => item.value === value || item.label.toLowerCase() === String(value).toLowerCase());
       if (!selected) {
         pushAiMessage('Crop option mein se ek chuno.');
         setPrompt({ ...currentPrompt });
@@ -684,8 +708,8 @@ export default function AIAssistant() {
 
       const data = res.data.data;
       const remedyHtml = `
-        <div style="font-family: inherit">
-          <strong>Bimari:</strong> <span style="color: #8B0000; font-weight: bold">${data.disease}</span><br/>
+        <div class="disease-result">
+          <strong>Bimari:</strong> <span style="color: #b91c1c; font-weight: 800">${data.disease}</span><br/>
           <strong>Gambhirta (Severity):</strong> ${data.severity}<br/><br/>
           <strong>Upay (Remedies):</strong><br/>
           ${data.remedies.map(r => `• ${r}`).join('<br/>')}<br/><br/>
@@ -712,192 +736,135 @@ export default function AIAssistant() {
   };
 
   const isNumericPrompt = currentPrompt?.type === 'number';
-  const showTextInput = currentPrompt && !currentPrompt.options;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
-          ← Dashboard
+    <div className="chat-container">
+      <header className="chat-header">
+        <button onClick={() => navigate('/dashboard')} className="chat-back-btn">
+          <ArrowLeft size={18} /> Back
         </button>
         <div>
-          <h2 style={styles.title}>Farmer AI Assistant</h2>
-          <p style={styles.subtitle}>Register ya distributor sale, dono chat se karo</p>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1a4a15' }}>FarmTrace AI Assistant</h2>
+          <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Connected to Agri-Expert Cloud</p>
         </div>
-      </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+            <Sparkles size={20} color="#1a4a15" />
+        </div>
+      </header>
 
-      <div style={styles.chatBox}>
+      <div className="chat-messages">
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            style={{
-              ...styles.msgRow,
-              justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
-            }}
-          >
-            {msg.role === 'ai' && <div style={styles.aiAvatar}>AI</div>}
-            <div
-              style={{
-                ...styles.bubble,
-                background: msg.role === 'user' ? '#27500A' : 'white',
-                color: msg.role === 'user' ? 'white' : '#24331d'
-              }}
-            >
+          <div key={msg.id} className="message-row">
+            {msg.role === 'ai' && <div className="avatar ai-avatar"><Bot size={20} /></div>}
+            <div className={`message-bubble ${msg.role === 'ai' ? 'ai-bubble' : 'user-bubble'}`}>
               {msg.type === 'image' ? (
-                <img src={msg.imageUrl} alt="Uploaded leaf" style={styles.uploadedImg} />
+                <img src={msg.imageUrl} alt="Uploaded leaf" className="uploaded-img" />
               ) : msg.html ? (
-                <div style={styles.bubbleText} dangerouslySetInnerHTML={{ __html: msg.html }} />
+                <div dangerouslySetInnerHTML={{ __html: msg.html }} />
               ) : (
-                <p style={styles.bubbleText}>{msg.text}</p>
+                <p>{msg.text}</p>
               )}
               {msg.options && currentPrompt?.key === msg.promptKey && (
-                <div style={styles.optionList}>
+                <div className="options-grid">
                   {msg.options.map((option) => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => handleOptionSelect(option)}
                       disabled={submitting || loading}
-                      style={styles.optionBtn}
+                      className="option-pill"
                     >
-                      <span>{option.label}</span>
-                      {option.meta && <small style={styles.optionMeta}>{option.meta}</small>}
+                      <span className="option-label">{option.label}</span>
+                      {option.meta && <small className="option-meta">{option.meta}</small>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
             {msg.role === 'user' && (
-              <div style={styles.userAvatar}>
+              <div className="avatar user-avatar">
                 {(user.name || 'U').charAt(0).toUpperCase()}
               </div>
             )}
           </div>
         ))}
 
-        {(loading || submitting) && (
-          <div style={{ ...styles.msgRow, justifyContent: 'flex-start' }}>
-            <div style={styles.aiAvatar}>AI</div>
-            <div style={styles.bubble}>
-              <p style={styles.typingDots}>● ● ●</p>
+        {result && (
+          <div className="message-row">
+            <div className="avatar ai-avatar"><CheckCircle2 size={20} /></div>
+            <div className="message-bubble ai-bubble" style={{ border: '2px solid #1a4a15' }}>
+              <h3 style={{ fontWeight: 900, color: '#1a4a15', marginBottom: '0.5rem' }}>{result.title}</h3>
+              <p style={{ marginBottom: '1rem' }}>{result.text}</p>
+              {result.qrDataUrl && (
+                <div style={{ textAlign: 'center', background: '#f8fafc', padding: '1.5rem', borderRadius: '16px' }}>
+                  <img src={result.qrDataUrl} alt="QR Code" style={{ width: '180px', borderRadius: '12px' }} />
+                  <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.75rem', wordBreak: 'break-all' }}>{result.verifyUrl}</p>
+                </div>
+              )}
+              <button 
+                onClick={() => navigate('/dashboard')} 
+                className="ft-btn ft-btn-primary" 
+                style={{ width: '100%', marginTop: '1.25rem' }}
+              >
+                Dashboard pe jao
+              </button>
             </div>
           </div>
         )}
+
+        {(loading || submitting) && (
+          <div className="message-row">
+            <div className="avatar ai-avatar"><Loader2 className="ft-anim-spin" size={20} /></div>
+            <div className="message-bubble ai-bubble">
+              <div className="typing-dots">
+                <div className="dot" />
+                <div className="dot" />
+                <div className="dot" />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
       </div>
 
-      {result && (
-        <div style={styles.resultCard}>
-          <h3 style={styles.resultTitle}>{result.title}</h3>
-          <p style={styles.resultText}>{result.text}</p>
-          {result.qrDataUrl && (
-            <>
-              <img src={result.qrDataUrl} alt="QR Code" style={styles.qrImage} />
-              <p style={styles.verifyUrl}>{result.verifyUrl}</p>
-            </>
-          )}
-          <div style={styles.resultActions}>
-            <button onClick={() => navigate('/dashboard')} style={styles.primaryBtn}>
-              Dashboard pe jao
-            </button>
+      <div className="chat-input-area">
+        <div className="chat-input-card">
+          <input
+            className="chat-input"
+            placeholder={currentPrompt?.type === 'image' ? 'Photo upload karein button se...' : 'Likhein yahan...'}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleTypedSubmit()}
+            type={isNumericPrompt ? 'number' : 'text'}
+            disabled={submitting || loading || currentPrompt?.type === 'image'}
+          />
+          {currentPrompt?.type === 'image' && (
             <button
-              onClick={() => {
-                pushAiMessage('Naya kaam shuru karte hain.');
-                askAction();
-              }}
-              style={styles.secondaryBtn}
+              type="button"
+              onClick={() => fileInputRef.current.click()}
+              className="send-btn"
+              style={{ background: '#0284c7' }}
+              disabled={submitting || loading}
             >
-              Ek aur kaam karo
+              <ImageIcon size={20} />
             </button>
-          </div>
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={handleImageUpload}
+          />
+          <button
+            onClick={handleTypedSubmit}
+            disabled={!input.trim() || submitting || loading || currentPrompt?.type === 'image'}
+            className="send-btn"
+          >
+            <Send size={20} />
+          </button>
         </div>
-      )}
-
-      {!result && (
-        <div style={styles.inputWrap}>
-          {currentPrompt?.type === 'image' ? (
-            <div style={styles.uploadRow}>
-              <input 
-                type="file" 
-                accept="image/jpeg, image/png, image/webp" 
-                onChange={handleImageUpload} 
-                ref={fileInputRef} 
-                style={{ display: 'none' }} 
-                id="disease-img-upload" 
-                disabled={submitting || loading} 
-              />
-              <label htmlFor="disease-img-upload" style={styles.uploadLabelBtn}>
-                📸 Photo Upload Karein
-              </label>
-            </div>
-          ) : showTextInput ? (
-            <div style={styles.inputRow}>
-              {['origin', 'location'].includes(currentPrompt?.key) && !isNumericPrompt ? (
-                <LocationAutocompleteInput
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  suggestions={fullLocationSuggestions}
-                  placeholder={currentPrompt?.key === 'origin' ? 'Jaise: Nashik, Maharashtra' : 'Jaise: Pune, Maharashtra'}
-                  inputStyle={styles.locationInput}
-                  disabled={loading || submitting}
-                />
-              ) : (
-                <input
-                  style={styles.input}
-                  type={isNumericPrompt ? 'number' : 'text'}
-                  placeholder={isNumericPrompt ? 'Sirf number likho' : 'Yahan jawab likho'}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleTypedSubmit()}
-                  disabled={loading || submitting}
-                />
-              )}
-              <button
-                onClick={handleTypedSubmit}
-                style={styles.sendBtn}
-                disabled={loading || submitting || !input.trim()}
-              >
-                Bhejo
-              </button>
-            </div>
-          ) : null}
-          {error && <p style={styles.error}>{error}</p>}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: { minHeight: '100vh', background: 'var(--ft-bg)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--ft-font-main)' },
-  header: { display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(10px)', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--ft-border)', position: 'sticky', top: 0, zIndex: 10 },
-  backBtn: { background: 'none', border: 'none', color: 'var(--ft-forest)', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '700', padding: 0 },
-  title: { color: 'var(--ft-forest)', margin: 0, fontSize: '1.25rem', fontWeight: '800', letterSpacing: '-0.02em' },
-  subtitle: { color: 'var(--ft-text-muted)', margin: 0, fontSize: '0.85rem' },
-  chatBox: { flex: 1, padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '800px', margin: '0 auto', width: '100%' },
-  msgRow: { display: 'flex', gap: '0.75rem', alignItems: 'flex-start' },
-  aiAvatar: { width: '36px', height: '36px', borderRadius: '10px', background: 'var(--ft-forest)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '800', flexShrink: 0, marginTop: '4px' },
-  userAvatar: { width: '36px', height: '36px', borderRadius: '10px', background: 'var(--ft-sage)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', fontWeight: '800', flexShrink: 0, marginTop: '4px' },
-  bubble: { maxWidth: '85%', padding: '1rem 1.25rem', borderRadius: 'var(--ft-radius)', boxShadow: 'var(--ft-shadow-sm)', border: '1px solid var(--ft-border)', position: 'relative' },
-  bubbleText: { margin: 0, whiteSpace: 'pre-line', lineHeight: 1.6, fontSize: '1rem', color: 'inherit' },
-  optionList: { marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' },
-  optionBtn: { textAlign: 'left', padding: '1rem', borderRadius: '12px', border: '1.5px solid var(--ft-border)', background: 'var(--ft-white)', color: 'var(--ft-forest)', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.25rem', transition: 'var(--ft-transition)' },
-  optionMeta: { color: 'var(--ft-text-muted)', fontSize: '0.8rem', fontWeight: '400' },
-  typingDots: { margin: 0, color: 'var(--ft-sage)', letterSpacing: '4px', fontWeight: 'bold' },
-  inputWrap: { padding: '1.25rem', background: 'var(--ft-white)', borderTop: '1px solid var(--ft-border)', boxShadow: '0 -4px 20px rgba(0,0,0,0.03)' },
-  inputRow: { display: 'flex', gap: '0.75rem', maxWidth: '800px', margin: '0 auto', width: '100%' },
-  input: { flex: 1, padding: '0.9rem 1.25rem', border: '2px solid var(--ft-border)', borderRadius: '12px', fontSize: '1rem', background: 'var(--ft-bg)', transition: 'var(--ft-transition)', outline: 'none' },
-  locationInput: { flex: 1 },
-  sendBtn: { padding: '0 1.5rem', background: 'var(--ft-forest)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '800', transition: 'var(--ft-transition)' },
-  resultCard: { margin: '1rem auto', background: 'var(--ft-white)', borderRadius: 'var(--ft-radius-lg)', padding: '1.75rem', boxShadow: 'var(--ft-shadow-lg)', border: '1px solid var(--ft-border)', maxWidth: '600px' },
-  resultTitle: { margin: '0 0 0.5rem', color: 'var(--ft-forest)', fontWeight: '800', fontSize: '1.25rem' },
-  resultText: { margin: '0 0 1.25rem', color: 'var(--ft-text-muted)', lineHeight: 1.5 },
-  qrImage: { width: '200px', height: '200px', display: 'block', margin: '0 auto 1rem', padding: '1rem', border: '1px solid var(--ft-border)', borderRadius: '16px' },
-  verifyUrl: { margin: '0 0 1.5rem', color: 'var(--ft-sage)', fontSize: '0.85rem', wordBreak: 'break-all', textAlign: 'center', background: 'var(--ft-sage-light)', padding: '0.75rem', borderRadius: '8px' },
-  resultActions: { display: 'flex', gap: '1rem', flexWrap: 'wrap' },
-  primaryBtn: { flex: 1, minWidth: '160px', padding: '1rem', background: 'var(--ft-forest)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '1rem', transition: 'var(--ft-transition)' },
-  secondaryBtn: { flex: 1, minWidth: '160px', padding: '1rem', background: 'var(--ft-white)', color: 'var(--ft-forest)', border: '2.5px solid var(--ft-forest)', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', fontSize: '1rem', transition: 'var(--ft-transition)' },
-  error: { color: 'var(--ft-error)', margin: '0.75rem 0 0', fontSize: '0.9rem', textAlign: 'center', fontWeight: '600' },
-  uploadedImg: { maxWidth: '100%', maxHeight: '250px', borderRadius: '12px', objectFit: 'contain', border: '1px solid var(--ft-border)' },
-  uploadRow: { display: 'flex', justifyContent: 'center', padding: '0.5rem 0', maxWidth: '800px', margin: '0 auto' },
-  uploadLabelBtn: { padding: '1rem 2rem', background: 'var(--ft-forest)', color: 'white', borderRadius: '12px', cursor: 'pointer', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem', transition: 'var(--ft-transition)', width: 'fit-content' }
-};

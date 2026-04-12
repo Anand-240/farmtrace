@@ -335,9 +335,9 @@ router.post('/create-order', auth, async (req, res) => {
     const dispatchAmount = Math.round(totalAmount * 0.30);
     const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
 
-    // Razorpay order ke liye sirf BOOKING amount charge karo
+    // Escrow strategy: Charge FULL amount upfront and hold in platform for milestone release.
     const order = await razorpayClient.orders.create({
-      amount: bookingAmount,
+      amount: totalAmount,
       currency: 'INR',
       receipt: `transfer_${transferId}`,
       notes: {
@@ -345,7 +345,10 @@ router.post('/create-order', auth, async (req, res) => {
         produceId: transfer.produceId.toString(),
         fromPhone: transfer.fromPhone,
         toPhone: transfer.toPhone,
-        paymentType: 'BOOKING_MILESTONE'
+        paymentType: 'TOTAL_ESCROW_PAYMENT',
+        booking: (bookingAmount / 100).toString(),
+        dispatch: (dispatchAmount / 100).toString(),
+        delivery: (deliveryAmount / 100).toString()
       }
     });
 
@@ -353,7 +356,7 @@ router.post('/create-order', auth, async (req, res) => {
       success: true,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID,
       orderId: order.id,
-      amount: bookingAmount,
+      amount: totalAmount,
       currency: 'INR',
       totalAmount: totalAmount / 100,
       milestones: {
@@ -572,7 +575,8 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
       vehicleType,
       expectedDeliveryTime,
       currentLocation,
-      destinationLocation
+      destinationLocation,
+      deliveryRemarks
     } = req.body;
 
     const transfer = await Transfer.findById(req.params.transferId);
@@ -609,6 +613,7 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
     if (vehicleType !== undefined) transfer.vehicleType = vehicleType;
     if (currentLocation !== undefined) transfer.currentLocation = currentLocation;
     if (destinationLocation !== undefined) transfer.destinationLocation = destinationLocation;
+    if (deliveryRemarks !== undefined) transfer.deliveryRemarks = deliveryRemarks;
     if (expectedDeliveryTime !== undefined) {
       transfer.expectedDeliveryTime = expectedDeliveryTime ? new Date(expectedDeliveryTime) : null;
     }

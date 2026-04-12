@@ -2,6 +2,25 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import StateCitySelector from '../components/StateCitySelector';
+import { 
+  Truck, 
+  Package, 
+  MapPin, 
+  Clock, 
+  ChevronRight, 
+  ChevronDown, 
+  Inbox, 
+  LogOut, 
+  ArrowRight, 
+  Calendar, 
+  Phone, 
+  User, 
+  Navigation, 
+  DollarSign,
+  Search,
+  CheckCircle2,
+  AlertCircle
+} from 'lucide-react';
 
 export default function DispatchLogistics() {
   const [deliveries, setDeliveries] = useState([]);
@@ -14,8 +33,11 @@ export default function DispatchLogistics() {
   const [savingId, setSavingId] = useState(null);
   const [expandedCards, setExpandedCards] = useState({});
   const [gpsLoading, setGpsLoading] = useState({});
+  const [activeTab, setActiveTab] = useState('incoming'); // 'incoming' or 'outgoing'
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 980);
+  
   const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchDeliveries();
@@ -45,7 +67,8 @@ export default function DispatchLogistics() {
           destinationLocation: d.destinationLocation || '',
           expectedDeliveryTime: d.expectedDeliveryTime
             ? new Date(d.expectedDeliveryTime).toISOString().slice(0, 16)
-            : ''
+            : '',
+          deliveryRemarks: d.deliveryRemarks || ''
         };
 
         logisticsNext[d._id] = {
@@ -216,369 +239,868 @@ export default function DispatchLogistics() {
     }
   };
 
-  const formatCurrency = (value, currency = 'INR') => {
-    try {
-      return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(Number(value || 0));
-    } catch (_err) {
-      return `₹${Number(value || 0).toLocaleString()}`;
-    }
-  };
-
-  const formatEta = (minutes) => {
-    const mins = Number(minutes || 0);
-    if (!mins) return 'N/A';
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    if (!h) return `${m} min`;
-    return `${h}h ${m}m`;
-  };
-
   const badge = {
-    PENDING_DISPATCH: { bg: 'var(--ft-sage-light)', color: 'var(--ft-forest)', text: 'Pending Dispatch' },
-    PICKUP_DISPATCHED: { bg: '#e8edff', color: '#2d3f9e', text: 'Pickup Dispatched' },
-    IN_TRANSIT: { bg: '#ffeeda', color: '#8b5318', text: 'In Transit' },
-    DELIVERED: { bg: 'var(--ft-white)', color: 'var(--ft-forest)', text: 'Delivered' }
+    PENDING_DISPATCH: { bg: 'rgba(5, 150, 105, 0.08)', color: '#059669', text: 'Bhejti Baaki (Pending)' },
+    PICKUP_DISPATCHED: { bg: 'rgba(37, 99, 235, 0.08)', color: '#2563eb', text: 'Pickup Nikal Gaya' },
+    IN_TRANSIT: { bg: 'rgba(217, 119, 6, 0.08)', color: '#d97706', text: 'Raste Mein (Transit)' },
+    DELIVERED: { bg: 'rgba(13, 51, 25, 0.1)', color: 'var(--ft-forest)', text: 'Pahunch Gaya (Delivered)' }
   };
 
-  const summary = useMemo(() => {
-    const base = {
-      total: deliveries.length,
-      pending: 0,
-      transit: 0,
-      delivered: 0,
-      slotBooked: 0
-    };
+  const incomingDeliveries = deliveries.filter(d => d.toPhone === user.phone);
+  const outgoingDeliveries = deliveries.filter(d => d.fromPhone === user.phone);
 
-    deliveries.forEach((d) => {
-      if (d.deliveryStatus === 'DELIVERED') base.delivered += 1;
-      else if (d.deliveryStatus === 'IN_TRANSIT') base.transit += 1;
-      else base.pending += 1;
-      if (d.deliverySlotDate && d.deliverySlotLabel) base.slotBooked += 1;
-    });
-
-    return base;
-  }, [deliveries]);
-
-  const toggleCard = (id) => {
-    setExpandedCards((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const prettyDate = (value) => {
-    if (!value) return 'Not set';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Not set';
-    return date.toLocaleString();
-  };
+  const activeDeliveries = activeTab === 'incoming' ? incomingDeliveries : outgoingDeliveries;
 
   return (
-    <div className="ft-page planetono-flow">
-      <nav className="ft-top-nav glass">
-        <div className="ft-container" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button onClick={() => navigate('/dashboard')} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ border: 'none', background: 'none' }}>
-            ← Dashboard
-          </button>
-          <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>Dispatch & Logistics Control</span>
+    <div className="ft-page dashboard-wrapper">
+      {/* ── TOP NAVIGATION ── */}
+      <nav className="dashboard-nav glass">
+        <div className="ft-container nav-content">
+          <div className="nav-left">
+            <button onClick={() => navigate('/dashboard')} className="back-circle-btn">
+              <ChevronDown size={20} style={{ transform: 'rotate(90deg)' }} />
+            </button>
+            <div className="nav-brand">
+              <span className="brand-dot"></span>
+              <h1 className="nav-title">Dispatch & Logistics</h1>
+            </div>
+          </div>
+          
+          <div className="nav-tabs-container">
+            <button 
+              className={`nav-tab-btn ${activeTab === 'incoming' ? 'active' : ''}`}
+              onClick={() => setActiveTab('incoming')}
+            >
+              <Inbox size={18} />
+              <span>Incoming Lots</span>
+              {incomingDeliveries.length > 0 && <span className="tab-count">{incomingDeliveries.length}</span>}
+            </button>
+            <button 
+              className={`nav-tab-btn ${activeTab === 'outgoing' ? 'active' : ''}`}
+              onClick={() => setActiveTab('outgoing')}
+            >
+              <Truck size={18} />
+              <span>Retailer Dispatch</span>
+              {outgoingDeliveries.length > 0 && <span className="tab-count">{outgoingDeliveries.length}</span>}
+            </button>
+          </div>
+
+          <div className="nav-right">
+            <div className="user-role-badge">{user.role} Control</div>
+          </div>
         </div>
       </nav>
 
-      <div className="ft-container" style={{ paddingTop: '6rem', paddingBottom: '4rem' }}>
-
-      <div style={styles.summaryGrid}>
-        {[
-          { label: 'Total Shipments', val: summary.total },
-          { label: 'Pending Dispatch', val: summary.pending },
-          { label: 'In Transit', val: summary.transit },
-          { label: 'Delivered', val: summary.delivered },
-          { label: 'Slots Booked', val: summary.slotBooked }
-        ].map(s => (
-          <div key={s.label} style={styles.summaryCard}>
-            <p style={styles.summaryLabel}>{s.label}</p>
-            <p style={styles.summaryValue}>{s.val}</p>
+      <div className="ft-container main-content" style={{ paddingTop: '8.5rem' }}>
+        {/* ── SUMMARY SECTION ── */}
+        <div className="logistics-stats-grid animate-slide-up">
+          <div className="stat-card premium">
+            <div className="stat-icon-wrap"><Truck size={24} /></div>
+            <div className="stat-info">
+              <p className="stat-label">Total Shipments</p>
+              <p className="stat-value">{activeDeliveries.length}</p>
+            </div>
           </div>
-        ))}
-      </div>
-
-      {loading ? (
-        <div style={styles.empty}><div className="ft-spinner" style={{ margin: '0 auto' }} /></div>
-      ) : deliveries.length === 0 ? (
-        <div style={styles.empty}>
-          Payment verified deliveries abhi available nahi hain.
+          <div className="stat-card">
+            <div className="stat-icon-wrap yellow"><Clock size={24} /></div>
+            <div className="stat-info">
+              <p className="stat-label">In Transit</p>
+              <p className="stat-value">{activeDeliveries.filter(d => d.deliveryStatus === 'IN_TRANSIT').length}</p>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon-wrap green"><CheckCircle2 size={24} /></div>
+            <div className="stat-info">
+              <p className="stat-label">Successfully Delivered</p>
+              <p className="stat-value">{activeDeliveries.filter(d => d.deliveryStatus === 'DELIVERED').length}</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        deliveries.map((d, idx) => {
-          const b = badge[d.deliveryStatus] || badge.PENDING_DISPATCH;
-          const f = forms[d._id] || {};
-          const lf = logisticsForms[d._id] || {};
-          const plan = plans[d._id];
 
-          const deliverySlotBooked = d.deliverySlotDate && d.deliverySlotLabel;
-          const matched = d.matchedTransporter;
-          const isExpanded = Boolean(expandedCards[d._id]);
+        {/* ── CONTENT FEED ── */}
+        {loading ? (
+          <div className="loading-state-full"><div className="ft-spinner-large" /></div>
+        ) : activeDeliveries.length === 0 ? (
+          <div className="empty-state-illust">
+            <div className="illust-icon">🚚</div>
+            <h3>{activeTab === 'incoming' ? 'Abhi koi incoming lots nahi hain' : 'Abhi koi dispatch orders nahi hain'}</h3>
+            <p>Jaise hi koi naya payment verify hoga, vo yahan dikhega.</p>
+            {activeTab === 'outgoing' && (
+              <button 
+                className="ft-btn ft-btn-primary" 
+                style={{ marginTop: '1.5rem' }}
+                onClick={() => navigate('/transfer')}
+              >
+                Create New Transfer Request
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="logistics-list">
+            {activeDeliveries.map((d, idx) => {
+              const b = badge[d.deliveryStatus] || badge.PENDING_DISPATCH;
+              const f = forms[d._id] || {};
+              const lf = logisticsForms[d._id] || {};
+              const plan = plans[d._id];
+              const isExpanded = Boolean(expandedCards[d._id]);
 
-          return (
-            <div key={d._id} className="animate-slide-up" style={{ ...styles.card, animationDelay: `${idx * 0.05}s` }}>
-              <div style={styles.cardHead}>
-                <div style={{ flex: 1 }}>
-                  <p style={styles.crop}>{d.produce?.cropType || 'Produce'}</p>
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                    <p style={styles.info}>Lot: <strong>{d.produce?.lotCode || d.produceId}</strong></p>
-                    <p style={styles.info}>Qty: <strong>{d.produce?.quantity || 0} kg</strong></p>
-                  </div>
-                </div>
-                <div style={styles.cardHeadRight}>
-                  <span style={{ ...styles.status, background: b.bg, color: b.color }}>{b.text}</span>
-                  <button style={styles.toggleBtn} onClick={() => toggleCard(d._id)}>
-                    {isExpanded ? 'Hide Details' : 'Show Details'}
-                  </button>
-                </div>
-              </div>
-
-              <div style={styles.quickStatsRow}>
-                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>ETA</span><span style={styles.quickStatVal}>{formatEta(d.routeEtaMinutes)}</span></div>
-                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Distance</span><span style={styles.quickStatVal}>{d.routeDistanceKm ? `${d.routeDistanceKm} km` : 'N/A'}</span></div>
-                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Freight</span><span style={styles.quickStatVal}>{formatCurrency(d.freightEstimateAmount, d.freightCurrency || 'INR')}</span></div>
-                <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Slot</span><span style={styles.quickStatVal}>{deliverySlotBooked ? '✅ Booked' : '⏳ Pending'}</span></div>
-              </div>
-
-              <div style={styles.metaGrid}>
-                <div style={styles.metaCell}><p style={styles.metaLabel}>Source</p><p style={styles.metaValue}>{d.location || 'N/A'}</p></div>
-                <div style={styles.metaCell}><p style={styles.metaLabel}>Current</p><p style={styles.metaValue}>{d.currentLocation || 'N/A'}</p></div>
-                <div style={styles.metaCell}><p style={styles.metaLabel}>Destination</p><p style={styles.metaValue}>{d.destinationLocation || 'Not booked'}</p></div>
-                <div style={styles.metaCell}><p style={styles.metaLabel}>Exchange</p><p style={styles.metaValue}>{`${d.fromPhone.slice(-4)} → ${d.toPhone.slice(-4)}`}</p></div>
-              </div>
-
-              {matched && (
-                <div style={styles.matchInfo}>
-                  <p style={styles.matchTitle}>Matched Transporter</p>
-                  <div style={styles.metaGrid}>
-                    <div style={styles.metaCell}><p style={styles.metaLabel}>Name</p><p style={styles.metaValue}>{matched.name}</p></div>
-                    <div style={styles.metaCell}><p style={styles.metaLabel}>ID</p><p style={styles.metaValue}>{matched.transporterId}</p></div>
-                    <div style={styles.metaCell}><p style={styles.metaLabel}>Phone</p><p style={styles.metaValue}>{matched.phone}</p></div>
-                    <div style={styles.metaCell}><p style={styles.metaLabel}>Vehicle</p><p style={styles.metaValue}>{matched.vehicleType}</p></div>
-                  </div>
-                </div>
-              )}
-
-              {deliverySlotBooked && (
-                <div style={styles.slotInfo}>
-                  Slot Booked: <strong>{prettyDate(d.deliverySlotDate).split(',')[0]}</strong> at <strong>{d.deliverySlotLabel}</strong>
-                </div>
-              )}
-
-              {isExpanded && d.canUpdate ? (
-                <div style={styles.form}>
-                  <div style={styles.panelWrap(isMobile)}>
-                    <div style={styles.sectionCard}>
-                      <div style={styles.panelTitle}>1) Logistics Matching + ETA</div>
-
-                      <label style={styles.label}>Destination Location / गंतव्य स्थान</label>
-                      <div style={{ marginBottom: '1rem' }}>
-                        <StateCitySelector
-                          stateValue={lf.destinationState || ''}
-                          cityValue={lf.destinationCity || ''}
-                          onStateChange={(state) => setLogisticsField(d._id, 'destinationState', state)}
-                          onCityChange={(city) => setLogisticsField(d._id, 'destinationCity', city)}
-                        />
+              return (
+                <div key={d._id} className="logistics-card animate-slide-up" style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <div className="card-top-main">
+                    <div className="card-identity">
+                      <div className="crop-avatar">
+                        {d.produce?.cropType?.charAt(0) || 'P'}
                       </div>
-
-                      <label style={styles.label}>Preferred Vehicle</label>
-                      <input
-                        style={styles.input}
-                        placeholder="e.g. Mini Truck"
-                        value={lf.preferredVehicleType || ''}
-                        onChange={(e) => setLogisticsField(d._id, 'preferredVehicleType', e.target.value)}
-                      />
-
-                      <button
-                        className="ft-btn ft-btn-secondary ft-btn-full"
-                        style={{ marginTop: '1rem' }}
-                        onClick={() => previewPlan(d._id)}
-                        disabled={planningId === d._id}
+                      <div className="identity-text">
+                        <div className="lot-row">
+                          <span className="lot-id">LOT #{d.produce?.lotCode || d.produceId.slice(-6).toUpperCase()}</span>
+                          <span className="status-badge-premium" style={{ background: b.bg, color: b.color }}>
+                            {b.text}
+                          </span>
+                        </div>
+                        <h2 className="crop-title">{d.produce?.cropType || 'Special Produce'}</h2>
+                      </div>
+                    </div>
+                    
+                    <div className="card-summary-strip">
+                      <div className="strip-item">
+                        <Package size={14} />
+                        <span>{d.produce?.quantity || 0} kg</span>
+                      </div>
+                      <div className="strip-item">
+                        <MapPin size={14} />
+                        <span>{d.destinationLocation || 'N/A'}</span>
+                      </div>
+                      <button 
+                        className={`expand-btn ${isExpanded ? 'open' : ''}`}
+                        onClick={() => setExpandedCards(prev => ({ ...prev, [d._id]: !prev[d._id] }))}
                       >
-                        {planningId === d._id ? <div className="ft-spinner" /> : 'Preview Logistics Plan'}
+                        {isExpanded ? 'Kamm Karo' : 'Details Dekho'}
+                        <ChevronDown size={16} />
                       </button>
+                    </div>
+                  </div>
 
-                      {plan && (
-                        <div style={styles.planBox}>
-                          <p style={styles.metaLabel}>Estimated Route</p>
-                          <p style={styles.planRoute}>{plan.origin} → {plan.destination}</p>
-                          <div style={styles.quickStatsRow}>
-                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>ETA</span><span style={styles.quickStatVal}>{formatEta(plan.route?.etaMinutes)}</span></div>
-                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Dist</span><span style={styles.quickStatVal}>{plan.route?.distanceKm || 0} km</span></div>
-                            <div style={styles.quickStatChip}><span style={styles.quickStatKey}>Cost</span><span style={styles.quickStatVal}>{formatCurrency(plan.freight?.amount, plan.freight?.currency || 'INR')}</span></div>
+                  {/* ── PROGRESS TRACKER ── */}
+                  <div className="logistics-progress-bar">
+                    <div 
+                      className="progress-fill" 
+                      style={{ 
+                        width: d.deliveryStatus === 'DELIVERED' ? '100%' : 
+                               d.deliveryStatus === 'IN_TRANSIT' ? '66%' : 
+                               d.deliveryStatus === 'PICKUP_DISPATCHED' ? '33%' : '5%' 
+                      }}
+                    />
+                    <div className="progress-markers">
+                      <div className={`marker ${['PENDING_DISPATCH', 'PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'].includes(d.deliveryStatus) ? 'active' : ''}`}><span className="dot"></span><span className="label">Verification</span></div>
+                      <div className={`marker ${['PICKUP_DISPATCHED', 'IN_TRANSIT', 'DELIVERED'].includes(d.deliveryStatus) ? 'active' : ''}`}><span className="dot"></span><span className="label">Pickup</span></div>
+                      <div className={`marker ${['IN_TRANSIT', 'DELIVERED'].includes(d.deliveryStatus) ? 'active' : ''}`}><span className="dot"></span><span className="label">Transit</span></div>
+                      <div className={`marker ${d.deliveryStatus === 'DELIVERED' ? 'active' : ''}`}><span className="dot"></span><span className="label">Delivered</span></div>
+                    </div>
+                  </div>
+
+                  <div className="quick-info-grid">
+                    <div className="q-info-item">
+                      <User size={14} />
+                      <div className="q-text">
+                        <p className="q-label">{activeTab === 'incoming' ? 'Sender (Farmer)' : 'Receiver (Retailer)'}</p>
+                        <p className="q-val">{activeTab === 'incoming' ? d.fromPhone : d.toPhone}</p>
+                      </div>
+                    </div>
+                    <div className="q-info-item">
+                      <Navigation size={14} />
+                      <div className="q-text">
+                        <p className="q-label">Current Location</p>
+                        <p className="q-val">{d.currentLocation || 'Updating...'}</p>
+                      </div>
+                    </div>
+                    <div className="q-info-item">
+                      <Clock size={14} />
+                      <div className="q-text">
+                        <p className="q-label">ETA / Booking</p>
+                        <p className="q-val">{d.deliverySlotLabel ? `${d.deliverySlotLabel}` : 'Not scheduled'}</p>
+                      </div>
+                    </div>
+                    <div className="q-info-item">
+                      <DollarSign size={14} />
+                      <div className="q-text">
+                        <p className="q-label">Freight Info</p>
+                        <p className="q-val">{d.freightEstimateAmount ? `₹${d.freightEstimateAmount}` : 'Calculated on dispatch'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="expanded-control-panel animate-fade-in">
+                      {d.canUpdate ? (
+                        <div className="control-grid-premium">
+                          {/* Segment 1: Plan */}
+                          <div className="control-section-card">
+                            <h3 className="section-card-title">1. Logistics Planning</h3>
+                            <div className="ft-form-group">
+                              <label className="ft-label-mini">Destination Delivery Area</label>
+                              <StateCitySelector
+                                stateValue={lf.destinationState || ''}
+                                cityValue={lf.destinationCity || ''}
+                                onStateChange={(state) => setLogisticsField(d._id, 'destinationState', state)}
+                                onCityChange={(city) => setLogisticsField(d._id, 'destinationCity', city)}
+                              />
+                            </div>
+                            <div className="ft-form-group mt-3">
+                              <label className="ft-label-mini">Vehicle preference (Small/Large)</label>
+                              <div className="input-with-icon-left">
+                                <Truck size={16} />
+                                <input
+                                  className="ft-input-modern"
+                                  placeholder="e.g. 10 Wheeler Truck"
+                                  value={lf.preferredVehicleType || ''}
+                                  onChange={(e) => setLogisticsField(d._id, 'preferredVehicleType', e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <button
+                              className="ft-btn ft-btn-secondary ft-btn-full"
+                              onClick={() => previewPlan(d._id)}
+                              disabled={planningId === d._id}
+                            >
+                              {planningId === d._id ? 'Generating Plan...' : 'Preview Transporters & ETA'}
+                            </button>
+
+                            {plan && (
+                              <div className="plan-results-area animate-slide-up">
+                                <div className="route-header">
+                                  <div className="point-dot"></div>
+                                  <div className="route-line-visual"></div>
+                                  <div className="point-dot end"></div>
+                                  <span className="route-text">{plan.origin} → {plan.destination}</span>
+                                </div>
+                                <div className="transporter-selection">
+                                  <label className="ft-label-mini">Choose Verified Carrier</label>
+                                  <select
+                                    className="ft-select-modern"
+                                    value={lf.selectedTransporterId || ''}
+                                    onChange={(e) => setLogisticsField(d._id, 'selectedTransporterId', e.target.value)}
+                                  >
+                                    {plan.matchedTransporters?.map((t) => (
+                                      <option key={t.transporterId} value={t.transporterId}>
+                                        {`${t.name} • ${t.vehicleType} • ${t.rating}★`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="slot-grid mt-3">
+                                  <div className="slot-col">
+                                    <label className="ft-label-mini">Date</label>
+                                    <select
+                                      className="ft-select-modern"
+                                      value={lf.slotDate || ''}
+                                      onChange={(e) => setLogisticsField(d._id, 'slotDate', e.target.value)}
+                                    >
+                                      {Array.from(new Set((plan.availableSlots || []).map((slot) => slot.slotDate))).map((dateValue) => (
+                                        <option key={dateValue} value={dateValue}>{dateValue}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div className="slot-col">
+                                    <label className="ft-label-mini">Slot Window</label>
+                                    <select
+                                      className="ft-select-modern"
+                                      value={lf.slotLabel || ''}
+                                      onChange={(e) => setLogisticsField(d._id, 'slotLabel', e.target.value)}
+                                    >
+                                      {(plan.availableSlots || [])
+                                        .filter((slot) => !lf.slotDate || slot.slotDate === lf.slotDate)
+                                        .map((slot) => (
+                                          <option key={slot.slotKey} value={slot.slotLabel}>{slot.slotLabel}</option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <button
+                                  className="ft-btn ft-btn-primary ft-btn-full mt-4"
+                                  onClick={() => bookSlot(d._id)}
+                                  disabled={bookingId === d._id}
+                                >
+                                  {bookingId === d._id ? 'Confirming...' : 'Book Dispatch Slot'}
+                                </button>
+                              </div>
+                            )}
                           </div>
 
-                          <label style={styles.label}>Select Transporter</label>
-                          <select
-                            style={styles.input}
-                            value={lf.selectedTransporterId || ''}
-                            onChange={(e) => setLogisticsField(d._id, 'selectedTransporterId', e.target.value)}
-                          >
-                            {plan.matchedTransporters?.map((t) => (
-                              <option key={t.transporterId} value={t.transporterId}>
-                                {`${t.name} | ${t.vehicleType} | ${t.rating}★`}
-                              </option>
-                            ))}
-                          </select>
-
-                          <div style={styles.inlineFieldGrid(isMobile)}>
-                            <div>
-                              <label style={styles.label}>Date</label>
-                              <select
-                                style={styles.input}
-                                value={lf.slotDate || ''}
-                                onChange={(e) => setLogisticsField(d._id, 'slotDate', e.target.value)}
+                          {/* Segment 2: Live Tracking Updates */}
+                          <div className="control-section-card blue-tint">
+                            <h3 className="section-card-title">2. Dispatch Monitoring</h3>
+                            <div className="ft-form-group">
+                              <label className="ft-label-mini">Real-time Status Update</label>
+                              <select 
+                                className="ft-select-modern" 
+                                value={f.deliveryStatus || 'PENDING_DISPATCH'} 
+                                onChange={(e) => setField(d._id, 'deliveryStatus', e.target.value)}
                               >
-                                {Array.from(new Set((plan.availableSlots || []).map((slot) => slot.slotDate))).map((dateValue) => (
-                                  <option key={dateValue} value={dateValue}>{dateValue}</option>
-                                ))}
+                                <option value="PENDING_DISPATCH">Pending Dispatch</option>
+                                <option value="PICKUP_DISPATCHED">Pickup Dispatched</option>
+                                <option value="IN_TRANSIT">In Transit</option>
+                                <option value="DELIVERED">Delivered</option>
                               </select>
                             </div>
-
-                            <div>
-                              <label style={styles.label}>Slot Window</label>
-                              <select
-                                style={styles.input}
-                                value={lf.slotLabel || ''}
-                                onChange={(e) => setLogisticsField(d._id, 'slotLabel', e.target.value)}
-                              >
-                                {(plan.availableSlots || [])
-                                  .filter((slot) => !lf.slotDate || slot.slotDate === lf.slotDate)
-                                  .map((slot) => (
-                                    <option key={slot.slotKey} value={slot.slotLabel}>{slot.slotLabel}</option>
-                                  ))}
-                              </select>
+                            
+                            <div className="form-info-row mt-3">
+                              <div className="info-field">
+                                <label className="ft-label-mini">Driver Contact</label>
+                                <div className="input-with-icon-left">
+                                  <Phone size={14} />
+                                  <input 
+                                    className="ft-input-modern" 
+                                    placeholder="Number" 
+                                    value={f.driverPhone || ''} 
+                                    onChange={(e) => setField(d._id, 'driverPhone', e.target.value)} 
+                                  />
+                                </div>
+                              </div>
+                              <div className="info-field">
+                                <label className="ft-label-mini">Vehicle No.</label>
+                                <div className="input-with-icon-left">
+                                  <Search size={14} />
+                                  <input 
+                                    className="ft-input-modern" 
+                                    placeholder="Plate No." 
+                                    value={f.vehicleNumber || ''} 
+                                    onChange={(e) => setField(d._id, 'vehicleNumber', e.target.value)} 
+                                  />
+                                </div>
+                              </div>
                             </div>
+
+                            <div className="ft-form-group mt-3">
+                              <div className="label-with-action">
+                                <label className="ft-label-mini">Current GPS Position</label>
+                                <button 
+                                  className="gps-refresh-action"
+                                  onClick={() => fetchCurrentLocation(d._id)}
+                                  disabled={gpsLoading[d._id]}
+                                >
+                                  {gpsLoading[d._id] ? 'Locating...' : 'Auto-Fetch Live loc 📍'}
+                                </button>
+                              </div>
+                              <input 
+                                className="ft-input-modern" 
+                                value={f.currentLocation || ''} 
+                                onChange={(e) => setField(d._id, 'currentLocation', e.target.value)} 
+                                placeholder="Example: Near Highway 4, Pune"
+                              />
+                            </div>
+                            
+                            <div className="ft-form-group mt-3">
+                              <label className="ft-label-mini">Receiver Update Note (Optional)</label>
+                              <textarea 
+                                className="ft-input-modern" 
+                                style={{ minHeight: '80px', paddingTop: '0.75rem', resize: 'vertical' }}
+                                value={f.deliveryRemarks || ''} 
+                                onChange={(e) => setField(d._id, 'deliveryRemarks', e.target.value)} 
+                                placeholder="Retailer ke liye koi khaas jaankari ya update..."
+                              />
+                            </div>
+
+                            <button 
+                              className="ft-btn ft-btn-primary ft-btn-full mt-4" 
+                              onClick={() => save(d._id)} 
+                              disabled={savingId === d._id}
+                            >
+                              {savingId === d._id ? 'Updating...' : 'Publish Status Update'}
+                            </button>
                           </div>
-
-                          <button
-                            className="ft-btn ft-btn-primary ft-btn-full"
-                            style={{ marginTop: '1rem' }}
-                            onClick={() => bookSlot(d._id)}
-                            disabled={bookingId === d._id}
-                          >
-                            {bookingId === d._id ? <div className="ft-spinner" /> : 'Book Delivery Slot'}
-                          </button>
+                        </div>
+                      ) : (
+                        <div className="read-only-logistics-view">
+                          <div className="ro-alert">
+                            <AlertCircle size={20} />
+                            <p>Aap is shipment ko <strong>Track/Monitor</strong> kar rahe ho. Details sender dwara update ho rahi hain.</p>
+                          </div>
+                          <div className="ro-details-grid">
+                            <div className="ro-item">
+                              <span className="ro-label">Driver Details</span>
+                              <span className="ro-val">{d.driverName || 'N/A'} • {d.driverPhone || 'Not shared'}</span>
+                            </div>
+                            <div className="ro-item">
+                              <span className="ro-label">Expected Arrival</span>
+                              <span className="ro-val">{d.expectedDeliveryTime ? new Date(d.expectedDeliveryTime).toLocaleString() : 'Processing...'}</span>
+                            </div>
+                            <div className="ro-item">
+                              <span className="ro-label">Vehicle Identity</span>
+                              <span className="ro-val">{d.vehicleNumber || 'Pending'} ({d.vehicleType || 'Any'})</span>
+                            </div>
+                            <div className="ro-item">
+                              <span className="ro-label">Last Checked Point</span>
+                              <span className="ro-val">📍 {d.currentLocation || 'Warehouse Junction'}</span>
+                            </div>
+                            {d.deliveryRemarks && (
+                              <div className="ro-item full-width" style={{ gridColumn: '1 / -1', background: 'rgba(217, 119, 6, 0.05)', padding: '1.25rem', borderRadius: '16px', border: '1px dashed rgba(217, 119, 6, 0.3)', marginTop: '0.5rem' }}>
+                                <span className="ro-label" style={{ color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                                  <AlertCircle size={14} /> Distributor Update Note
+                                </span>
+                                <span className="ro-val" style={{ fontSize: '1rem', fontWeight: 800, color: '#92400e', fontStyle: 'italic', lineHeight: 1.4 }}>
+                                  "{d.deliveryRemarks}"
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    <div style={styles.sectionCard}>
-                      <div style={styles.panelTitle}>2) Dispatch Tracking Updates</div>
-
-                      <label style={styles.label}>Current Delivery Status</label>
-                      <select style={styles.input} value={f.deliveryStatus || 'PENDING_DISPATCH'} onChange={(e) => setField(d._id, 'deliveryStatus', e.target.value)}>
-                        <option value="PENDING_DISPATCH">Pending Dispatch</option>
-                        <option value="PICKUP_DISPATCHED">Pickup Dispatched</option>
-                        <option value="IN_TRANSIT">In Transit</option>
-                        <option value="DELIVERED">Delivered</option>
-                      </select>
-
-                      <div style={styles.inlineFieldGrid(isMobile)}>
-                        <div>
-                          <label style={styles.label}>Driver Name</label>
-                          <input style={styles.input} value={f.driverName || ''} onChange={(e) => setField(d._id, 'driverName', e.target.value)} />
-                        </div>
-                        <div>
-                          <label style={styles.label}>Driver Phone</label>
-                          <input style={styles.input} value={f.driverPhone || ''} onChange={(e) => setField(d._id, 'driverPhone', e.target.value)} />
-                        </div>
-                      </div>
-
-                      <div style={styles.inlineFieldGrid(isMobile)}>
-                        <div>
-                          <label style={styles.label}>Vehicle Number</label>
-                          <input style={styles.input} value={f.vehicleNumber || ''} onChange={(e) => setField(d._id, 'vehicleNumber', e.target.value)} />
-                        </div>
-                        <div>
-                          <label style={styles.label}>Vehicle Type</label>
-                          <input style={styles.input} value={f.vehicleType || ''} onChange={(e) => setField(d._id, 'vehicleType', e.target.value)} />
-                        </div>
-                      </div>
-
-                      <div style={styles.inlineFieldGrid(isMobile)}>
-                        <div style={{ flex: 1.5 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <label style={styles.label}>Current Location</label>
-                            <button
-                               type="button"
-                               onClick={() => fetchCurrentLocation(d._id)}
-                               className="ft-btn ft-btn-ghost ft-btn-sm"
-                               style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', color: 'var(--ft-forest)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.3rem' }}
-                               disabled={gpsLoading[d._id]}
-                            >
-                              {gpsLoading[d._id] ? <span className="ft-spinner" style={{ width: '12px', height: '12px' }} /> : '📍 Fetch GPS'}
-                              {gpsLoading[d._id] ? ' Locating' : ''}
-                            </button>
-                          </div>
-                          <input
-                            style={styles.input}
-                            value={f.currentLocation || ''}
-                            onChange={(e) => setField(d._id, 'currentLocation', e.target.value)}
-                            placeholder="Current highway or city name"
-                          />
-                        </div>
-                        <div>
-                          <label style={styles.label}>Expected Delivery</label>
-                          <input type="datetime-local" style={styles.input} value={f.expectedDeliveryTime || ''} onChange={(e) => setField(d._id, 'expectedDeliveryTime', e.target.value)} />
-                        </div>
-                      </div>
-
-                      <button className="ft-btn ft-btn-primary ft-btn-full" style={{ marginTop: '1.25rem' }} onClick={() => save(d._id)} disabled={savingId === d._id}>
-                        {savingId === d._id ? <div className="ft-spinner" /> : 'Update Dispatch Info'}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                isExpanded && <p style={styles.readOnly}>ℹ️ Aap read-only mode me ho. Dispatch sender update karega.</p>
-              )}
-            </div>
-          );
-        })
-      )}
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      <style>{`
+        .dashboard-wrapper {
+          background: #f8faf9;
+          min-height: 100vh;
+        }
+
+        .dashboard-nav {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          padding: 1.25rem 0;
+        }
+
+        .nav-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 2rem;
+        }
+
+        .nav-left {
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+        }
+
+        .back-circle-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          border: 1.5px solid rgba(0,0,0,0.05);
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .back-circle-btn:hover {
+          transform: translateX(-4px);
+          background: var(--ft-bg);
+        }
+
+        .nav-brand {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .brand-dot {
+          width: 8px;
+          height: 8px;
+          background: var(--ft-forest);
+          border-radius: 50%;
+        }
+
+        .nav-title {
+          font-size: 1.5rem;
+          font-weight: 950;
+          color: var(--ft-forest);
+          letter-spacing: -0.03em;
+        }
+
+        .nav-tabs-container {
+          display: flex;
+          background: var(--ft-bg);
+          padding: 0.4rem;
+          border-radius: 16px;
+          gap: 0.25rem;
+          border: 1px solid rgba(0,0,0,0.03);
+        }
+
+        .nav-tab-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.65rem 1.25rem;
+          border-radius: 12px;
+          border: none;
+          background: transparent;
+          font-weight: 800;
+          color: var(--ft-text-muted);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .nav-tab-btn.active {
+          background: #fff;
+          color: var(--ft-forest);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .tab-count {
+          background: var(--ft-forest);
+          color: #fff;
+          font-size: 0.65rem;
+          padding: 0.1rem 0.4rem;
+          border-radius: 6px;
+          min-width: 14px;
+          text-align: center;
+        }
+
+        .logistics-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 1.5rem;
+          margin-bottom: 3rem;
+        }
+
+        .stat-card {
+          background: #fff;
+          padding: 1.75rem;
+          border-radius: 24px;
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.02);
+          border: 1.5px solid rgba(0,0,0,0.01);
+        }
+
+        .stat-card.premium {
+          background: var(--ft-forest);
+          color: #fff;
+        }
+
+        .stat-icon-wrap {
+          width: 54px;
+          height: 54px;
+          border-radius: 16px;
+          background: var(--ft-bg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--ft-forest);
+        }
+
+        .premium .stat-icon-wrap {
+          background: rgba(255,255,255,0.15);
+          color: #fff;
+        }
+
+        .stat-value {
+          font-size: 2rem;
+          font-weight: 950;
+          letter-spacing: -0.02em;
+        }
+
+        .stat-label {
+          font-size: 0.85rem;
+          font-weight: 750;
+          opacity: 0.8;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .logistics-card {
+          background: #fff;
+          border-radius: 32px;
+          padding: 2rem;
+          margin-bottom: 2rem;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.02);
+          border: 1.5px solid rgba(0,0,0,0.015);
+        }
+
+        .card-top-main {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 2rem;
+          margin-bottom: 2rem;
+        }
+
+        .card-identity {
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+        }
+
+        .crop-avatar {
+          width: 64px;
+          height: 64px;
+          border-radius: 20px;
+          background: linear-gradient(135deg, var(--ft-sage-light) 0%, #fff 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.75rem;
+          font-weight: 950;
+          color: var(--ft-forest);
+          border: 1.5px solid rgba(0,0,0,0.03);
+        }
+
+        .lot-id {
+          font-size: 0.75rem;
+          font-weight: 900;
+          color: var(--ft-text-muted);
+          letter-spacing: 0.1em;
+        }
+
+        .crop-title {
+          font-size: 1.5rem;
+          font-weight: 950;
+          color: var(--ft-forest);
+          letter-spacing: -0.02em;
+          margin-top: 0.25rem;
+        }
+
+        .card-summary-strip {
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          background: var(--ft-bg);
+          padding: 0.75rem 1.5rem;
+          border-radius: 16px;
+        }
+
+        .strip-item {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          font-size: 0.9rem;
+          font-weight: 800;
+          color: var(--ft-forest);
+        }
+
+        .logistics-progress-bar {
+          position: relative;
+          height: 6px;
+          background: var(--ft-bg);
+          border-radius: 10px;
+          margin: 3rem 1.5rem;
+        }
+
+        .progress-fill {
+          height: 100%;
+          background: var(--ft-forest);
+          border-radius: 10px;
+          transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 0 15px rgba(13, 51, 25, 0.3);
+        }
+
+        .progress-markers {
+          position: absolute;
+          top: 50%;
+          left: 0;
+          right: 0;
+          transform: translateY(-50%);
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .marker {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .marker .dot {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #fff;
+          border: 3px solid var(--ft-bg);
+          transition: all 0.3s ease;
+        }
+
+        .marker.active .dot {
+          background: var(--ft-forest);
+          border-color: #fff;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .marker .label {
+          font-size: 0.7rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--ft-text-muted);
+        }
+
+        .marker.active .label {
+          color: var(--ft-forest);
+        }
+
+        .quick-info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 1.5rem;
+          padding-top: 2rem;
+          border-top: 1.5px solid rgba(0,0,0,0.03);
+        }
+
+        .q-info-item {
+          display: flex;
+          gap: 1rem;
+          align-items: flex-start;
+        }
+
+        .q-label {
+          font-size: 0.7rem;
+          font-weight: 850;
+          color: var(--ft-text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .q-val {
+          font-size: 1rem;
+          font-weight: 900;
+          color: var(--ft-text);
+          margin-top: 0.15rem;
+        }
+
+        .expanded-control-panel {
+          margin-top: 2.5rem;
+          padding-top: 2.5rem;
+          border-top: 2px dashed rgba(0,0,0,0.05);
+        }
+
+        .control-grid-premium {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+        }
+
+        .control-section-card {
+          background: #fcfdfc;
+          border-radius: 24px;
+          padding: 2rem;
+          border: 1.5px solid rgba(0,0,0,0.03);
+        }
+
+        .control-section-card.blue-tint {
+          background: #f9fbfc;
+        }
+
+        .section-card-title {
+          font-size: 0.9rem;
+          font-weight: 950;
+          color: var(--ft-forest);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 2rem;
+        }
+
+        .ft-label-mini {
+          font-size: 0.85rem;
+          font-weight: 850;
+          color: var(--ft-text);
+          display: block;
+          margin-bottom: 0.6rem;
+        }
+
+        .ft-input-modern, .ft-select-modern {
+          width: 100%;
+          padding: 0.9rem 1.25rem;
+          border-radius: 14px;
+          border: 1.5px solid transparent;
+          background: #fff;
+          font-size: 1rem;
+          font-weight: 700;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+          transition: all 0.2s ease;
+        }
+
+        .ft-input-modern:focus {
+          border-color: var(--ft-forest);
+          box-shadow: 0 10px 25px rgba(13, 51, 25, 0.08);
+          outline: none;
+        }
+
+        .label-with-action {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .gps-refresh-action {
+          background: transparent;
+          border: none;
+          color: var(--ft-forest);
+          font-weight: 900;
+          font-size: 0.75rem;
+          cursor: pointer;
+        }
+
+        .status-badge-premium {
+          padding: 0.35rem 1rem;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+
+        .loading-state-full {
+          display: flex;
+          justify-content: center;
+          padding: 10rem 0;
+        }
+
+        .ro-alert {
+          background: rgba(13, 51, 25, 0.05);
+          padding: 1.25rem 2rem;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          color: var(--ft-forest);
+          font-weight: 800;
+          margin-bottom: 2rem;
+        }
+
+        .ro-details-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem;
+        }
+
+        .ro-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .ro-label {
+          font-size: 0.75rem;
+          font-weight: 850;
+          color: var(--ft-text-muted);
+          text-transform: uppercase;
+        }
+
+        .ro-val {
+          font-size: 1.1rem;
+          font-weight: 900;
+          color: var(--ft-forest);
+        }
+
+        @media (max-width: 1024px) {
+          .control-grid-premium { grid-template-columns: 1fr; }
+          .nav-content { flex-direction: column; gap: 1rem; }
+        }
+      `}</style>
     </div>
   );
 }
-
-const styles = {
-  page: { minHeight: '100vh', background: 'var(--ft-bg)', padding: '1.5rem', fontFamily: 'var(--ft-font-main)', color: 'var(--ft-text)' },
-  header: { display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem', background: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(10px)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem', boxShadow: 'var(--ft-shadow-sm)', position: 'sticky', top: '1rem', zIndex: 10 },
-  backBtn: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', color: 'var(--ft-forest)', cursor: 'pointer', padding: '0.6rem 1rem', borderRadius: '12px', fontWeight: 800, transition: 'var(--ft-transition)' },
-  title: { margin: 0, color: 'var(--ft-forest)', fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' },
-  subTitle: { margin: '0.25rem 0 0', color: 'var(--ft-text-muted)', fontSize: '0.9rem' },
-  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' },
-  summaryCard: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius)', padding: '1.25rem', boxShadow: 'var(--ft-shadow-sm)' },
-  summaryLabel: { margin: 0, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ft-text-muted)', fontWeight: 800 },
-  summaryValue: { margin: '0.5rem 0 0', color: 'var(--ft-forest)', fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' },
-  empty: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius)', padding: '3rem', textAlign: 'center', color: 'var(--ft-text-muted)', fontWeight: 600 },
-  card: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem', marginBottom: '1.5rem', boxShadow: 'var(--ft-shadow-sm)', transition: 'var(--ft-transition)' },
-  cardHead: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.5rem', marginBottom: '1rem' },
-  cardHeadRight: { display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'flex-end' },
-  toggleBtn: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-white)', color: 'var(--ft-forest)', borderRadius: '12px', fontSize: '0.85rem', padding: '0.4rem 1rem', cursor: 'pointer', fontWeight: 800, transition: 'var(--ft-transition)' },
-  crop: { margin: 0, color: 'var(--ft-forest)', fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' },
-  status: { fontSize: '0.7rem', fontWeight: 800, borderRadius: '999px', padding: '0.25rem 0.85rem', letterSpacing: '0.05em', textTransform: 'uppercase' },
-  info: { margin: 0, color: 'var(--ft-text-muted)', fontSize: '0.9rem' },
-  quickStatsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginTop: '1rem' },
-  quickStatChip: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-bg)', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' },
-  quickStatKey: { color: 'var(--ft-text-muted)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' },
-  quickStatVal: { color: 'var(--ft-forest)', fontSize: '0.9rem', fontWeight: 800 },
-  metaGrid: { marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' },
-  metaCell: { background: 'var(--ft-white)', border: '1px solid var(--ft-border)', borderRadius: '12px', padding: '1rem' },
-  metaLabel: { margin: 0, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ft-text-muted)', fontWeight: 800 },
-  metaValue: { margin: '0.4rem 0 0', fontSize: '0.95rem', color: 'var(--ft-text)', fontWeight: 700 },
-  form: { marginTop: '1.5rem', borderTop: '1px dashed var(--ft-border)', paddingTop: '1.5rem' },
-  panelWrap: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1.5rem' }),
-  sectionCard: { border: '1.5px solid var(--ft-border)', background: 'var(--ft-bg)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem' },
-  panelTitle: { margin: '0 0 1.25rem', color: 'var(--ft-forest)', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em', borderLeft: '3px solid var(--ft-forest)', paddingLeft: '0.75rem' },
-  label: { display: 'block', margin: '0.75rem 0 0.4rem', color: 'var(--ft-text)', fontWeight: 700, fontSize: '0.85rem' },
-  input: { width: '100%', boxSizing: 'border-box', border: '1.5px solid var(--ft-border)', borderRadius: '12px', padding: '0.75rem 1rem', background: 'var(--ft-white)', fontSize: '0.95rem', color: 'var(--ft-text)', outline: 'none', transition: 'var(--ft-transition)' },
-  inlineFieldGrid: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }),
-  planBox: { marginTop: '1.25rem', background: 'var(--ft-white)', border: '1.5px solid var(--ft-border)', borderRadius: '16px', padding: '1.25rem', boxShadow: 'var(--ft-shadow-sm)' },
-  planRoute: { margin: '0.25rem 0 1rem', color: 'var(--ft-forest)', fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em' },
-  readOnly: { marginTop: '1rem', color: 'var(--ft-text-muted)', fontSize: '0.9rem', fontWeight: 600, textAlign: 'center', background: 'var(--ft-bg)', padding: '1rem', borderRadius: '12px' },
-  matchInfo: { marginTop: '1.25rem', background: 'var(--ft-sage-light)', border: '1px solid var(--ft-border)', borderRadius: 'var(--ft-radius-lg)', padding: '1.5rem' },
-  matchTitle: { margin: '0 0 0.75rem', color: 'var(--ft-forest)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.15em' },
-  slotInfo: { marginTop: '1rem', fontSize: '0.9rem', color: 'var(--ft-forest)', background: 'var(--ft-sage-light)', border: '1px solid var(--ft-border)', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 600 }
-};

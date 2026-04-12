@@ -55,7 +55,8 @@ const transferSchema = new mongoose.Schema({
   deliveredAt: { type: Date },
   txHash:              { type: String },
   razorpayPaymentId:   { type: String },
-  razorpayOrderId:     { type: String }
+  razorpayOrderId:     { type: String },
+  deliveryRemarks:     { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Transfer', transferSchema);

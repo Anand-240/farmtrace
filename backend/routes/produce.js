@@ -9,7 +9,14 @@ const { registerOnChain, getHistoryFromChain } = require('../blockchain/blockcha
 const { validateSellPrice } = require('../utils/marketPricing');
 
 function getFrontendBaseUrl(req) {
-  return (process.env.FRONTEND_URL || req.get('origin') || 'http://localhost:3000').trim();
+  const origin = req.get('origin');
+  const envUrl = process.env.FRONTEND_URL || '';
+  const allowedOrigins = envUrl.split(',').map(u => u.trim()).filter(Boolean);
+  
+  if (origin && allowedOrigins.includes(origin)) {
+    return origin;
+  }
+  return (allowedOrigins[0] || 'http://localhost:3000').trim();
 }
 
 // BigInt ko string mein convert karo

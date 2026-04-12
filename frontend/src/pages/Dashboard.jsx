@@ -11,7 +11,7 @@ import {
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
   Search, ChevronDown, ChevronUp, SlidersHorizontal, 
-  Filter, Calendar, ArrowUpDown, IndianRupee
+  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -319,7 +319,11 @@ export default function Dashboard() {
     if (user.role === 'FARMER') loadMandi();
   }, [user.state, user.role, cropFilter, liveState]);
 
-  const logout = () => { localStorage.clear(); navigate('/login'); };
+  const logout = () => { 
+    localStorage.removeItem('token'); 
+    localStorage.removeItem('user'); 
+    navigate('/login'); 
+  };
 
   const fallbackCopyText = (text) => {
     const area = document.createElement('textarea');
@@ -455,39 +459,39 @@ export default function Dashboard() {
       {/* ── UNIFIED QR & TRACEABILITY MODAL ── */}
       {qrModal && (
         <div className="ft-modal-overlay" onClick={() => setQrModal(null)}>
-          <div className="ft-modal dashboard-qr-trace-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(700px, 95%)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="ft-modal dashboard-qr-trace-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(850px, 95%)', maxHeight: '90vh' }}>
             <button
               type="button"
               className="dashboard-modal-close"
               onClick={() => setQrModal(null)}
-              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', border: 'none', background: 'var(--ft-bg)', padding: '8px', borderRadius: '50%', cursor: 'pointer', zIndex: 5 }}
+              style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: 'var(--ft-bg)', padding: '10px', borderRadius: '50%', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
             >
               <X size={20} strokeWidth={2.5} />
             </button>
 
-            <div className="modal-inner-grid">
-              <div className="modal-qr-section">
+            <div className="modal-inner-grid" style={{ display: 'flex', minHeight: '520px' }}>
+              <div className="modal-qr-section" style={{ width: '320px', flexShrink: 0, padding: '3.5rem 2.5rem', borderRight: '1.5px solid rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div className="modal-header-mini">
                   <div className="dashboard-brand-icon" style={{ width: 32, height: 32, fontSize: '1rem' }}>🌱</div>
                   <h3 className="ft-modal-title">Product Passport</h3>
                 </div>
                 
-                <div className="qr-container-premium">
-                  <img src={qrModal.qr} alt="QR Code" className="modal-qr-img" />
-                  <p className="modal-qr-sub">Scan to trace on blockchain</p>
+                <div className="qr-container-premium" style={{ background: '#fff', padding: '2rem', borderRadius: '32px', boxShadow: '0 15px 40px rgba(0,0,0,0.05)', marginBottom: '2rem', border: '1px solid rgba(0,0,0,0.03)' }}>
+                  <img src={qrModal.qr} alt="QR Code" className="modal-qr-img" style={{ width: '200px', height: '200px' }} />
+                  <p className="modal-qr-sub" style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--ft-text-muted)', marginTop: '1.25rem', textAlign: 'center' }}>Scan to trace on blockchain</p>
                 </div>
 
                 <div className="produce-info-mini">
                   <h4 className="mini-crop-name">{getCropEmoji(qrModal.details.cropType)} {qrModal.details.cropType}</h4>
                   <div className="mini-details-row">
-                    <span>📍 {qrModal.details.origin}</span>
-                    <span>⚖️ {qrModal.details.quantity}kg</span>
+                    <span><Info size={16} /> {qrModal.details.origin}</span>
+                    <span><Layers size={16} /> {qrModal.details.quantity}kg</span>
                   </div>
-                  <div className="mini-id-badge">ID: {qrModal.details._id.slice(-8).toUpperCase()}</div>
+                  <div className="mini-id-badge">LOT ID: {qrModal.details._id.slice(-8).toUpperCase()}</div>
                 </div>
               </div>
 
-              <div className="modal-trace-section">
+              <div className="modal-trace-section" style={{ flex: 1, padding: '4rem', display: 'flex', flexDirection: 'column' }}>
                 <h4 className="trace-section-title">Timeline — Journey to You</h4>
                 <div className="trace-timeline">
                   {/* Start Point */}
@@ -508,7 +512,7 @@ export default function Dashboard() {
                         <p className="trace-step-title">{t.transferType.replace(/_/g, ' ')}</p>
                         <p className="trace-step-sub">{t.location}</p>
                         <p className="trace-step-price">₹{t.price}/kg</p>
-                        {t.txHash && <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="trace-proof-link">View Proof →</a>}
+                        {t.txHash && <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="trace-proof-link">Verify Proof <ExternalLink size={12} /></a>}
                       </div>
                     </div>
                   ))}
@@ -526,9 +530,9 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
+            <div className="modal-footer" style={{ padding: '2.5rem 4rem 3.5rem', display: 'flex', gap: '1.5rem', background: '#fff' }}>
               <button onClick={() => setQrModal(null)} className="ft-btn ft-btn-ghost ft-btn-full">
-                Close
+                Close Popup
               </button>
               <button 
                 onClick={() => {
@@ -536,7 +540,7 @@ export default function Dashboard() {
                 }} 
                 className="ft-btn ft-btn-primary ft-btn-full"
               >
-                Full History Page
+                Go to History Page
               </button>
             </div>
           </div>
@@ -805,63 +809,71 @@ export default function Dashboard() {
 
             {isFilterOpen && (
               <div className="advanced-filters-section ft-anim-slide-up">
-                {/* Status Filter */}
-                <div className="input-group">
-                  <label className="input-label">Produce Status</label>
-                  <div className="input-with-icon">
-                    <Filter className="input-field-icon" size={16} />
-                    <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                      <option value="ALL">Sabhi Status (All)</option>
-                      <option value="VERIFIED">Verified Only</option>
-                      <option value="PENDING">Pending Only</option>
-                    </select>
-                  </div>
-                </div>
+                <div className="filters-grid">
+                  {/* Status & Sort */}
+                  <div className="filter-group-main">
+                    <h5 className="input-group-header">Management</h5>
+                    <div className="input-group">
+                      <label className="input-label">Produce Status</label>
+                      <div className="input-with-icon">
+                        <Filter className="input-field-icon" size={16} />
+                        <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                          <option value="ALL">Sabhi Status (All)</option>
+                          <option value="VERIFIED">Verified Only</option>
+                          <option value="PENDING">Pending Only</option>
+                        </select>
+                      </div>
+                    </div>
 
-                {/* Sort By */}
-                <div className="input-group">
-                  <label className="input-label">Sort Order</label>
-                  <div className="input-with-icon">
-                    <ArrowUpDown className="input-field-icon" size={16} />
-                    <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                      {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                    </select>
+                    <div className="input-group">
+                      <label className="input-label">Sort Order</label>
+                      <div className="input-with-icon">
+                        <ArrowUpDown className="input-field-icon" size={16} />
+                        <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                          {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Date From */}
-                <div className="input-group">
-                  <label className="input-label">Date From</label>
-                  <div className="input-with-icon">
-                    <Calendar className="input-field-icon" size={16} />
-                    <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                  {/* Date Range */}
+                  <div className="filter-group-range">
+                    <h5 className="input-group-header">Timeline</h5>
+                    <div className="input-group">
+                      <label className="input-label">Date From</label>
+                      <div className="input-with-icon">
+                        <Calendar className="input-field-icon" size={16} />
+                        <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Date To</label>
+                      <div className="input-with-icon">
+                        <Calendar className="input-field-icon" size={16} />
+                        <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Date To */}
-                <div className="input-group">
-                  <label className="input-label">Date To</label>
-                  <div className="input-with-icon">
-                    <Calendar className="input-field-icon" size={16} />
-                    <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                  </div>
-                </div>
+                  {/* Price Range */}
+                  <div className="filter-group-range">
+                    <h5 className="input-group-header">Financials</h5>
+                    <div className="input-group">
+                      <label className="input-label">Min Price</label>
+                      <div className="input-with-icon">
+                        <IndianRupee className="input-field-icon" size={16} />
+                        <input type="number" className="dashboard-filter-input" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+                      </div>
+                    </div>
 
-                {/* Price Min */}
-                <div className="input-group">
-                  <label className="input-label">Min Price</label>
-                  <div className="input-with-icon">
-                    <IndianRupee className="input-field-icon" size={16} />
-                    <input type="number" className="dashboard-filter-input" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-                  </div>
-                </div>
-
-                {/* Price Max */}
-                <div className="input-group">
-                  <label className="input-label">Max Price</label>
-                  <div className="input-with-icon">
-                    <IndianRupee className="input-field-icon" size={16} />
-                    <input type="number" className="dashboard-filter-input" placeholder="No limit" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+                    <div className="input-group">
+                      <label className="input-label">Max Price</label>
+                      <div className="input-with-icon">
+                        <IndianRupee className="input-field-icon" size={16} />
+                        <input type="number" className="dashboard-filter-input" placeholder="No limit" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

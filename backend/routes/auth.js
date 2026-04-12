@@ -419,7 +419,8 @@ router.post('/forgot-password', async (req, res) => {
     user.resetPasswordExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
     await user.save();
 
-    const frontendBase = (process.env.FRONTEND_URL || 'http://localhost:3000').trim();
+    const envUrl = process.env.FRONTEND_URL || '';
+    const frontendBase = (envUrl.split(',')[0] || 'http://localhost:3000').trim();
     const resetUrl = `${frontendBase}/reset-password/${rawToken}`;
 
     try {
