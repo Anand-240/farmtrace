@@ -56,20 +56,41 @@ function statusLabel(status) {
   return status;
 }
 
+function getMilestoneBreakdown(totalAmount, transferType) {
+  if (transferType === 'DISTRIBUTOR_TO_RETAILER') {
+    // Retailer Strategy: Low booking, high delivery incentive (20/0/80)
+    const booking = Math.round(totalAmount * 0.20);
+    const dispatch = 0;
+    const delivery = totalAmount - booking;
+    return { booking, dispatch, delivery };
+  } else if (transferType === 'RETAILER_TO_CONSUMER') {
+    // Consumer Strategy: Full payment at booking (100/0/0)
+    return { booking: totalAmount, dispatch: 0, delivery: 0 };
+  } else {
+    // Farmer strategy: Three-step security (40/30/30)
+    const booking = Math.round(totalAmount * 0.40);
+    const dispatch = Math.round(totalAmount * 0.30);
+    const delivery = totalAmount - booking - dispatch;
+    return { booking, dispatch, delivery };
+  }
+}
+
 // Milestone payment release logic
 async function releaseMilestonePayment({ escrow, transferId, milestone, transfer }) {
   if (milestone === 'DISPATCH' && !escrow.dispatchReleased) {
     escrow.dispatchReleased = true;
     escrow.dispatchReleasedAt = new Date();
     
-    // Notify farmer that dispatch payment released
-    await Notification.create({
-      userPhone: transfer.fromPhone,
-      title: 'Dispatch Payment Released!',
-      message: `${transfer.toPhone} ne pickup dispatch kiya. \u20b9${escrow.dispatchAmount.toLocaleString()} payment release ho gayi!`,
-      type: 'PAYMENT_RECEIVED',
-      data: { transferId, amount: escrow.dispatchAmount, milestone: 'DISPATCH' }
-    });
+    // Notify farmer only if there is a non-zero payout
+    if (escrow.dispatchAmount > 0) {
+      await Notification.create({
+        userPhone: transfer.fromPhone,
+        title: 'Dispatch Payment Released!',
+        message: `${transfer.toPhone} ne pickup dispatch kiya. \u20b9${escrow.dispatchAmount.toLocaleString()} payment release ho gayi!`,
+        type: 'PAYMENT_RECEIVED',
+        data: { transferId, amount: escrow.dispatchAmount, milestone: 'DISPATCH' }
+      });
+    }
   }
   
   if (milestone === 'DELIVERY' && !escrow.deliveryReleased) {
@@ -330,10 +351,9 @@ router.post('/create-order', auth, async (req, res) => {
 
     const totalAmount = transfer.price * produce.quantity * 100;
     
-    // Milestone payment breakdown: 40% booking, 30% dispatch, 30% delivery
-    const bookingAmount = Math.round(totalAmount * 0.40);
-    const dispatchAmount = Math.round(totalAmount * 0.30);
-    const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
+    // Differentiated milestone breakdown
+    const { booking: bookingAmount, dispatch: dispatchAmount, delivery: deliveryAmount } = 
+      getMilestoneBreakdown(totalAmount, transfer.transferType);
 
     // Escrow strategy: Charge FULL amount upfront and hold in platform for milestone release.
     const order = await razorpayClient.orders.create({
@@ -406,9 +426,8 @@ router.post('/verify', auth, async (req, res) => {
     const toUser = await User.findOne({ phone: transfer.toPhone });
 
     const totalAmount = transfer.price * produce.quantity;
-    const bookingAmount = Math.round(totalAmount * 0.40);
-    const dispatchAmount = Math.round(totalAmount * 0.30);
-    const deliveryAmount = totalAmount - bookingAmount - dispatchAmount;
+    const { booking: bookingAmount, dispatch: dispatchAmount, delivery: deliveryAmount } = 
+      getMilestoneBreakdown(totalAmount, transfer.transferType);
 
     // Payment status update - sirf booking stage clear hua
     transfer.paymentStatus = 'PAID';

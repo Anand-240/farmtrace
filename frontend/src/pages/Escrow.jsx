@@ -152,20 +152,27 @@ export default function Escrow() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: escrow.dispatchAmount > 0 ? '1fr 1fr 1fr' : '1fr 1fr', 
+                    gap: '0.75rem', 
+                    marginBottom: '1.5rem' 
+                  }}>
                     <div style={milestoneItemStyle(escrow.bookingPaid)}>
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Booking</p>
-                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: 'var(--ft-forest)' }}>₹{escrow.bookingAmount}</p>
+                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: 'var(--ft-forest)' }}>₹{escrow.bookingAmount.toLocaleString()}</p>
                       <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.bookingPaid ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.bookingPaid ? '✓ Paid' : 'Pending'}</p>
                     </div>
-                    <div style={milestoneItemStyle(escrow.dispatchReleased)}>
-                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Dispatch</p>
-                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.dispatchReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.dispatchAmount}</p>
-                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.dispatchReleased ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.dispatchReleased ? '✓ Released' : 'Locked'}</p>
-                    </div>
+                    {escrow.dispatchAmount > 0 && (
+                      <div style={milestoneItemStyle(escrow.dispatchReleased)}>
+                        <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Dispatch</p>
+                        <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.dispatchReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.dispatchAmount.toLocaleString()}</p>
+                        <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.dispatchReleased ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.dispatchReleased ? '✓ Released' : 'Locked'}</p>
+                      </div>
+                    )}
                     <div style={milestoneItemStyle(escrow.deliveryReleased)}>
                       <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--ft-text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Delivery</p>
-                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.deliveryReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.deliveryAmount}</p>
+                      <p style={{ margin: '0.25rem 0 0', fontWeight: 800, fontSize: '1rem', color: escrow.deliveryReleased ? 'var(--ft-forest)' : 'var(--ft-text-muted)' }}>₹{escrow.deliveryAmount.toLocaleString()}</p>
                       <p style={{ margin: '0.25rem 0 0', fontSize: '0.7rem', fontWeight: 700, color: escrow.deliveryReleased ? 'var(--ft-success)' : 'var(--ft-text-muted)' }}>{escrow.deliveryReleased ? '✓ Released' : 'Locked'}</p>
                     </div>
                   </div>
