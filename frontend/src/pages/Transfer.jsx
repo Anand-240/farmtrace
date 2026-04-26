@@ -86,7 +86,7 @@ export default function Transfer() {
     if (!floorPrice) {
       setPriceError(`${produce.cropType} ka mandi rate ya MSP abhi available nahi hai, isliye sale allow nahi hai.`);
     } else if (Number.isFinite(priceValue) && priceValue > 0 && priceValue < floorPrice) {
-      setPriceError(`Price ${marketFloor.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+      setPriceError(`Kisan samman portal! You cannot sell below the Floor/MSP rate of ₹${floorPrice.toFixed(2)}/kg.`);
     } else {
       setPriceError('');
     }

@@ -228,6 +228,38 @@ async function fetchDocumentContext(transferId, actorPhone) {
   };
 }
 
+// Helper: resolve transfer produce from multiple ID fields
+async function resolveTransferProduce(transfer) {
+  const mongoose = require('mongoose');
+  if (!transfer) return null;
+  
+  // Try mongoId first
+  if (transfer.produceMongoId) {
+    const p = await Produce.findById(transfer.produceMongoId);
+    if (p) return p;
+  }
+  
+  // Try chainId
+  if (transfer.produceChainId) {
+    const p = await Produce.findOne({ produceId: transfer.produceChainId });
+    if (p) return p;
+  }
+  
+  // Try legacy produceId as ObjectId
+  if (transfer.produceId && mongoose.Types.ObjectId.isValid(transfer.produceId)) {
+    const p = await Produce.findById(transfer.produceId);
+    if (p) return p;
+  }
+  
+  // Try legacy produceId as chain id
+  if (transfer.produceId) {
+    const p = await Produce.findOne({ produceId: transfer.produceId });
+    if (p) return p;
+  }
+  
+  return null;
+}
+
 function streamPdf(res, buffer, filename) {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -283,7 +315,9 @@ router.post('/request', auth, async (req, res) => {
     }
 
     const transfer = await Transfer.create({
-      produceId: produceMongoId,
+      produceMongoId: produce._id,
+      produceChainId: produce.produceId || null,
+      produceId: String(produce._id),
       fromPhone: req.user.phone,
       toPhone: toUser.phone,
       price: pricePerKg,
@@ -322,7 +356,7 @@ router.get('/pending', auth, async (req, res) => {
 
     const results = [];
     for (const t of transfers) {
-      const produce = await Produce.findById(t.produceId);
+      const produce = await resolveTransferProduce(t);
       if (produce) {
         results.push({ ...t.toObject(), produce: produce.toObject() });
       }
@@ -346,7 +380,7 @@ router.post('/create-order', auth, async (req, res) => {
     const transfer = await Transfer.findById(transferId);
     if (!transfer) return res.status(404).json({ message: 'Transfer nahi mila' });
 
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
     const totalAmount = transfer.price * produce.quantity * 100;
@@ -421,7 +455,7 @@ router.post('/verify', auth, async (req, res) => {
     }
 
     const transfer = await Transfer.findById(transferId);
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     const fromUser = await User.findOne({ phone: transfer.fromPhone });
     const toUser = await User.findOne({ phone: transfer.toPhone });
 
@@ -436,13 +470,14 @@ router.post('/verify', auth, async (req, res) => {
 
     // Blockchain pe transfer (immediate booking ke baad)
     let txHash = null;
-    if (produce.produceId) {
+    const chainProduceId = transfer.produceChainId || produce?.produceId || transfer.produceId;
+    if (chainProduceId && produce?.produceId) {
       const toAddress = new (require('ethers').Wallet)(
         process.env.PLATFORM_PRIVATE_KEY
       ).address;
 
       const result = await transferOnChain(
-        produce.produceId, toAddress, transfer.price, transfer.location
+        chainProduceId, toAddress, transfer.price, transfer.location
       );
 
       if (result.success) {
@@ -455,8 +490,10 @@ router.post('/verify', auth, async (req, res) => {
     await transfer.save();
 
     // Produce owner update
-    produce.currentOwner = transfer.toPhone;
-    await produce.save();
+    if (produce) {
+      produce.currentOwner = transfer.toPhone;
+      await produce.save();
+    }
 
     // Escrow record banao for milestone tracking
     await Escrow.create({
@@ -474,15 +511,15 @@ router.post('/verify', auth, async (req, res) => {
 
     // Transaction history — sender ke liye (SENT)
     await Transaction.create({
-      produceId: transfer.produceId,
-      cropType: produce.cropType,
+      produceId: String(transfer.produceMongoId || transfer.produceId),
+      cropType: produce?.cropType,
       fromPhone: transfer.toPhone,
       fromName: toUser?.name,
       toPhone: transfer.fromPhone,
       toName: fromUser?.name,
       amount: totalAmount,
       pricePerKg: transfer.price,
-      quantity: produce.quantity,
+      quantity: produce?.quantity,
       transferType: transfer.transferType,
       paymentId: razorpay_payment_id,
       txHash,
@@ -492,15 +529,15 @@ router.post('/verify', auth, async (req, res) => {
 
     // Transaction history — receiver ke liye (RECEIVED)
     await Transaction.create({
-      produceId: transfer.produceId,
-      cropType: produce.cropType,
+      produceId: String(transfer.produceMongoId || transfer.produceId),
+      cropType: produce?.cropType,
       fromPhone: transfer.toPhone,
       fromName: toUser?.name,
       toPhone: transfer.fromPhone,
       toName: fromUser?.name,
       amount: totalAmount,
       pricePerKg: transfer.price,
-      quantity: produce.quantity,
+      quantity: produce?.quantity,
       transferType: transfer.transferType,
       paymentId: razorpay_payment_id,
       txHash,
@@ -569,7 +606,7 @@ router.get('/deliveries/my', auth, async (req, res) => {
 
     const list = [];
     for (const t of transfers) {
-      const produce = await Produce.findById(t.produceId);
+      const produce = await resolveTransferProduce(t);
       list.push({
         ...t.toObject(),
         produce: produce ? produce.toObject() : null,
@@ -639,7 +676,7 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
 
     await transfer.save();
 
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     const crop = produce?.cropType || 'Lot';
 
     if (deliveryStatus && oldStatus !== transfer.deliveryStatus) {
@@ -692,7 +729,7 @@ router.post('/logistics/:transferId/preview', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     const quantityKg = Number(produce?.quantity || 0);
 
     const origin = transfer.currentLocation || transfer.location;
@@ -773,7 +810,7 @@ router.post('/logistics/:transferId/book-slot', auth, async (req, res) => {
       return res.status(400).json({ message: 'Destination, slot date aur slot label required hain' });
     }
 
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     const quantityKg = Number(produce?.quantity || 0);
 
     const plan = buildLogisticsPlan({
@@ -866,7 +903,7 @@ router.get('/escrow/:transferId', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const produce = await Produce.findById(transfer.produceId);
+    const produce = await resolveTransferProduce(transfer);
     
     res.json({
       escrow: escrow.toObject(),
@@ -893,7 +930,7 @@ router.get('/escrow/my/all', auth, async (req, res) => {
     const results = [];
     for (const t of transfers) {
       const escrow = await Escrow.findOne({ transferId: t._id });
-      const produce = await Produce.findById(t.produceId);
+      const produce = await resolveTransferProduce(t);
       if (escrow) {
         results.push({
           transfer: t.toObject(),

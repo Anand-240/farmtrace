@@ -49,7 +49,9 @@ router.post('/', auth, async (req, res) => {
 
     // MongoDB mein transfer save karo
     const transfer = await Transfer.create({
-      produceId: produce.produceId || produceMongoId,
+      produceMongoId: produce._id,
+      produceChainId: produce.produceId || null,
+      produceId: String(produce._id),
       fromPhone: req.user.phone,
       toPhone: receiver.phone,
       price,
@@ -59,13 +61,14 @@ router.post('/', auth, async (req, res) => {
     });
 
     // Blockchain pe transfer karo
-    if (produce.produceId) {
+    const chainProduceId = transfer.produceChainId || produce.produceId;
+    if (chainProduceId) {
       const toAddress = process.env.PLATFORM_PRIVATE_KEY
         ? new (require('ethers').Wallet)(process.env.PLATFORM_PRIVATE_KEY).address
         : '0x0000000000000000000000000000000000000001';
 
       const result = await transferOnChain(
-        produce.produceId, toAddress, price, location
+        chainProduceId, toAddress, price, location
       );
 
       if (result.success) {
@@ -98,8 +101,16 @@ router.post('/', auth, async (req, res) => {
 // Produce ki poori transfer history
 router.get('/history/:produceId', async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    const transferFilters = [
+      { produceId: req.params.produceId },
+      { produceChainId: req.params.produceId }
+    ];
+    if (mongoose.Types.ObjectId.isValid(req.params.produceId)) {
+      transferFilters.push({ produceMongoId: req.params.produceId });
+    }
     const transfers = await Transfer.find({
-      produceId: req.params.produceId
+      $or: transferFilters
     }).sort({ createdAt: 1 });
     res.json(transfers);
   } catch (err) {

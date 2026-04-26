@@ -205,7 +205,9 @@ router.post('/confirm-transfer', auth, async (req, res) => {
     if (!receiver) return res.status(404).json({ message: 'Receiver nahi mila' });
 
     const transfer = await Transfer.create({
-      produceId,
+      produceMongoId: produce._id,
+      produceChainId: produce.produceId || null,
+      produceId: String(produce._id),
       fromPhone: req.user.phone,
       toPhone: receiver.phone,
       price: pricePerKg,

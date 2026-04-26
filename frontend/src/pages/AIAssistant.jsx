@@ -649,7 +649,7 @@ export default function AIAssistant() {
     try {
       const floorPrice = sellMarketFloor?.floorPrice ?? sellMarketFloor?.mandiPrice;
       if (floorPrice && Number(form.pricePerKg) < floorPrice) {
-        pushAiMessage(`Price ${sellMarketFloor?.floorLabel || `₹${floorPrice.toFixed(2)}/kg`} se kam nahi ho sakta.`);
+        pushAiMessage(`Kisan samman portal! You cannot sell below the Floor/MSP rate of ₹${floorPrice.toFixed(2)}/kg.`);
         return;
       }
 

@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 
 const transferSchema = new mongoose.Schema({
+  produceMongoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Produce', index: true },
+  produceChainId: { type: String, index: true },
   produceId:    { type: String, required: true },
   fromPhone:    { type: String, required: true },
   toPhone:      { type: String, required: true },

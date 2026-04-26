@@ -188,6 +188,20 @@ const fetchMandiRecords = async ({ commodity, state, limit = 20 }) => {
   };
 };
 
+const getStatePriceMap = async (state) => {
+  const { records } = await fetchMandiRecords({ state, limit: 500 });
+  const priceMap = {};
+  records.forEach(r => {
+    const comm = normalizeText(r.commodity || r.comm);
+    if (!comm) return;
+    const price = Math.round(Number(r.modal_price)) / 100;
+    if (price > 0 && (!priceMap[comm] || price > priceMap[comm])) {
+      priceMap[comm] = price;
+    }
+  });
+  return { priceMap, records };
+};
+
 const getSellPriceFloor = async ({ produce, limit = 20 } = {}) => {
   if (!produce?.cropType) {
     return { allowed: false, reason: 'Produce cropType missing hai' };
@@ -200,12 +214,33 @@ const getSellPriceFloor = async ({ produce, limit = 20 } = {}) => {
   for (const commodity of commodityCandidates) {
     const { records } = await fetchMandiRecords({ commodity, state, limit });
     mandiHit = pickBestMandiRecord(records, commodity);
-    if (mandiHit) {
-      break;
-    }
+    if (mandiHit) break;
   }
 
-  const mandiPrice = mandiHit?.price || null;
+  const mandiPriceSpecific = mandiHit?.price || null;
+  // Fallback to state-wide max to maintain consistency with Register dropdown
+  let mandiPriceStateMax = 0;
+  try {
+    const { priceMap } = await getStatePriceMap(state);
+    const exactCropNorm = normalizeText(produce.cropType);
+    
+    // Priority 1: Exact state-wide price for this name (Matches Register dropdown)
+    if (priceMap[exactCropNorm]) {
+      mandiPriceStateMax = priceMap[exactCropNorm];
+    } else {
+      // Priority 2: Fuzzy match if name was custom entered or slightly different
+      commodityCandidates.forEach(cand => {
+        const normCand = normalizeText(cand);
+        Object.entries(priceMap).forEach(([comm, price]) => {
+          if (comm.includes(normCand) || normCand.includes(comm)) {
+            if (price > mandiPriceStateMax) mandiPriceStateMax = price;
+          }
+        });
+      });
+    }
+  } catch (e) { console.error('State max check failed', e); }
+
+  const mandiPrice = Math.max(mandiPriceSpecific || 0, mandiPriceStateMax);
   const mspPrice = getMspPriceForCrop(produce.cropType);
   const floorPrice = Math.max(mandiPrice || 0, mspPrice || 0);
   const hasMandi = Boolean(mandiPrice);
@@ -300,5 +335,6 @@ module.exports = {
   getSellPriceFloor,
   validateSellPrice,
   getMspPriceForCrop,
-  parseMspTable
+  parseMspTable,
+  getStatePriceMap
 };

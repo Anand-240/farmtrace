@@ -90,7 +90,7 @@ export default function Register() {
   const isFormValid = isFormComplete && isPriceValid;
 
   const priceWarning = (form.farmPrice !== '' && !isPriceValid) 
-    ? `Kisan samman portal! You cannot register below the Floor/MSP rate of ₹${currentFloorPrice}/kg.` 
+    ? `Kisan samman portal! You cannot register below the Floor/MSP rate of ₹${currentFloorPrice.toFixed(2)}/kg.` 
     : null;
 
   const handleSubmit = async (e) => {

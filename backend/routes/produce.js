@@ -297,9 +297,19 @@ router.get('/received/my', auth, async (req, res) => {
     for (const t of transfers) {
       try {
         let produce = null;
-        if (mongoose.Types.ObjectId.isValid(t.produceId)) {
+        // Try mongo ID first
+        if (t.produceMongoId) {
+          produce = await Produce.findById(t.produceMongoId);
+        }
+        // Try chain ID
+        if (!produce && t.produceChainId) {
+          produce = await Produce.findOne({ produceId: t.produceChainId });
+        }
+        // Legacy: try as mongo ID
+        if (!produce && mongoose.Types.ObjectId.isValid(t.produceId)) {
           produce = await Produce.findById(t.produceId);
         }
+        // Legacy: try as chain ID
         if (!produce) {
           produce = await Produce.findOne({ produceId: t.produceId });
         }
