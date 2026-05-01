@@ -1,9 +1,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QRCode from 'qrcode';
+import { QRCodeSVG } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { State, City } from 'country-state-city';
 import { ArrowLeft, IndianRupee, ShieldCheck, ChevronDown } from 'lucide-react';
+import { track } from '../lib/posthog';
 
 const CROP_EMOJIS = {
   wheat: '🌾', gehu: '🌾', rice: '🌾', dhaan: '🌾', paddy: '🌾',
@@ -111,9 +113,40 @@ export default function Register() {
     setLoading(true);
     try {
       const res = await api.post('/api/v1/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
-      const qr = await QRCode.toDataURL(`${window.location.origin}/verify/${res.data.produce._id}`, { width: 300 });
-      setResult(res.data);
-      setQrDataUrl(qr);
+      const verifyUrl = `${window.location.origin}/verify/${res.data.produce._id}`;
+      setQrDataUrl(verifyUrl);
+
+      const jobId = res.data.jobId;
+      if (jobId) {
+        toast.promise(
+          new Promise((resolve, reject) => {
+            const checkJob = setInterval(async () => {
+              try {
+                const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                if (jobRes.data.state === 'completed') {
+                  clearInterval(checkJob);
+                  setResult({ ...res.data.produce, txHash: jobRes.data.result?.transactionHash || 'Verified on Ledger' });
+                  resolve();
+                } else if (jobRes.data.state === 'failed') {
+                  clearInterval(checkJob);
+                  reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
+                }
+              } catch (e) {
+                clearInterval(checkJob);
+                reject(e);
+              }
+            }, 2000);
+          }),
+          {
+            loading: 'Writing to Blockchain...',
+            success: '✅ Done',
+            error: (err) => `Blockchain writing failed: ${err.message}`
+          }
+        );
+      } else {
+        setResult(res.data.produce);
+        track('crop_registered', { cropType: form.cropType, grade: form.qualityGrade, origin: form.origin });
+      }
     } catch (err) { setError('Registration failed. Check network.'); }
     finally { setLoading(false); }
   };
@@ -138,7 +171,7 @@ export default function Register() {
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                 <div className="ft-card" style={{ background: '#fff', padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', color: '#000' }}>
-                  <img src={qrDataUrl} alt="QR" style={{ width: 200, borderRadius: '12px' }} />
+                  <QRCodeSVG value={qrDataUrl} size={200} style={{ borderRadius: '12px' }} />
                   <p className="ft-label" style={{ marginTop: '1.5rem' }}>Product Passport</p>
                 </div>
                 <div style={{ textAlign: 'left' }}>

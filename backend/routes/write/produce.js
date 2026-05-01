@@ -9,6 +9,7 @@ const { getHistoryFromChain } = require('../../blockchain/blockchainService');
 const { blockchainQueue } = require('../../utils/queue');
 const { validateSellPrice } = require('../../utils/marketPricing');
 const { z } = require('zod');
+const logger = require('../../utils/logger').child({ module: 'produce' });
 
 // Schema Validation
 const produceRegisterSchema = z.object({
@@ -112,7 +113,7 @@ router.post('/register', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Register error:', err);
+    logger.error({ err }, 'Register error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -222,7 +223,7 @@ router.post('/:id/split', auth, async (req, res) => {
       remainingQty: sourceLot.quantity
     });
   } catch (err) {
-    console.error('Split lot error:', err);
+    logger.error({ err }, 'Split lot error');
     res.status(500).json({ message: 'Lot split nahi hua' });
   }
 });
@@ -298,7 +299,7 @@ router.post('/merge', auth, async (req, res) => {
       sourceLots: lots.map((lot) => lot._id)
     });
   } catch (err) {
-    console.error('Merge lot error:', err);
+    logger.error({ err }, 'Merge lot error');
     res.status(500).json({ message: 'Lot merge nahi hua' });
   }
 });
@@ -340,12 +341,12 @@ router.get('/received/my', auth, async (req, res) => {
           });
         }
       } catch (e) {
-        console.error('Transfer fetch error:', e.message);
+        logger.error({ err: e }, 'Transfer fetch error');
       }
     }
     res.json(results);
   } catch (err) {
-    console.error('Received error:', err);
+    logger.error({ err }, 'Received error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -381,7 +382,7 @@ router.get('/:id', async (req, res) => {
           blockchainHistory = serializeBlockchain(result.history);
         }
       } catch (e) {
-        console.error('Blockchain history error:', e.message);
+        logger.error({ err: e }, 'Blockchain history error');
       }
     }
 
@@ -393,7 +394,7 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Produce fetch error:', err);
+    logger.error({ err }, 'Produce fetch error');
     res.status(500).json({ message: err.message });
   }
 });

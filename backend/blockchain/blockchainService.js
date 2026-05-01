@@ -1,4 +1,5 @@
 const { ethers } = require('ethers');
+const logger = require('../utils/logger').child({ module: 'blockchainService' });
 const ABI = require('./FarmTraceABI.json');
 const addressData = require('./contractAddress.json');
 
@@ -28,7 +29,7 @@ async function registerOnChain(farmerName, cropType, origin, farmPrice) {
       etherscanUrl: `https://sepolia.etherscan.io/tx/${tx.hash}`
     };
   } catch (err) {
-    console.error('Blockchain register error:', err.message);
+    logger.error({ err }, 'Blockchain register error');
     return { success: false, error: err.message };
   }
 }
@@ -47,7 +48,7 @@ async function transferOnChain(produceId, toAddress, price, location) {
       etherscanUrl: `https://sepolia.etherscan.io/tx/${tx.hash}`
     };
   } catch (err) {
-    console.error('Blockchain transfer error:', err.message);
+    logger.error({ err }, 'Blockchain transfer error');
     return { success: false, error: err.message };
   }
 }

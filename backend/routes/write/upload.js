@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const { uploadProduceImage } = require('../../utils/storage');
 const auth = require('../../middleware/authMiddleware');
+const logger = require('../../utils/logger').child({ module: 'upload' });
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,7 +31,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       message: 'Image uploaded successfully!',
     });
   } catch (err) {
-    console.error('Upload error:', err);
+    logger.error({ err }, 'Upload error');
     res.status(500).json({ message: 'Image upload failed', error: err.message });
   }
 });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QRCode from 'qrcode';
+import { QRCodeSVG } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { getMandiFloorForProduce } from '../lib/market';
 import { 
@@ -82,6 +83,11 @@ export default function AIAssistant() {
   const [sellMarketFloor, setSellMarketFloor] = useState(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
+  // Free-form chat state
+  const [chatMode, setChatMode] = useState('wizard'); // 'wizard' | 'freeChat'
+  const [chatHistory, setChatHistory] = useState([]); // { role: 'user'|'assistant', content: string }[]
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   const produceOptions = useMemo(
     () => bootstrapData.produces.map((produce) => ({
@@ -626,17 +632,49 @@ export default function AIAssistant() {
       });
 
       const verifyUrl = `${window.location.origin}/verify/${res.data.produce._id}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 240 });
+      
+      const finishRegistration = (produceData, txHash) => {
+        setResult({
+          type: 'register',
+          title: 'Fasal blockchain pe register ho gayi',
+          text: `${cropType} ki entry save ho gayi. QR aur verification link neeche hai.`,
+          verifyUrl,
+          txHash
+        });
+        pushAiMessage(`Fasal register ho gayi. ${cropType} ab FarmTrace par verified entry ke saath dikh rahi hai.`);
+        setCurrentPrompt(null);
+      };
 
-      setResult({
-        type: 'register',
-        title: 'Fasal blockchain pe register ho gayi',
-        text: `${cropType} ki entry save ho gayi. QR aur verification link neeche hai.`,
-        qrDataUrl,
-        verifyUrl
-      });
-      pushAiMessage(`Fasal register ho gayi. ${cropType} ab FarmTrace par verified entry ke saath dikh rahi hai.`);
-      setCurrentPrompt(null);
+      const jobId = res.data.jobId;
+      if (jobId) {
+        toast.promise(
+          new Promise((resolve, reject) => {
+            const checkJob = setInterval(async () => {
+              try {
+                const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                if (jobRes.data.state === 'completed') {
+                  clearInterval(checkJob);
+                  finishRegistration(res.data.produce, jobRes.data.result?.transactionHash || 'Verified');
+                  resolve();
+                } else if (jobRes.data.state === 'failed') {
+                  clearInterval(checkJob);
+                  reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
+                }
+              } catch (e) {
+                clearInterval(checkJob);
+                reject(e);
+              }
+            }, 2000);
+          }),
+          {
+            loading: 'Writing to Blockchain...',
+            success: '✅ Done',
+            error: (err) => `Blockchain failed: ${err.message}`
+          }
+        );
+      } else {
+        finishRegistration(res.data.produce, 'Verified on Ledger');
+      }
     } catch (err) {
       pushAiMessage(err.response?.data?.message || 'Register karne mein dikkat aayi.');
     } finally {
@@ -737,6 +775,33 @@ export default function AIAssistant() {
 
   const isNumericPrompt = currentPrompt?.type === 'number';
 
+  // ── Free-form chat handler ─────────────────────────────────────────────────
+  const handleFreeChatSubmit = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+    setChatInput('');
+    // Optimistically add user message
+    const userEntry = { role: 'user', content: msg };
+    const nextHistory = [...chatHistory, userEntry];
+    setChatHistory(nextHistory);
+    setChatLoading(true);
+    try {
+      // Send last 3 turns (6 messages) as history context
+      const historyToSend = nextHistory.slice(-6);
+      const res = await api.post('/api/v1/ai/chat', {
+        message: msg,
+        history: historyToSend.slice(0, -1) // exclude the message we just added
+      });
+      const assistantEntry = { role: 'assistant', content: res.data.reply };
+      setChatHistory(prev => [...prev, assistantEntry]);
+    } catch (err) {
+      const errEntry = { role: 'assistant', content: err.response?.data?.message || 'Kuch galat hua. Thodi der baad try karein.' };
+      setChatHistory(prev => [...prev, errEntry]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   return (
     <div className="chat-container">
       <header className="chat-header">
@@ -747,13 +812,25 @@ export default function AIAssistant() {
           <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1a4a15' }}>FarmTrace AI Assistant</h2>
           <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Connected to Agri-Expert Cloud</p>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-            <Sparkles size={20} color="#1a4a15" />
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Sparkles size={20} color="#1a4a15" />
+          {/* Tab toggle */}
+          <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+            <button
+              onClick={() => setChatMode('wizard')}
+              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem', background: chatMode === 'wizard' ? '#1a4a15' : 'transparent', color: chatMode === 'wizard' ? '#fff' : '#64748b', transition: 'all 0.2s' }}
+            >Wizard</button>
+            <button
+              onClick={() => setChatMode('freeChat')}
+              style={{ padding: '4px 10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem', background: chatMode === 'freeChat' ? '#1a4a15' : 'transparent', color: chatMode === 'freeChat' ? '#fff' : '#64748b', transition: 'all 0.2s' }}
+            >Chat</button>
+          </div>
         </div>
       </header>
-
-      <div className="chat-messages">
-        {messages.map((msg) => (
+      {chatMode === 'wizard' && (
+        <>
+        <div className="chat-messages">
+          {messages.map((msg) => (
           <div key={msg.id} className="message-row">
             {msg.role === 'ai' && <div className="avatar ai-avatar"><Bot size={20} /></div>}
             <div className={`message-bubble ${msg.role === 'ai' ? 'ai-bubble' : 'user-bubble'}`}>
@@ -795,9 +872,9 @@ export default function AIAssistant() {
             <div className="message-bubble ai-bubble" style={{ border: '2px solid #1a4a15' }}>
               <h3 style={{ fontWeight: 900, color: '#1a4a15', marginBottom: '0.5rem' }}>{result.title}</h3>
               <p style={{ marginBottom: '1rem' }}>{result.text}</p>
-              {result.qrDataUrl && (
+              {result.verifyUrl && (
                 <div style={{ textAlign: 'center', background: '#f8fafc', padding: '1.5rem', borderRadius: '16px' }}>
-                  <img src={result.qrDataUrl} alt="QR Code" style={{ width: '180px', borderRadius: '12px' }} />
+                  <QRCodeSVG value={result.verifyUrl} size={180} style={{ borderRadius: '12px', background: '#fff', padding: '10px' }} />
                   <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.75rem', wordBreak: 'break-all' }}>{result.verifyUrl}</p>
                 </div>
               )}
@@ -827,6 +904,7 @@ export default function AIAssistant() {
         <div ref={chatEndRef} />
       </div>
 
+      {/* Wizard input area */}
       <div className="chat-input-area">
         <div className="chat-input-card">
           <input
@@ -865,6 +943,66 @@ export default function AIAssistant() {
           </button>
         </div>
       </div>
+      </>
+      )}
+
+      {/* ── FREE CHAT MODE ─────────────────────────────────────────── */}
+      {chatMode === 'freeChat' && (
+        <>
+          <div className="chat-messages">
+            {chatHistory.length === 0 && (
+              <div className="message-row">
+                <div className="avatar ai-avatar"><Bot size={20} /></div>
+                <div className="message-bubble ai-bubble">
+                  <p>Namaste {user.name}! 🌾 Main aapka FarmTrace AI hoon. Koi bhi sawaal puchh sakte hain — apni fasal, mandi rates, transfer, ya supply chain ke baare mein.</p>
+                </div>
+              </div>
+            )}
+            {chatHistory.map((msg, i) => (
+              <div key={i} className="message-row">
+                {msg.role === 'assistant' && <div className="avatar ai-avatar"><Bot size={20} /></div>}
+                <div className={`message-bubble ${msg.role === 'assistant' ? 'ai-bubble' : 'user-bubble'}`}>
+                  <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{msg.content}</p>
+                </div>
+                {msg.role === 'user' && (
+                  <div className="avatar user-avatar">{(user.name || 'U').charAt(0).toUpperCase()}</div>
+                )}
+              </div>
+            ))}
+            {chatLoading && (
+              <div className="message-row">
+                <div className="avatar ai-avatar"><Loader2 className="ft-anim-spin" size={20} /></div>
+                <div className="message-bubble ai-bubble">
+                  <div className="typing-dots">
+                    <div className="dot" /><div className="dot" /><div className="dot" />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div className="chat-input-area">
+            <div className="chat-input-card">
+              <input
+                className="chat-input"
+                placeholder="Kuch bhi puchho — mandi rates, fasal, transfer..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleFreeChatSubmit()}
+                disabled={chatLoading}
+              />
+              <button
+                onClick={handleFreeChatSubmit}
+                disabled={!chatInput.trim() || chatLoading}
+                className="send-btn"
+              >
+                {chatLoading ? <Loader2 className="ft-anim-spin" size={20} /> : <Send size={20} />}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -16,6 +16,10 @@ import { NotificationProvider } from './context/NotificationContext';
 import LotOperations from './pages/LotOperations';
 import DispatchLogistics from './pages/DispatchLogistics';
 import Escrow from './pages/Escrow';
+import Marketplace from './pages/Marketplace';
+import { Toaster } from 'react-hot-toast';
+import { SentryErrorBoundary } from './lib/sentry';
+import { identifyUser } from './lib/posthog';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -23,9 +27,15 @@ function PrivateRoute({ children }) {
 }
 
 function App() {
+  // Identify user in PostHog when a session token is present
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } })();
+  if (storedUser?.id) identifyUser(storedUser.id, { name: storedUser.name, role: storedUser.role });
+
   return (
+    <SentryErrorBoundary fallback={<div style={{padding:'2rem',textAlign:'center'}}><h2>Something went wrong.</h2><p>Our team has been notified. Please refresh the page.</p></div>}>
     <LanguageProvider>
       <NotificationProvider>
+        <Toaster position="top-center" />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -62,6 +72,9 @@ function App() {
             <Route path="/escrow" element={
               <PrivateRoute><Escrow /></PrivateRoute>
             } />
+            <Route path="/marketplace" element={
+              <PrivateRoute><Marketplace /></PrivateRoute>
+            } />
             <Route path="/ai" element={
               <PrivateRoute><AIAssistant /></PrivateRoute>
             } />
@@ -70,6 +83,7 @@ function App() {
         </BrowserRouter>
       </NotificationProvider>
     </LanguageProvider>
+    </SentryErrorBoundary>
   );
 }
 

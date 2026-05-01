@@ -6,6 +6,7 @@ const Produce = require('../../models/Produce');
 const User = require('../../models/User');
 const { transferOnChain } = require('../../blockchain/blockchainService');
 const { validateSellPrice } = require('../../utils/marketPricing');
+const logger = require('../../utils/logger').child({ module: 'transfer' });
 
 router.post('/', auth, async (req, res) => {
   try {
@@ -93,7 +94,7 @@ router.post('/', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Transfer error:', err);
+    logger.error({ err }, 'Transfer error');
     res.status(500).json({ message: err.message });
   }
 });

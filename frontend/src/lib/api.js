@@ -48,8 +48,8 @@ api.interceptors.request.use((config) => {
 
   // Prevent duplicated /api/v1 path when deployment baseURL already ends with /api/v1
   const base = (config.baseURL || '').replace(/\/+$/, '');
-  if (typeof config.url === 'string' && /\/api$/i.test(base) && /^\/api\//i.test(config.url)) {
-    config.url = config.url.replace(/^\/api/v1/v1/i, '');
+  if (typeof config.url === 'string' && /\/api\/v1$/i.test(base) && /^\/api\/v1\//i.test(config.url)) {
+    config.url = config.url.replace(/^\/api\/v1/, '');
   }
 
   return config;

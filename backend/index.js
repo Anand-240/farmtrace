@@ -1,4 +1,16 @@
 require('dotenv').config();
+
+// ── Sentry must be initialized FIRST before any other require ──────────────
+const Sentry = require('@sentry/node');
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  enabled: Boolean(process.env.SENTRY_DSN),
+  environment: process.env.NODE_ENV || 'development',
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  // Capture unhandled promise rejections automatically
+  integrations: [Sentry.captureConsoleIntegration({ levels: ['error'] })],
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,6 +19,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const { startSync } = require('./workers/elasticSyncWorker');
+const logger = require('./utils/logger');
 
 // Validate Environment Variables
 const envSchema = z.object({
@@ -21,8 +34,7 @@ const envSchema = z.object({
 
 const envParsed = envSchema.safeParse(process.env);
 if (!envParsed.success) {
-  console.error("❌ Environment validation failed:");
-  console.error(envParsed.error.format());
+  logger.fatal({ errors: envParsed.error.format() }, '❌ Environment validation failed');
   process.exit(1);
 }
 
@@ -69,16 +81,15 @@ app.use(helmet({
 // Block NoSQL Injection
 app.use(mongoSanitize());
 
-// Custom Rate Limiter mapping to req.user if available 
+// Custom Rate Limiter mapping to req.user if available
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500, // Reduced from 1000 for better security
+  max: 500,
   keyGenerator: (req) => {
-    // If the request has an Authorization header, try to extract the user ID
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       try {
         const token = req.headers.authorization.split(' ')[1];
-        const jwt = require('jsonwebtoken'); // Ensure jsonwebtoken is accessible
+        const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         return decoded.id || decoded.sub || req.ip;
       } catch (err) {
@@ -91,7 +102,7 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/v1', apiLimiter);
 
-// For Razorpay webhook compatibility, use raw parser BEFORE express.json if needed
+// For Razorpay webhook compatibility, use raw parser BEFORE express.json
 app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 
 // Keep body parser limits to 5MB
@@ -117,31 +128,47 @@ app.use('/api/v1/upload', require('./routes/write/upload'));
 
 app.use('/api/v1/ai', require('./routes/read/ai'));
 app.use('/api/v1/market', require('./routes/read/market'));
+app.use('/api/v1/jobs', require('./routes/read/jobs'));
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 
+// ── Sentry error handler MUST come before any other error handler ──────────
+Sentry.setupExpressErrorHandler(app);
+
 app.use((err, req, res, next) => {
-  console.error('SERVER ERROR:', err.stack);
-  res.status(500).json({
+  logger.error({ err, url: req.url, method: req.method }, 'SERVER ERROR');
+  res.status(err.status || 500).json({
     error: err.message || 'Internal Server Error',
     stack: process.env.NODE_ENV === 'production' ? null : err.stack
   });
 });
 
+// ── Catch unhandled rejections / exceptions ────────────────────────────────
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled Promise Rejection');
+  Sentry.captureException(reason);
+});
+
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught Exception — shutting down');
+  Sentry.captureException(err);
+  process.exit(1);
+});
+
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  logger.info({ port: PORT }, '🚀 FarmTrace backend running');
 });
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     mongoState = 'connected';
     lastError = null;
-    console.log('MongoDB Connected');
-    startSync(); // Start ES sync worker
+    logger.info('✅ MongoDB connected');
+    startSync();
   })
   .catch(err => {
     mongoState = 'error';
     lastError = err.message;
-    console.error('MongoDB Connection Error:', err.message);
+    logger.error({ err }, '❌ MongoDB connection error');
   });

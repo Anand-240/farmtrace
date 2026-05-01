@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../../utils/marketPricing');
 const { Client } = require('@elastic/elasticsearch');
+const logger = require('../../utils/logger').child({ module: 'market' });
 
 const elasticClient = new Client({
   node: process.env.ELASTICSEARCH_URL,
@@ -37,7 +38,7 @@ router.get('/mandi', async (req, res) => {
       error: error || null
     });
   } catch (err) {
-    console.error('Mandi API proxy error:', err.message);
+    logger.error({ err }, 'Mandi API proxy error');
     return res.status(502).json({ message: 'Mandi rates fetch nahi ho paya' });
   }
 });
@@ -55,7 +56,7 @@ router.get('/floor', async (req, res) => {
       error: floorInfo.allowed ? null : floorInfo.reason
     });
   } catch (err) {
-    console.error('Market floor error:', err.message);
+    logger.error({ err }, 'Market floor error');
     return res.status(502).json({ message: 'Market floor fetch nahi ho paya' });
   }
 });
@@ -86,35 +87,42 @@ router.get('/commodities', async (req, res) => {
 
     return res.json({ commodities: commoditiesObjects.sort((a, b) => a.name.localeCompare(b.name)) });
   } catch (err) {
-    console.error('Commodities fetch error:', err.message);
+    logger.error({ err }, 'Commodities fetch error');
     return res.status(502).json({ message: 'Available commodities fetch nahi ho payin' });
   }
 });
 
 router.get('/search', async (req, res) => {
   try {
-    const { query } = req.query;
+    const { query, page = 1, limit = 10 } = req.query;
     
-    if (!query) {
-      return res.json({ results: [] });
+    const from = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
+    const size = parseInt(limit);
+
+    const body = {};
+    if (query) {
+      body.query = {
+        multi_match: {
+          query,
+          fields: ['farmerName', 'cropType', 'origin', 'qualityGrade']
+        }
+      };
+    } else {
+      body.query = { match_all: {} };
     }
 
     const result = await elasticClient.search({
       index: 'produce',
-      body: {
-        query: {
-          multi_match: {
-            query,
-            fields: ['farmerName', 'cropType', 'origin', 'qualityGrade']
-          }
-        }
-      }
+      from,
+      size,
+      body
     });
 
     const results = result.hits.hits.map(hit => ({ id: hit._id, ...hit._source }));
-    return res.json({ results });
+    const total = result.hits.total.value;
+    return res.json({ results, total, page: parseInt(page), limit: size });
   } catch (err) {
-    console.error('Elasticsearch search error:', err.message);
+    logger.error({ err }, 'Elasticsearch search error');
     return res.status(502).json({ message: 'Search failed' });
   }
 });

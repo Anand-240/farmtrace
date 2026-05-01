@@ -8,6 +8,7 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../../models/User');
 const auth = require('../../middleware/authMiddleware');
 const { z } = require('zod');
+const logger = require('../../utils/logger').child({ module: 'auth' });
 
 // Schema Validation
 const registerSchema = z.object({
@@ -91,7 +92,7 @@ const createMailTransport = () => nodemailer.createTransport({
 
 const sendResetMail = async ({ to, name, resetUrl }) => {
   if (!hasSmtpConfig()) {
-    console.log('SMTP configure nahi hai. Reset link:', resetUrl);
+    logger.warn({ resetUrl }, 'SMTP not configured — skipping reset email in dev');
     return;
   }
 
@@ -190,7 +191,7 @@ router.post('/register', async (req, res) => {
 
     res.json(buildAuthResponse(user));
   } catch (err) {
-    console.error('Register error:', err);
+    logger.error({ err }, 'Register error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -228,7 +229,7 @@ router.post('/login', async (req, res) => {
 
     res.json(buildAuthResponse(user));
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error({ err }, 'Login error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -311,7 +312,7 @@ router.post('/google', async (req, res) => {
 
     res.json(buildAuthResponse(user));
   } catch (err) {
-    console.error('Google auth error:', err);
+    logger.error({ err }, 'Google auth error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -337,7 +338,7 @@ router.get('/me', auth, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Profile fetch error:', err.message);
+    logger.error({ err }, 'Profile fetch error');
     res.status(500).json({ message: 'Profile load nahi hua' });
   }
 });
@@ -379,7 +380,7 @@ router.put('/me', auth, async (req, res) => {
       ...buildAuthResponse(user)
     });
   } catch (err) {
-    console.error('Profile update error:', err.message);
+    logger.error({ err }, 'Profile update error');
     res.status(500).json({ message: 'Profile update nahi hua' });
   }
 });
@@ -422,7 +423,7 @@ router.put('/change-password', auth, async (req, res) => {
 
     res.json({ success: true, message: 'Password change ho gaya' });
   } catch (err) {
-    console.error('Change password error:', err.message);
+    logger.error({ err }, 'Change password error');
     res.status(500).json({ message: 'Password change nahi hua' });
   }
 });
@@ -465,7 +466,7 @@ router.post('/forgot-password', async (req, res) => {
         resetUrl
       });
     } catch (emailErr) {
-      console.error('Reset mail error:', emailErr.message);
+      logger.error({ err: emailErr }, 'Reset mail send error');
     }
 
     const response = {
@@ -480,7 +481,7 @@ router.post('/forgot-password', async (req, res) => {
 
     res.json(response);
   } catch (err) {
-    console.error('Forgot password error:', err.message);
+    logger.error({ err }, 'Forgot password error');
     res.status(500).json({ message: 'Forgot password request fail ho gayi' });
   }
 });
@@ -521,7 +522,7 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ success: true, message: 'Password reset ho gaya. Ab login karo.' });
   } catch (err) {
-    console.error('Reset password error:', err.message);
+    logger.error({ err }, 'Reset password error');
     res.status(500).json({ message: 'Password reset nahi hua' });
   }
 });

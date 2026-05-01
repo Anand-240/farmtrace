@@ -1,5 +1,6 @@
 const { Client } = require('@elastic/elasticsearch');
 const Produce = require('../models/Produce');
+const logger = require('../utils/logger').child({ module: 'elasticSyncWorker' });
 
 const elasticClient = new Client({
   node: process.env.ELASTICSEARCH_URL,
@@ -27,18 +28,16 @@ async function setupElasticsearch() {
         }
       }
     });
-    console.log(`Elasticsearch index '${indexName}' created.`);
+    logger.info({ index: indexName }, 'Elasticsearch index created');
   }
 }
 
 async function startSync() {
   try {
     await setupElasticsearch();
-    
-    // Perform an initial sync if needed? (Skipping for now to focus on Change Streams)
 
-    console.log('Starting MongoDB Change Stream for Produce collection...');
-    
+    logger.info('Starting MongoDB Change Stream for Produce collection');
+
     const changeStream = Produce.watch([], { fullDocument: 'updateLookup' });
 
     changeStream.on('change', async (change) => {
@@ -59,8 +58,8 @@ async function startSync() {
               createdAt: doc.createdAt
             }
           });
-          console.log(`Elasticsearch synced insert: ${doc._id}`);
-        } 
+          logger.info({ produceId: doc._id }, 'Elasticsearch synced insert');
+        }
         else if (change.operationType === 'update' || change.operationType === 'replace') {
           const doc = change.fullDocument;
           await elasticClient.index({
@@ -77,29 +76,27 @@ async function startSync() {
               createdAt: doc.createdAt
             }
           });
-          console.log(`Elasticsearch synced update/replace: ${doc._id}`);
-        } 
+          logger.info({ produceId: doc._id, op: change.operationType }, 'Elasticsearch synced update');
+        }
         else if (change.operationType === 'delete') {
           await elasticClient.delete({
             index: 'produce',
             id: change.documentKey._id.toString()
           }, { ignore: [404] });
-          console.log(`Elasticsearch synced delete: ${change.documentKey._id}`);
+          logger.info({ produceId: change.documentKey._id }, 'Elasticsearch synced delete');
         }
       } catch (err) {
-        console.error('Elasticsearch sync error during change stream:', err);
+        logger.error({ err, op: change.operationType }, 'Elasticsearch sync error during change stream');
       }
     });
 
     changeStream.on('error', (err) => {
-      console.error('Change Stream Error:', err);
+      logger.error({ err }, 'MongoDB Change Stream error');
     });
 
   } catch (err) {
-    console.error('Failed to start Elasticsearch sync worker:', err);
+    logger.error({ err }, 'Failed to start Elasticsearch sync worker');
   }
 }
 
-module.exports = {
-  startSync
-};
+module.exports = { startSync };

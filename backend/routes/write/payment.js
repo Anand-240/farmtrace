@@ -27,6 +27,8 @@ const {
   buildLogisticsPlan,
   parseSlotDateTime
 } = require('../../utils/logisticsPlanner');
+const { sendSms, smsTemplates } = require('../../utils/sms');
+const logger = require('../../utils/logger').child({ module: 'payment' });
 
 let razorpay = null;
 
@@ -624,6 +626,12 @@ router.post('/verify', auth, async (req, res) => {
       data: { transferId, milestone: 'BOOKING' }
     });
 
+    // SMS: Farmer ko booking confirmation
+    sendSms(
+      fromUser?.phone,
+      smsTemplates.bookingReceived(fromUser?.name || 'Kisan', produce?.cropType || 'Fasal', bookingAmount)
+    ).catch(() => {}); // non-blocking
+
     res.json({
       success: true,
       transfer,
@@ -632,7 +640,7 @@ router.post('/verify', auth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Verify error:', err);
+    logger.error({ err }, 'Payment verify error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -762,6 +770,27 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
         type: 'DELIVERY_UPDATE',
         data: { deliveryStatus: transfer.deliveryStatus }
       });
+
+      // SMS Triggers
+      if (deliveryStatus === 'PICKUP_DISPATCHED') {
+        const farmerUser = await User.findOne({ phone: transfer.fromPhone });
+        if (farmerUser?.phone) {
+          sendSms(
+            farmerUser.phone,
+            smsTemplates.dispatchInitiated(crop, transfer.matchedTransporter?.name || 'Transporter', transfer.vehicleType || 'Vehicle')
+          ).catch(() => {});
+        }
+      }
+
+      if (deliveryStatus === 'DELIVERED') {
+        const buyerUser = await User.findOne({ phone: transfer.toPhone });
+        if (buyerUser?.phone) {
+          sendSms(
+            buyerUser.phone,
+            smsTemplates.deliveryConfirmed(crop, transfer.price)
+          ).catch(() => {});
+        }
+      }
     }
 
     if (currentLocation && oldLocation !== currentLocation) {
@@ -939,6 +968,19 @@ router.post('/logistics/:transferId/book-slot', auth, async (req, res) => {
         freightEstimateAmount: plan.freight.amount
       }
     });
+
+    // SMS: Buyer ko dispatch notification
+    const buyerUser = await User.findOne({ phone: transfer.toPhone });
+    if (buyerUser?.phone) {
+      sendSms(
+        buyerUser.phone,
+        smsTemplates.dispatchInitiated(
+          produce?.cropType || 'Fasal',
+          selectedTransporter.name,
+          selectedTransporter.vehicleType
+        )
+      ).catch(() => {});
+    }
 
     return res.json({
       success: true,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QRCode from 'qrcode';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
 import { useLanguage } from '../lib/language';
@@ -11,7 +11,7 @@ import {
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
   Search, ChevronDown, ChevronUp, SlidersHorizontal, 
-  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink
+  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink, ShoppingCart
 } from 'lucide-react';
 import './Dashboard.css';
 
@@ -378,10 +378,8 @@ export default function Dashboard() {
       const produceData = res.data;
       
       const verifyUrl = `${window.location.origin}/verify/${produceId}`;
-      const qrDataUrl = await QRCode.toDataURL(verifyUrl, { width: 300, margin: 2 });
       
       setQrModal({ 
-        qr: qrDataUrl, 
         url: verifyUrl, 
         details: produceData 
       });
@@ -476,8 +474,8 @@ export default function Dashboard() {
                   <h3 className="ft-modal-title">Product Passport</h3>
                 </div>
                 
-                <div className="qr-container-premium" style={{ background: '#fff', padding: '2rem', borderRadius: '32px', boxShadow: '0 15px 40px rgba(0,0,0,0.05)', marginBottom: '2rem', border: '1px solid rgba(0,0,0,0.03)' }}>
-                  <img src={qrModal.qr} alt="QR Code" className="modal-qr-img" style={{ width: '200px', height: '200px' }} />
+                <div className="qr-container-premium" style={{ background: '#fff', padding: '2rem', borderRadius: '32px', boxShadow: '0 15px 40px rgba(0,0,0,0.05)', marginBottom: '2rem', border: '1px solid rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <QRCodeSVG value={qrModal.url} size={200} style={{ borderRadius: '12px' }} />
                   <p className="modal-qr-sub" style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--ft-text-muted)', marginTop: '1.25rem', textAlign: 'center' }}>Scan to trace on blockchain</p>
                 </div>
 
@@ -637,6 +635,14 @@ export default function Dashboard() {
               {unreadNotifs > 0 && <span className="notif-badge notif-badge-history">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
             </span>
           </button>
+          {user.role !== 'FARMER' && (
+            <button onClick={() => navigate('/marketplace')} className="action-card">
+              <div className="action-card-icon-wrap" style={{ background: '#ecfdf5' }}>
+                <ShoppingCart className="action-card-icon" color="#059669" />
+              </div>
+              <span className="action-card-label">AgriMarket</span>
+            </button>
+          )}
           <button onClick={() => navigate('/profile')} className="action-card">
             <div className="action-card-icon-wrap" style={{ background: '#f0fdfa' }}>
               <User className="action-card-icon" color="#0f766e" />

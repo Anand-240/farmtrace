@@ -1,40 +1,128 @@
-version: "3.8"
+version: "3.9"
+
+# ── FarmTrace Full Local Stack ─────────────────────────────────────────────
+# Usage: docker compose up --build
+# Requires: copy .env.docker.example → .env.docker and fill in secrets
 
 services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: farmtrace_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: farmtrace
+    networks:
+      - farmtrace-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: farmtrace_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - farmtrace-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: farmtrace_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: farmtrace
+      POSTGRES_PASSWORD: farmtrace_secret
+      POSTGRES_DB: farmtrace
+    networks:
+      - farmtrace-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmtrace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Application ───────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: runner
     image: farmtrace-backend:latest
     container_name: farmtrace_backend
-    ports:
-      - "5002:5002"
-    env_file:
-      - ./backend/.env
-    environment:
-      - NODE_ENV=production
-      - PORT=5002
     restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env.docker
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Override with docker-internal hostnames
+      MONGO_URI: mongodb://mongo:27017/farmtrace
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://farmtrace:farmtrace_secret@postgres:5432/farmtrace
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
-      - farmtrace-network
+      - farmtrace-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/api/v1/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: runner
     image: farmtrace-frontend:latest
     container_name: farmtrace_frontend
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-/api}
-      - REACT_APP_RAZORPAY_KEY_ID=${REACT_APP_RAZORPAY_KEY_ID:-}
-    restart: unless-stopped
+      REACT_APP_API_URL: ""   # nginx proxies /api → backend
     networks:
-      - farmtrace-network
+      - farmtrace-net
 
+# ── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+  redis_data:
+  postgres_data:
+
+# ── Network ────────────────────────────────────────────────────────────────
 networks:
-  farmtrace-network:
+  farmtrace-net:
     driver: bridge

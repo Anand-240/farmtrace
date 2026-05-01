@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../lib/api';
+import { track } from '../lib/posthog';
+import { VerticalTimeline, VerticalTimelineElement }  from 'react-vertical-timeline-component';
+import 'react-vertical-timeline-component/style.min.css';
+import { Sprout, Truck, Store, User as UserIcon, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function Verify() {
   const { id } = useParams();
@@ -10,7 +14,10 @@ export default function Verify() {
 
   useEffect(() => {
     api.get(`/api/v1/produce/${id}`)
-      .then(res => setData(res.data))
+      .then(res => {
+        setData(res.data);
+        track('traceability_viewed', { produceId: id, cropType: res.data?.cropType });
+      })
       .catch(() => setError('Produce nahi mila'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -45,119 +52,119 @@ export default function Verify() {
         {/* Produce Info */}
         <div style={styles.section}>
           <h2 style={styles.cropName}>{data.cropType}</h2>
-          <p style={styles.detail}>Kisan: <strong>{data.farmerName}</strong></p>
-          <p style={styles.detail}>Mool: {data.origin}</p>
-          <p style={styles.detail}>Maatra: {data.quantity} kg</p>
-          <p style={styles.detail}>Gunvatta: Grade {data.qualityGrade}</p>
-          <p style={styles.detail}>
-            Katai: {new Date(data.createdAt).toLocaleDateString('hi-IN')}
-          </p>
-        </div>
-
-        {/* Price Journey */}
-        <div style={styles.section}>
-          <h3 style={styles.sectionTitle}>Daam ka Safar — Khet se Aap Tak</h3>
-
-          {/* Farm step */}
-          <div style={styles.journeyStep}>
-            <div style={styles.stepLeft}>
-              <div style={{...styles.dot, background:'#27500A'}}/>
-              {transfers.length > 0 && <div style={styles.line}/>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+            <div>
+              <p style={styles.detailLabel}>FARMER</p>
+              <p style={styles.detailVal}>{data.farmerName}</p>
             </div>
-            <div style={styles.stepContent}>
-              <p style={styles.stepTitle}>Khet — {data.farmerName}</p>
-              <p style={styles.stepSub}>{data.origin}</p>
-              <p style={{...styles.stepPrice, color:'#27500A'}}>
-                ₹{data.farmPrice}/kg
-              </p>
+            <div>
+              <p style={styles.detailLabel}>ORIGIN</p>
+              <p style={styles.detailVal}>{data.origin}</p>
+            </div>
+            <div>
+              <p style={styles.detailLabel}>QUANTITY</p>
+              <p style={styles.detailVal}>{data.quantity} kg</p>
+            </div>
+            <div>
+              <p style={styles.detailLabel}>GRADE</p>
+              <p style={styles.detailVal}>{data.qualityGrade}</p>
             </div>
           </div>
+        </div>
 
-          {/* Transfer steps */}
-          {transfers.map((t, i) => (
-            <div key={i} style={styles.journeyStep}>
-              <div style={styles.stepLeft}>
-                <div style={{...styles.dot, background:'#085041'}}/>
-                {i < transfers.length - 1 && <div style={styles.line}/>}
-              </div>
-              <div style={styles.stepContent}>
-                <p style={styles.stepTitle}>
-                  {transferLabel[t.transferType] || `Step ${i+1}`}
-                </p>
-                <p style={styles.stepSub}>{t.location}</p>
-                <p style={{...styles.stepPrice, color:'#085041'}}>
-                  ₹{t.price}/kg
-                </p>
-                {t.txHash && (
-                  <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`}
-                    target="_blank" rel="noreferrer" style={styles.miniLink}>
-                    Blockchain proof →
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
+        {/* Price Journey Timeline */}
+        <div style={{ marginTop: '3rem' }}>
+          <h3 style={{ color: '#0f172a', marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 800, textAlign: 'center' }}>Immutable Supply Chain Journey</h3>
+          
+          <VerticalTimeline layout="1-column-left" lineColor="#e2e8f0">
+            <VerticalTimelineElement
+              className="vertical-timeline-element--work"
+              contentStyle={{ background: '#fff', color: '#000', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
+              contentArrowStyle={{ borderRight: '7px solid #fff' }}
+              date={<span style={{ fontWeight: 700, color: '#64748b' }}>{new Date(data.createdAt).toLocaleDateString('en-IN')}</span>}
+              iconStyle={{ background: '#22c55e', color: '#fff', boxShadow: '0 0 0 4px #dcfce7' }}
+              icon={<Sprout />}
+            >
+              <h3 className="vertical-timeline-element-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#166534', margin: '0 0 0.5rem 0' }}>Origin Farm</h3>
+              <h4 className="vertical-timeline-element-subtitle" style={{ fontSize: '1rem', color: '#475569', margin: '0 0 1rem 0' }}>{data.farmerName} — {data.origin}</h4>
+              <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>
+                Farm Price: ₹{data.farmPrice}/kg
+              </p>
+              {data.txHash && (
+                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
+                   <a href={`https://sepolia.etherscan.io/tx/${data.txHash}`} target="_blank" rel="noreferrer" style={{color: '#22c55e', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontSize: '0.85rem'}}>
+                     <ShieldCheck size={16}/> Verified Genesis Block
+                   </a>
+                </div>
+              )}
+            </VerticalTimelineElement>
+
+            {transfers.map((t, i) => {
+              let icon = <Truck />;
+              let bg = '#3b82f6';
+              let shadow = '#dbeafe';
+              if (t.transferType === 'DISTRIBUTOR_TO_RETAILER') { icon = <Store />; bg = '#8b5cf6'; shadow = '#ede9fe'; }
+              if (t.transferType === 'RETAILER_TO_CONSUMER') { icon = <UserIcon />; bg = '#f59e0b'; shadow = '#fef3c7'; }
+
+              return (
+                  <VerticalTimelineElement
+                    key={i}
+                    className="vertical-timeline-element--work"
+                    contentStyle={{ background: '#fff', color: '#000', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
+                    contentArrowStyle={{ borderRight: '7px solid #fff' }}
+                    date={t.txHash ? <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" style={{color: bg, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', background: shadow, padding: '4px 10px', borderRadius: '99px'}}>View Proof <ArrowRight size={14}/></a> : <span style={{ color: '#94a3b8', fontWeight: 600 }}>Processing...</span>}
+                    iconStyle={{ background: bg, color: '#fff', boxShadow: `0 0 0 4px ${shadow}` }}
+                    icon={icon}
+                  >
+                    <h3 className="vertical-timeline-element-title" style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', margin: '0 0 0.5rem 0' }}>
+                      {transferLabel[t.transferType] || `Transfer ${i+1}`}
+                    </h3>
+                    <h4 className="vertical-timeline-element-subtitle" style={{ fontSize: '0.95rem', color: '#64748b', margin: '0 0 1rem 0' }}>{t.location}</h4>
+                    <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: bg }}>
+                      Price: ₹{t.price}/kg
+                    </p>
+                  </VerticalTimelineElement>
+              );
+            })}
+          </VerticalTimeline>
 
           {/* Price gap */}
-          {priceGap > 0 ? (
+          {priceGap > 0 && (
             <div style={styles.gapBox}>
               <p style={styles.gapText}>
-                Beech mein gaya: ₹{priceGap}/kg
+                Value Added / Middlemen Margin: ₹{priceGap}/kg
               </p>
               <p style={styles.gapSub}>
-                Kisan ko mila ₹{data.farmPrice}/kg —
-                Aakhri price ₹{lastPrice}/kg
+                Farm Rate: ₹{data.farmPrice}/kg — Current Rate: ₹{lastPrice}/kg
               </p>
             </div>
-          ) : (
+          )}
+          {transfers.length === 0 && (
             <div style={styles.noTransfer}>
-              <p>Abhi sirf farm pe registered hai</p>
+              <p>Presently at the origin farm.</p>
               <p style={{fontSize:'0.8rem', color:'#888'}}>
-                Transfer hone par yahan dikhega
+                Subsequent supply chain movements will appear here.
               </p>
             </div>
           )}
         </div>
-
-        {/* Blockchain Proof */}
-        {data.txHash && (
-          <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Blockchain Proof</h3>
-            <p style={styles.hashText}>{data.txHash.slice(0,35)}...</p>
-            <a href={`https://sepolia.etherscan.io/tx/${data.txHash}`}
-              target="_blank" rel="noreferrer" style={styles.ethLink}>
-              Etherscan pe verify karo →
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
 const styles = {
-  container: { minHeight:'100vh', background:'linear-gradient(180deg, #f6f9f4 0%, #edf5ea 100%)', display:'flex', justifyContent:'center', padding:'1rem' },
-  center: { display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh' },
-  card: { background:'#fff', padding:'1.3rem', borderRadius:'14px', width:'100%', maxWidth:'500px', height:'fit-content', border:'1px solid #dbe5d8', boxShadow:'0 10px 24px rgba(26, 44, 33, 0.09)' },
-  title: { color:'#1f3320', textAlign:'center', marginBottom:'1rem' },
-  verifiedBadge: { background:'#eef5e9', color:'#27500A', padding:'0.72rem', borderRadius:'10px', textAlign:'center', fontWeight:'700', marginBottom:'1rem', fontSize:'0.9rem', border:'1px solid #dbe5d8' },
-  section: { borderTop:'1px solid #e7eee5', paddingTop:'1rem', marginTop:'1rem' },
-  cropName: { color:'#1f3320', fontSize:'1.4rem', margin:'0 0 0.5rem' },
-  detail: { color:'#4f6057', margin:'0.25rem 0', fontSize:'0.95rem' },
-  sectionTitle: { color:'#34473b', marginBottom:'1rem', fontSize:'1rem', fontWeight:'700' },
-  journeyStep: { display:'flex', gap:'1rem', marginBottom:'0.25rem' },
-  stepLeft: { display:'flex', flexDirection:'column', alignItems:'center', width:'16px' },
-  dot: { width:'14px', height:'14px', borderRadius:'50%', flexShrink:0, marginTop:'3px' },
-  line: { width:'2px', flex:1, background:'#ddd', margin:'4px 0', minHeight:'30px' },
-  stepContent: { flex:1, paddingBottom:'1rem' },
-  stepTitle: { color:'#2a3b31', fontWeight:'700', margin:'0 0 0.2rem', fontSize:'0.95rem' },
-  stepSub: { color:'#708078', fontSize:'0.85rem', margin:'0 0 0.2rem' },
-  stepPrice: { fontWeight:'bold', fontSize:'1.1rem', margin:0 },
-  miniLink: { color:'#0a5a79', fontSize:'0.75rem' },
-  gapBox: { background:'#fdecec', padding:'0.75rem', borderRadius:'10px', marginTop:'0.5rem', border:'1px solid #f4d7d7' },
-  gapText: { color:'#791F1F', fontWeight:'bold', margin:'0 0 0.25rem' },
-  gapSub: { color:'#A32D2D', fontSize:'0.85rem', margin:0 },
-  noTransfer: { background:'#f3f7f1', padding:'0.75rem', borderRadius:'10px', textAlign:'center', color:'#5f7167', border:'1px solid #e1e9de' },
-  hashText: { fontFamily:'monospace', color:'#607169', fontSize:'0.8rem' },
-  ethLink: { color:'#0a5a79', fontSize:'0.9rem', fontWeight:'700' }
+  container: { minHeight:'100vh', background:'#f8fafc', display:'flex', justifyContent:'center', padding:'2rem 1rem' },
+  center: { display:'flex', justifyContent:'center', alignItems:'center', minHeight:'100vh', background:'#f8fafc' },
+  card: { background:'#fff', padding:'2.5rem', borderRadius:'24px', width:'100%', maxWidth:'600px', height:'fit-content', border:'1px solid #e2e8f0', boxShadow:'0 10px 40px rgba(0, 0, 0, 0.04)' },
+  title: { color:'#0f172a', textAlign:'center', marginBottom:'1.5rem', fontSize:'2rem', fontWeight:900, letterSpacing:'-0.03em' },
+  verifiedBadge: { background:'#f0fdf4', color:'#166534', padding:'0.75rem', borderRadius:'12px', textAlign:'center', fontWeight:'800', marginBottom:'2rem', fontSize:'0.9rem', border:'1px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' },
+  section: { borderTop:'1px solid #f1f5f9', paddingTop:'2rem' },
+  cropName: { color:'#0f172a', fontSize:'1.75rem', margin:'0 0 1rem', fontWeight: 900, textAlign: 'center' },
+  detailLabel: { fontSize: '0.7rem', color: '#64748b', fontWeight: 800, margin: '0 0 0.25rem', letterSpacing: '0.1em' },
+  detailVal: { fontSize: '1rem', color: '#0f172a', fontWeight: 700, margin: 0 },
+  gapBox: { background:'#fff1f2', padding:'1.5rem', borderRadius:'16px', marginTop:'2rem', border:'1px solid #ffe4e6', textAlign: 'center' },
+  gapText: { color:'#be123c', fontWeight:'800', margin:'0 0 0.5rem', fontSize: '1.1rem' },
+  gapSub: { color:'#e11d48', fontSize:'0.9rem', margin:0, fontWeight: 600 },
+  noTransfer: { background:'#f8fafc', padding:'2rem', borderRadius:'16px', textAlign:'center', color:'#64748b', border:'1px solid #e2e8f0', marginTop: '2rem' },
 };

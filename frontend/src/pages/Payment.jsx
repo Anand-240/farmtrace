@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
+import { track } from '../lib/posthog';
 
 const getRazorpayKeyId = () => {
   if (typeof window !== 'undefined' && window.__FARMTRACE_CONFIG__?.REACT_APP_RAZORPAY_KEY_ID) {
@@ -30,7 +32,7 @@ export default function Payment() {
       const res = await api.get('/api/v1/payment/pending');
       setPendingRequests(res.data);
     } catch (err) {
-      console.error(err);
+      // silent — Payment page will show empty state
     } finally {
       setLoading(false);
     }
@@ -74,12 +76,44 @@ export default function Payment() {
             });
 
             if (verifyRes.data.success) {
-              alert(`Booking ho gayi! Blockchain pe transfer ho gaya!\nTX: ${verifyRes.data.txHash?.slice(0,20)}...`);
-              fetchPending();
-              navigate('/dashboard');
+              track('payment_verified', { transferId: transfer._id, cropType: produce?.cropType });
+              const jobId = verifyRes.data.jobId;
+              if (jobId) {
+                toast.promise(
+                  new Promise((resolve, reject) => {
+                    const checkJob = setInterval(async () => {
+                      try {
+                        const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                        if (jobRes.data.state === 'completed') {
+                          clearInterval(checkJob);
+                          resolve(jobRes.data.result?.transactionHash || 'Verified');
+                        } else if (jobRes.data.state === 'failed') {
+                          clearInterval(checkJob);
+                          reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
+                        }
+                      } catch (e) {
+                        clearInterval(checkJob);
+                        reject(e);
+                      }
+                    }, 2000);
+                  }),
+                  {
+                    loading: 'Writing to Blockchain...',
+                    success: (tx) => `✅ Done! Booking ho gayi!\nTX: ${tx.slice(0, 20)}...`,
+                    error: (err) => `Blockchain failed: ${err.message}`
+                  }
+                ).then(() => {
+                  fetchPending();
+                  navigate('/dashboard');
+                });
+              } else {
+                toast.success('Booking ho gayi!');
+                fetchPending();
+                navigate('/dashboard');
+              }
             }
           } catch (err) {
-            alert('Payment verify nahi hua: ' + getApiErrorMessage(err, 'Verification failed'));
+            toast.error('Payment verify nahi hua: ' + getApiErrorMessage(err, 'Verification failed'));
             setPayingId(null);
           }
         },
@@ -95,10 +129,11 @@ export default function Payment() {
       };
 
       const rzp = new window.Razorpay(options);
+      track('razorpay_opened', { transferId: transfer._id, cropType: produce?.cropType, amount });
       rzp.open();
 
     } catch (err) {
-      alert('Payment shuru nahi hua: ' + getApiErrorMessage(err, 'Checkout start failed'));
+      toast.error('Payment shuru nahi hua: ' + getApiErrorMessage(err, 'Checkout start failed'));
       setPayingId(null);
     }
   };
