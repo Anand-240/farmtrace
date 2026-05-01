@@ -9,10 +9,13 @@ const Notification = require('../models/Notification');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { validateSellPrice } = require('../utils/marketPricing');
+// Import file-type dynamically if using ES Module, or directly if CJS compatible
+let fileType;
+import('file-type').then(module => fileType = module).catch(e => console.log('file-type load err:', e));
 
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -238,10 +241,17 @@ router.post('/confirm-transfer', auth, async (req, res) => {
 });
 
 router.post('/disease-detect', auth, (req, res, next) => {
-  upload.single('image')(req, res, function (err) {
+  upload.single('image')(req, res, async function (err) {
     if (err) {
       console.error('Multer error:', err);
       return res.status(400).json({ message: err.message || 'Image upload fail ho gaya.' });
+    }
+    
+    if (req.file && fileType) {
+      const type = await fileType.fileTypeFromBuffer(req.file.buffer);
+      if (!type || !type.mime.startsWith('image/')) {
+        return res.status(400).json({ message: 'Invalid file type. Only images are allowed.' });
+      }
     }
     next();
   });

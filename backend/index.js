@@ -5,6 +5,25 @@ const cors = require('cors');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
+const { z } = require('zod');
+
+// Validate Environment Variables
+const envSchema = z.object({
+  MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
+  JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
+  PORT: z.string().optional().default('4000'),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+  FRONTEND_URL: z.string().optional()
+});
+
+const envParsed = envSchema.safeParse(process.env);
+if (!envParsed.success) {
+  console.error("❌ Environment validation failed:");
+  console.error(envParsed.error.format());
+  process.exit(1);
+}
 
 const app = express();
 let mongoState = 'connecting';
@@ -32,18 +51,51 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// Strict CSP Headers with Helmet
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      connectSrc: ["'self'", "https:", "http:"],
+    }
+  }
+}));
+
+// Block NoSQL Injection
 app.use(mongoSanitize());
 
+// Custom Rate Limiter mapping to req.user if available 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: 'Too many requests'
+  max: 500, // Reduced from 1000 for better security
+  keyGenerator: (req) => {
+    // If the request has an Authorization header, try to extract the user ID
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const jwt = require('jsonwebtoken'); // Ensure jsonwebtoken is accessible
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return decoded.id || decoded.sub || req.ip;
+      } catch (err) {
+        return req.ip;
+      }
+    }
+    return req.ip;
+  },
+  message: { error: 'Too many requests, slow down please' }
 });
 app.use('/api/', apiLimiter);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// For Razorpay webhook compatibility, use raw parser BEFORE express.json if needed
+app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+
+// Keep body parser limits to 5MB
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 let lastError = null;
 

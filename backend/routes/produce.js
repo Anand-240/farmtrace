@@ -7,6 +7,17 @@ const Produce = require('../models/Produce');
 const Transfer = require('../models/Transfer');
 const { registerOnChain, getHistoryFromChain } = require('../blockchain/blockchainService');
 const { validateSellPrice } = require('../utils/marketPricing');
+const { z } = require('zod');
+
+// Schema Validation
+const produceRegisterSchema = z.object({
+  farmerName: z.string().min(2, 'Farmer name is required'),
+  cropType: z.string().min(2, 'Crop type is required'),
+  origin: z.string().min(2, 'Origin location is required'),
+  quantity: z.number().positive('Quantity must be positive'),
+  qualityGrade: z.string().min(1, 'Quality grade is required'),
+  farmPrice: z.number().positive('Price must be positive')
+});
 
 function getFrontendBaseUrl(req) {
   const origin = req.get('origin');
@@ -46,6 +57,14 @@ function weightedPrice(lots) {
 // Produce register karo
 router.post('/register', auth, async (req, res) => {
   try {
+    const parsedSchema = produceRegisterSchema.safeParse(req.body);
+    if (!parsedSchema.success) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: parsedSchema.error.errors.map(e => e.message) 
+      });
+    }
+
     const { farmerName, cropType, origin, quantity, qualityGrade, farmPrice } = req.body;
 
     const validation = await validateSellPrice({ 

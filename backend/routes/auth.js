@@ -7,6 +7,25 @@ const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
+const { z } = require('zod');
+
+// Schema Validation
+const registerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  phone: z.string().min(10, 'Phone must be at least 10 digits'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['FARMER', 'DISTRIBUTOR', 'RETAILER', 'CONSUMER']),
+  village: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional()
+});
+
+const loginSchema = z.object({
+  identifier: z.string().min(1, 'Identifier (Email or Phone) is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
+});
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const FARMER_ROLE = 'FARMER';
@@ -124,6 +143,14 @@ const buildAuthResponse = (user) => {
 
 router.post('/register', async (req, res) => {
   try {
+    const parsedSchema = registerSchema.safeParse(req.body);
+    if (!parsedSchema.success) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: parsedSchema.error.errors.map(e => e.message) 
+      });
+    }
+
     const { name, email, phone, password, role, village, city, district, state } = req.body;
     const normalizedEmail = email?.trim().toLowerCase();
     const normalizedPhone = phone?.trim();
@@ -170,7 +197,15 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const parsedSchema = loginSchema.safeParse(req.body);
+    if (!parsedSchema.success) {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: parsedSchema.error.errors.map(e => e.message) 
+      });
+    }
+
+    const { identifier: email, password } = req.body;
     const normalizedEmail = email?.trim().toLowerCase();
 
     if (!normalizedEmail || !password) {

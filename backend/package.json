@@ -22,6 +22,7 @@
     "express": "^4.21.1",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^8.3.2",
+    "file-type": "^16.5.4",
     "google-auth-library": "^10.6.2",
     "groq-sdk": "^1.1.1",
     "helmet": "^8.1.0",
@@ -31,7 +32,8 @@
     "nodemailer": "^6.10.0",
     "pdfkit": "^0.18.0",
     "qrcode": "^1.5.4",
-    "razorpay": "^2.9.6"
+    "razorpay": "^2.9.6",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "jest": "^30.3.0",

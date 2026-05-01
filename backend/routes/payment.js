@@ -367,6 +367,47 @@ router.get('/pending', auth, async (req, res) => {
   }
 });
 
+router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.warn('RAZORPAY_WEBHOOK_SECRET is not set, skipping webhook validation');
+      return res.status(200).send('OK');
+    }
+
+    const signature = req.headers['x-razorpay-signature'];
+    if (!signature) {
+      return res.status(400).send('No signature found');
+    }
+
+    // req.body should be a Buffer because of express.raw() in index.js
+    const payload = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : JSON.stringify(req.body);
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(payload)
+      .digest('hex');
+
+    if (expectedSignature !== signature) {
+      console.error('Invalid Razorpay webhook signature');
+      return res.status(400).send('Invalid signature');
+    }
+
+    // Verify event type
+    const event = typeof req.body === 'string' ? JSON.parse(req.body) : (Buffer.isBuffer(req.body) ? JSON.parse(payload) : req.body);
+    
+    // Example: Handle payment completion or other events
+    if (event.event === 'payment.captured' || event.event === 'order.paid') {
+      console.log('Razorpay webhook event:', event.event);
+    }
+    
+    res.status(200).json({ status: 'ok' });
+  } catch (err) {
+    console.error('Razorpay Webhook Error:', err);
+    res.status(500).send('Webhook Processing Error');
+  }
+});
+
 // Razorpay order create
 router.post('/create-order', auth, async (req, res) => {
   try {
