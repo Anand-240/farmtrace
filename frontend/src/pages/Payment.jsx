@@ -27,7 +27,7 @@ export default function Payment() {
 
   const fetchPending = async () => {
     try {
-      const res = await api.get('/api/payment/pending');
+      const res = await api.get('/api/v1/payment/pending');
       setPendingRequests(res.data);
     } catch (err) {
       console.error(err);
@@ -40,7 +40,7 @@ export default function Payment() {
     setPayingId(transfer._id);
     try {
       // Step 1: Razorpay order banao
-      const orderRes = await api.post('/api/payment/create-order', {
+      const orderRes = await api.post('/api/v1/payment/create-order', {
         transferId: transfer._id
       });
 
@@ -66,7 +66,7 @@ export default function Payment() {
         handler: async (response) => {
           try {
             // Step 3: Payment verify karo
-            const verifyRes = await api.post('/api/payment/verify', {
+            const verifyRes = await api.post('/api/v1/payment/verify', {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,

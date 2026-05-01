@@ -53,7 +53,7 @@ export const getMandiFloorForProduce = async (produce) => {
   const commodityCandidates = getCommodityCandidates(produce.cropType);
 
   for (const commodity of commodityCandidates) {
-    const response = await api.get('/api/market/mandi', {
+    const response = await api.get('/api/v1/v1/market/mandi', {
       params: { commodity, state, limit: 20 }
     });
 
@@ -81,7 +81,7 @@ export const getMandiFloorForProduce = async (produce) => {
     }
   }
 
-  const floorResponse = await api.get('/api/market/floor', {
+  const floorResponse = await api.get('/api/v1/v1/market/floor', {
     params: { cropType: produce.cropType, origin: produce.origin }
   });
 

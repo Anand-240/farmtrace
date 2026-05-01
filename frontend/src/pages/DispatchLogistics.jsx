@@ -51,7 +51,7 @@ export default function DispatchLogistics() {
 
   const fetchDeliveries = async () => {
     try {
-      const res = await api.get('/api/payment/deliveries/my');
+      const res = await api.get('/api/v1/payment/deliveries/my');
       setDeliveries(res.data);
 
       const next = {};
@@ -120,7 +120,7 @@ export default function DispatchLogistics() {
   const save = async (id) => {
     try {
       setSavingId(id);
-      await api.put(`/api/payment/deliveries/${id}`, forms[id]);
+      await api.put(`/api/v1/payment/deliveries/${id}`, forms[id]);
       await fetchDeliveries();
     } catch (err) {
       alert(err.response?.data?.message || 'Dispatch update fail ho gaya');
@@ -181,7 +181,7 @@ export default function DispatchLogistics() {
 
     try {
       setPlanningId(id);
-      const res = await api.post(`/api/payment/logistics/${id}/preview`, {
+      const res = await api.post(`/api/v1/payment/logistics/${id}/preview`, {
         destinationLocation: destLoc,
         preferredVehicleType: logistics.preferredVehicleType
       });
@@ -222,7 +222,7 @@ export default function DispatchLogistics() {
 
     try {
       setBookingId(id);
-      await api.post(`/api/payment/logistics/${id}/book-slot`, {
+      await api.post(`/api/v1/payment/logistics/${id}/book-slot`, {
         destinationLocation: destLoc,
         preferredVehicleType: logistics.preferredVehicleType,
         transporterId: logistics.selectedTransporterId || fallbackTransporterId,

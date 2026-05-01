@@ -2,18 +2,15 @@ const express = require('express');
 const router = express.Router();
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const auth = require('../middleware/authMiddleware');
-const Transfer = require('../models/Transfer');
-const Produce = require('../models/Produce');
-const Transaction = require('../models/Transaction');
-const Notification = require('../models/Notification');
-const User = require('../models/User');
-const Escrow = require('../models/Escrow');
-const ComplianceAudit = require('../models/ComplianceAudit');
-const ComplianceSequence = require('../models/ComplianceSequence');
-const ComplianceDocument = require('../models/ComplianceDocument');
-const { transferOnChain } = require('../blockchain/blockchainService');
-const { validateSellPrice } = require('../utils/marketPricing');
+const auth = require('../../middleware/authMiddleware');
+const Transfer = require('../../models/Transfer');
+const Produce = require('../../models/Produce');
+const Notification = require('../../models/Notification');
+const User = require('../../models/User');
+const prisma = require('../../prisma/client');
+const { getHistoryFromChain } = require('../../blockchain/blockchainService');
+const { blockchainQueue } = require('../../utils/queue');
+const { validateSellPrice } = require('../../utils/marketPricing');
 const {
   buildInvoicePayload,
   buildChallanPayload,
@@ -24,12 +21,12 @@ const {
   toAuditRows,
   toAuditCsv,
   createChecksum
-} = require('../utils/complianceDocs');
+} = require('../../utils/complianceDocs');
 const {
   TRANSPORTERS,
   buildLogisticsPlan,
   parseSlotDateTime
-} = require('../utils/logisticsPlanner');
+} = require('../../utils/logisticsPlanner');
 
 let razorpay = null;
 
@@ -108,7 +105,16 @@ async function releaseMilestonePayment({ escrow, transferId, milestone, transfer
     });
   }
   
-  await escrow.save();
+  await prisma.escrow.update({
+    where: { id: escrow.id },
+    data: {
+      dispatchReleased: escrow.dispatchReleased,
+      dispatchReleasedAt: escrow.dispatchReleasedAt,
+      deliveryReleased: escrow.deliveryReleased,
+      deliveryReleasedAt: escrow.deliveryReleasedAt,
+      status: escrow.status
+    }
+  });
 }
 
 async function notifyDeliveryParticipants({ transfer, actorPhone, title, message, type, data = {} }) {
@@ -155,40 +161,51 @@ async function nextDocumentNumber(documentType, createdAt = new Date()) {
   const fy = getFinancialYearTag(createdAt);
   const sequenceKey = `${prefix}:${fy}`;
 
-  const sequence = await ComplianceSequence.findOneAndUpdate(
-    { key: sequenceKey },
-    { $inc: { value: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
+  const sequence = await prisma.complianceSequence.upsert({
+    where: { key: sequenceKey },
+    update: { value: { increment: 1 } },
+    create: { key: sequenceKey, value: 1 }
+  });
 
   return `${prefix}/${fy}/${String(sequence.value).padStart(6, '0')}`;
 }
 
 async function getOrCreateComplianceDocument({ transferId, documentType, metadata = {}, createdAt }) {
-  const existing = await ComplianceDocument.findOne({ transferId, documentType });
+  const existing = await prisma.complianceDocument.findUnique({
+    where: {
+      transferId_documentType: {
+        transferId: transferId.toString(),
+        documentType
+      }
+    }
+  });
   if (existing) return existing;
 
   const documentNumber = await nextDocumentNumber(documentType, createdAt || new Date());
-  return ComplianceDocument.create({
-    transferId,
-    documentType,
-    documentNumber,
-    metadata
+  return prisma.complianceDocument.create({
+    data: {
+      transferId: transferId.toString(),
+      documentType,
+      documentNumber,
+      metadata: metadata || {}
+    }
   });
 }
 
 async function createComplianceAudit({ req, transferId, documentType, action, checksum, metadata = {} }) {
   try {
-    await ComplianceAudit.create({
-      transferId,
-      documentType,
-      action,
-      requestedByPhone: req.user.phone,
-      requestedByRole: req.user.role,
-      ipAddress: getClientIp(req),
-      userAgent: req.get('user-agent') || '',
-      checksum,
-      metadata
+    await prisma.complianceAudit.create({
+      data: {
+        transferId: transferId ? transferId.toString() : null,
+        documentType,
+        action,
+        requestedByPhone: req.user.phone,
+        requestedByRole: req.user.role || 'USER',
+        ipAddress: getClientIp(req),
+        userAgent: req.get('user-agent') || '',
+        checksum,
+        metadata: metadata || {}
+      }
     });
   } catch (err) {
     console.error('Compliance audit log error:', err.message);
@@ -216,7 +233,7 @@ async function fetchDocumentContext(transferId, actorPhone) {
   const [fromUser, toUser, escrow] = await Promise.all([
     User.findOne({ phone: transfer.fromPhone }).select('name phone village city district state pincode businessName gstin pan'),
     User.findOne({ phone: transfer.toPhone }).select('name phone village city district state pincode businessName gstin pan'),
-    Escrow.findOne({ transferId: transfer._id })
+    prisma.escrow.findUnique({ where: { transferId: transfer._id.toString() } })
   ]);
 
   return {
@@ -510,22 +527,19 @@ router.post('/verify', auth, async (req, res) => {
     transfer.razorpayOrderId = razorpay_order_id;
 
     // Blockchain pe transfer (immediate booking ke baad)
-    let txHash = null;
+    let jobId = null;
     const chainProduceId = transfer.produceChainId || produce?.produceId || transfer.produceId;
     if (chainProduceId && produce?.produceId) {
       const toAddress = new (require('ethers').Wallet)(
         process.env.PLATFORM_PRIVATE_KEY
       ).address;
 
-      const result = await transferOnChain(
-        chainProduceId, toAddress, transfer.price, transfer.location
-      );
-
-      if (result.success) {
-        transfer.txHash = result.txHash;
-        transfer.blockchainStatus = 'CONFIRMED';
-        txHash = result.txHash;
-      }
+      const job = await blockchainQueue.add('transfer', {
+        type: 'TRANSFER',
+        data: { produceId: chainProduceId, toAddress, price: transfer.price, location: transfer.location },
+        transferMongoId: transfer._id
+      });
+      jobId = job.id;
     }
 
     await transfer.save();
@@ -537,53 +551,59 @@ router.post('/verify', auth, async (req, res) => {
     }
 
     // Escrow record banao for milestone tracking
-    await Escrow.create({
-      transferId: transfer._id,
-      totalAmount,
-      bookingAmount,
-      dispatchAmount,
-      deliveryAmount,
-      bookingPaid: true,
-      bookingPaidAt: new Date(),
-      razorpayPaymentId: razorpay_payment_id,
-      razorpayOrderId: razorpay_order_id,
-      status: 'ACTIVE'
+    await prisma.escrow.create({
+      data: {
+        transferId: transfer._id.toString(),
+        totalAmount,
+        bookingAmount,
+        dispatchAmount,
+        deliveryAmount,
+        bookingPaid: true,
+        bookingPaidAt: new Date(),
+        razorpayPaymentId: razorpay_payment_id,
+        razorpayOrderId: razorpay_order_id,
+        status: 'ACTIVE'
+      }
     });
 
     // Transaction history — sender ke liye (SENT)
-    await Transaction.create({
-      produceId: String(transfer.produceMongoId || transfer.produceId),
-      cropType: produce?.cropType,
-      fromPhone: transfer.toPhone,
-      fromName: toUser?.name,
-      toPhone: transfer.fromPhone,
-      toName: fromUser?.name,
-      amount: totalAmount,
-      pricePerKg: transfer.price,
-      quantity: produce?.quantity,
-      transferType: transfer.transferType,
-      paymentId: razorpay_payment_id,
-      txHash,
-      status: 'COMPLETED',
-      type: 'SENT'
+    await prisma.transaction.create({
+      data: {
+        produceId: String(transfer.produceMongoId || transfer.produceId),
+        cropType: produce?.cropType,
+        fromPhone: transfer.toPhone,
+        fromName: toUser?.name,
+        toPhone: transfer.fromPhone,
+        toName: fromUser?.name,
+        amount: totalAmount,
+        pricePerKg: transfer.price,
+        quantity: produce?.quantity,
+        transferType: transfer.transferType,
+        paymentId: razorpay_payment_id,
+        txHash: null,
+        status: 'PENDING',
+        type: 'SENT'
+      }
     });
 
     // Transaction history — receiver ke liye (RECEIVED)
-    await Transaction.create({
-      produceId: String(transfer.produceMongoId || transfer.produceId),
-      cropType: produce?.cropType,
-      fromPhone: transfer.toPhone,
-      fromName: toUser?.name,
-      toPhone: transfer.fromPhone,
-      toName: fromUser?.name,
-      amount: totalAmount,
-      pricePerKg: transfer.price,
-      quantity: produce?.quantity,
-      transferType: transfer.transferType,
-      paymentId: razorpay_payment_id,
-      txHash,
-      status: 'COMPLETED',
-      type: 'RECEIVED'
+    await prisma.transaction.create({
+      data: {
+        produceId: String(transfer.produceMongoId || transfer.produceId),
+        cropType: produce?.cropType,
+        fromPhone: transfer.toPhone,
+        fromName: toUser?.name,
+        toPhone: transfer.fromPhone,
+        toName: fromUser?.name,
+        amount: totalAmount,
+        pricePerKg: transfer.price,
+        quantity: produce?.quantity,
+        transferType: transfer.transferType,
+        paymentId: razorpay_payment_id,
+        txHash: null,
+        status: 'PENDING',
+        type: 'RECEIVED'
+      }
     });
 
     // Farmer ko booking confirmation notification
@@ -592,24 +612,23 @@ router.post('/verify', auth, async (req, res) => {
       title: 'Booking Amount Received!',
       message: `${toUser?.name} ne ₹${bookingAmount.toLocaleString()} booking fee paid. Dispatch ke baad ₹${dispatchAmount.toLocaleString()} aur milega.`,
       type: 'PAYMENT_RECEIVED',
-      data: { transferId, amount: bookingAmount, milestone: 'BOOKING', txHash }
+      data: { transferId, amount: bookingAmount, milestone: 'BOOKING' }
     });
 
     // Distributor ko confirmation notification
     await Notification.create({
       userPhone: transfer.toPhone,
       title: 'Order Confirmed!',
-      message: `${produce.cropType} blockchain pe transfer ho gaya. Ab dispatch ke baad next payment mile.`,
+      message: `${produce.cropType} payment verify ho gaya. Blockchain transfer processing in background.`,
       type: 'TRANSFER_COMPLETE',
-      data: { transferId, txHash, milestone: 'BOOKING' }
+      data: { transferId, milestone: 'BOOKING' }
     });
 
     res.json({
       success: true,
       transfer,
-      txHash,
-      etherscanUrl: txHash ? `https://sepolia.etherscan.io/tx/${txHash}` : null,
-      message: 'Payment ho gayi aur blockchain pe transfer ho gaya!'
+      jobId,
+      message: 'Payment verified and blockchain transfer queued for processing!'
     });
 
   } catch (err) {
@@ -621,12 +640,15 @@ router.post('/verify', auth, async (req, res) => {
 // Transaction history
 router.get('/transactions', auth, async (req, res) => {
   try {
-    const transactions = await Transaction.find({
-      $or: [
-        { fromPhone: req.user.phone },
-        { toPhone: req.user.phone }
-      ]
-    }).sort({ createdAt: -1 });
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        OR: [
+          { fromPhone: req.user.phone },
+          { toPhone: req.user.phone }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     res.json(transactions);
   } catch (err) {
@@ -722,7 +744,7 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
 
     if (deliveryStatus && oldStatus !== transfer.deliveryStatus) {
       // Auto-release milestone payments
-      const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+      const escrow = await prisma.escrow.findUnique({ where: { transferId: req.params.transferId } });
       if (escrow) {
         if (deliveryStatus === 'PICKUP_DISPATCHED') {
           await releaseMilestonePayment({ escrow, transferId: req.params.transferId, milestone: 'DISPATCH', transfer });
@@ -936,7 +958,7 @@ router.post('/logistics/:transferId/book-slot', auth, async (req, res) => {
 // Escrow - View milestone payment details
 router.get('/escrow/:transferId', auth, async (req, res) => {
   try {
-    const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+    const escrow = await prisma.escrow.findUnique({ where: { transferId: req.params.transferId } });
     if (!escrow) return res.status(404).json({ message: 'Escrow record nahi mila' });
 
     const transfer = await Transfer.findById(req.params.transferId);
@@ -947,7 +969,7 @@ router.get('/escrow/:transferId', auth, async (req, res) => {
     const produce = await resolveTransferProduce(transfer);
     
     res.json({
-      escrow: escrow.toObject(),
+      escrow: escrow,
       transfer: transfer.toObject(),
       produce: produce ? produce.toObject() : null,
       progressPercentage: calculateEscrowProgress(escrow)
@@ -970,12 +992,12 @@ router.get('/escrow/my/all', auth, async (req, res) => {
 
     const results = [];
     for (const t of transfers) {
-      const escrow = await Escrow.findOne({ transferId: t._id });
+      const escrow = await prisma.escrow.findUnique({ where: { transferId: t._id.toString() } });
       const produce = await resolveTransferProduce(t);
       if (escrow) {
         results.push({
           transfer: t.toObject(),
-          escrow: escrow.toObject(),
+          escrow: escrow,
           produce: produce ? produce.toObject() : null,
           progressPercentage: calculateEscrowProgress(escrow)
         });
@@ -1001,7 +1023,7 @@ function calculateEscrowProgress(escrow) {
 router.post('/escrow/:transferId/request-refund', auth, async (req, res) => {
   try {
     const { reason } = req.body;
-    const escrow = await Escrow.findOne({ transferId: req.params.transferId });
+    const escrow = await prisma.escrow.findUnique({ where: { transferId: req.params.transferId } });
     if (!escrow) return res.status(404).json({ message: 'Escrow record nahi mila' });
 
     const transfer = await Transfer.findById(req.params.transferId);
@@ -1022,12 +1044,16 @@ router.post('/escrow/:transferId/request-refund', auth, async (req, res) => {
     if (escrow.dispatchReleased) refundAmount -= escrow.dispatchAmount;
     if (escrow.deliveryReleased) refundAmount -= escrow.deliveryAmount;
 
-    escrow.refundReason = reason;
-    escrow.refundAmount = refundAmount;
-    escrow.refundRequestedAt = new Date();
-    escrow.status = 'REFUNDED';
-    escrow.refundCompletedAt = new Date();
-    await escrow.save();
+    await prisma.escrow.update({
+      where: { id: escrow.id },
+      data: {
+        refundReason: reason,
+        refundAmount: refundAmount,
+        refundRequestedAt: new Date(),
+        status: 'REFUNDED',
+        refundCompletedAt: new Date()
+      }
+    });
 
     // Update delivery status to show rejection
     transfer.deliveryStatus = 'DELIVERED'; // Mark as attempted delivery
@@ -1249,9 +1275,10 @@ router.get('/docs/:transferId/audit-trail', auth, async (req, res) => {
       requestedByPhone: req.user.phone
     });
 
-    const persistedLogs = await ComplianceAudit.find({ transferId: context.transfer._id })
-      .sort({ createdAt: 1 })
-      .lean();
+    const persistedLogs = await prisma.complianceAudit.findMany({
+      where: { transferId: context.transfer._id.toString() },
+      orderBy: { createdAt: 'asc' }
+    });
 
     const payload = {
       generatedAt: new Date().toISOString(),

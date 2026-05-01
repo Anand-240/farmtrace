@@ -131,8 +131,8 @@ export default function AIAssistant() {
     const loadAssistant = async () => {
       try {
         const [bootRes, cropsRes] = await Promise.all([
-          api.get('/api/ai/farmer-assistant/bootstrap'),
-          api.get('/api/market/commodities')
+          api.get('/api/v1/ai/farmer-assistant/bootstrap'),
+          api.get('/api/v1/market/commodities')
         ]);
         
         setBootstrapData({
@@ -616,7 +616,7 @@ export default function AIAssistant() {
     setSubmitting(true);
     try {
       const cropType = form.cropType === 'OTHER' ? form.customCropType : form.cropType;
-      const res = await api.post('/api/produce/register', {
+      const res = await api.post('/api/v1/produce/register', {
         farmerName: form.farmerName || user.name,
         cropType,
         origin: form.origin,
@@ -653,7 +653,7 @@ export default function AIAssistant() {
         return;
       }
 
-      const res = await api.post('/api/ai/confirm-transfer', {
+      const res = await api.post('/api/v1/ai/confirm-transfer', {
         produceId: form.produceId,
         receiverEmail: form.receiverEmail,
         pricePerKg: Number(form.pricePerKg),
@@ -704,7 +704,7 @@ export default function AIAssistant() {
       const formData = new FormData();
       formData.append('image', finalFile);
 
-      const res = await api.post('/api/ai/disease-detect', formData);
+      const res = await api.post('/api/v1/ai/disease-detect', formData);
 
       const data = res.data.data;
       const remedyHtml = `

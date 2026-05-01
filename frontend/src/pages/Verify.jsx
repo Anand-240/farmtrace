@@ -9,7 +9,7 @@ export default function Verify() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get(`/api/produce/${id}`)
+    api.get(`/api/v1/produce/${id}`)
       .then(res => setData(res.data))
       .catch(() => setError('Produce nahi mila'))
       .finally(() => setLoading(false));

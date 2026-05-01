@@ -47,7 +47,7 @@ export default function LotOperations() {
   const fetchLots = async () => {
     setLoadingLots(true);
     try {
-      const endpoint = user.role === 'FARMER' ? '/api/produce/farmer/my' : '/api/produce/received/my';
+      const endpoint = user.role === 'FARMER' ? '/api/v1/produce/farmer/my' : '/api/v1/produce/received/my';
       const res = await api.get(endpoint);
       setMyLots(res.data.filter(l => l.lotStatus === 'ACTIVE'));
     } catch (err) {
@@ -109,7 +109,7 @@ export default function LotOperations() {
     setLoading(true);
     setError('');
     try {
-      await api.post(`/api/produce/${selectedSplitLot._id}/split`, {
+      await api.post(`/api/v1/produce/${selectedSplitLot._id}/split`, {
         splits: quantities.map(q => ({ quantity: q }))
       });
       setSuccess('Lot split ho gaya! 🎉');
@@ -153,7 +153,7 @@ export default function LotOperations() {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/produce/merge', {
+      await api.post('/api/v1/produce/merge', {
         lotIds: selectedMergeLots.map(l => l._id)
       });
       setSuccess('Lots merge ho gaye! 🔗');

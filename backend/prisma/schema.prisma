@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Transaction {
+  id           String   @id @default(uuid())
+  produceId    String
+  cropType     String?
+  fromPhone    String
+  fromName     String?
+  toPhone      String
+  toName       String?
+  amount       Float
+  pricePerKg   Float?
+  quantity     Float?
+  transferType String?
+  paymentId    String?
+  txHash       String?
+  status       String   @default("COMPLETED")
+  type         String   // "SENT" or "RECEIVED"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Escrow {
+  id                 String    @id @default(uuid())
+  transferId         String    @unique
+  totalAmount        Float
+  bookingAmount      Float
+  dispatchAmount     Float
+  deliveryAmount     Float
+  bookingPaid        Boolean   @default(false)
+  bookingPaidAt      DateTime?
+  dispatchReleased   Boolean   @default(false)
+  dispatchReleasedAt DateTime?
+  deliveryReleased   Boolean   @default(false)
+  deliveryReleasedAt DateTime?
+  refundReason       String?
+  refundAmount       Float     @default(0)
+  refundRequestedAt  DateTime?
+  refundCompletedAt  DateTime?
+  razorpayPaymentId  String?
+  razorpayOrderId    String?
+  status             String    @default("ACTIVE")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model ComplianceDocument {
+  id             String   @id @default(uuid())
+  transferId     String
+  documentType   String
+  documentNumber String   @unique
+  checksum       String?
+  version        Int      @default(1)
+  generatedAt    DateTime @default(now())
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([transferId, documentType])
+  @@index([transferId])
+  @@index([documentType])
+  @@index([documentNumber])
+}
+
+model ComplianceSequence {
+  id    String @id @default(uuid())
+  key   String @unique
+  value Int    @default(0)
+}
+
+model ComplianceAudit {
+  id               String   @id @default(uuid())
+  transferId       String?
+  documentType     String?
+  action           String
+  requestedByPhone String?
+  requestedByRole  String?
+  ipAddress        String?
+  userAgent        String?
+  checksum         String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+}

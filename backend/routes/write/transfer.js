@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/authMiddleware');
-const Transfer = require('../models/Transfer');
-const Produce = require('../models/Produce');
-const User = require('../models/User');
-const { transferOnChain } = require('../blockchain/blockchainService');
-const { validateSellPrice } = require('../utils/marketPricing');
+const auth = require('../../middleware/authMiddleware');
+const Transfer = require('../../models/Transfer');
+const Produce = require('../../models/Produce');
+const User = require('../../models/User');
+const { transferOnChain } = require('../../blockchain/blockchainService');
+const { validateSellPrice } = require('../../utils/marketPricing');
 
 router.post('/', auth, async (req, res) => {
   try {

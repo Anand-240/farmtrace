@@ -1,7 +1,12 @@
 const express = require('express');
 
 const router = express.Router();
-const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../utils/marketPricing');
+const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../../utils/marketPricing');
+const { Client } = require('@elastic/elasticsearch');
+
+const elasticClient = new Client({
+  node: process.env.ELASTICSEARCH_URL,
+});
 
 const parseLimit = (rawLimit) => {
   const limit = Number(rawLimit);
@@ -62,7 +67,7 @@ router.get('/commodities', async (req, res) => {
     if (error) throw new Error(error);
 
     // Strategy: Always show all crops that have an MSP, plus any extras from mandi
-    const mspCropsInternal = Object.keys(require('../utils/marketPricing').parseMspTable());
+    const mspCropsInternal = Object.keys(require('../../utils/marketPricing').parseMspTable());
     const mandiCrops = records.map(r => r.commodity || r.comm).filter(Boolean);
     
     const allCrops = [...new Set([...mspCropsInternal, ...mandiCrops])];
@@ -83,6 +88,34 @@ router.get('/commodities', async (req, res) => {
   } catch (err) {
     console.error('Commodities fetch error:', err.message);
     return res.status(502).json({ message: 'Available commodities fetch nahi ho payin' });
+  }
+});
+
+router.get('/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query) {
+      return res.json({ results: [] });
+    }
+
+    const result = await elasticClient.search({
+      index: 'produce',
+      body: {
+        query: {
+          multi_match: {
+            query,
+            fields: ['farmerName', 'cropType', 'origin', 'qualityGrade']
+          }
+        }
+      }
+    });
+
+    const results = result.hits.hits.map(hit => ({ id: hit._id, ...hit._source }));
+    return res.json({ results });
+  } catch (err) {
+    console.error('Elasticsearch search error:', err.message);
+    return res.status(502).json({ message: 'Search failed' });
   }
 });
 

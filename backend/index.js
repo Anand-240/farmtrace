@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
+const { startSync } = require('./workers/elasticSyncWorker');
 
 // Validate Environment Variables
 const envSchema = z.object({
@@ -88,10 +89,10 @@ const apiLimiter = rateLimit({
   },
   message: { error: 'Too many requests, slow down please' }
 });
-app.use('/api/', apiLimiter);
+app.use('/api/v1', apiLimiter);
 
 // For Razorpay webhook compatibility, use raw parser BEFORE express.json if needed
-app.use('/api/payment/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 
 // Keep body parser limits to 5MB
 app.use(express.json({ limit: '5mb' }));
@@ -99,7 +100,7 @@ app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
 let lastError = null;
 
-app.get('/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   res.json({
     status: mongoose.connection.readyState === 1 ? 'ok' : 'error',
     database: mongoState,
@@ -108,12 +109,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/produce', require('./routes/produce'));
-app.use('/api/transfer', require('./routes/transfer'));
-app.use('/api/ai', require('./routes/ai'));
-app.use('/api/payment', require('./routes/payment'));
-app.use('/api/market', require('./routes/market'));
+app.use('/api/v1/auth', require('./routes/write/auth'));
+app.use('/api/v1/produce', require('./routes/write/produce'));
+app.use('/api/v1/transfer', require('./routes/write/transfer'));
+app.use('/api/v1/payment', require('./routes/write/payment'));
+app.use('/api/v1/upload', require('./routes/write/upload'));
+
+app.use('/api/v1/ai', require('./routes/read/ai'));
+app.use('/api/v1/market', require('./routes/read/market'));
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 
@@ -135,6 +138,7 @@ mongoose.connect(process.env.MONGO_URI)
     mongoState = 'connected';
     lastError = null;
     console.log('MongoDB Connected');
+    startSync(); // Start ES sync worker
   })
   .catch(err => {
     mongoState = 'error';

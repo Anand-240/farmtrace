@@ -50,7 +50,7 @@ export default function Register() {
     const fetchCrops = async () => {
       setLoadingCrops(true);
       try {
-        const res = await api.get(`/api/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
+        const res = await api.get(`/api/v1/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
         if (res.data && res.data.commodities) {
           const fetchedCrops = res.data.commodities.map(c => ({ 
             value: c.name, 
@@ -110,7 +110,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await api.post('/api/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
+      const res = await api.post('/api/v1/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
       const qr = await QRCode.toDataURL(`${window.location.origin}/verify/${res.data.produce._id}`, { width: 300 });
       setResult(res.data);
       setQrDataUrl(qr);

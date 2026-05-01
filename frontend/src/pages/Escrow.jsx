@@ -16,7 +16,7 @@ export default function Escrow() {
 
   const fetchEscrows = async () => {
     try {
-      const res = await api.get('/api/payment/escrow/my/all');
+      const res = await api.get('/api/v1/payment/escrow/my/all');
       setEscrows(res.data);
     } catch (err) {
       console.error(err);
@@ -32,7 +32,7 @@ export default function Escrow() {
       return;
     }
     try {
-      const res = await api.post(`/api/payment/escrow/${transferId}/request-refund`, {
+      const res = await api.post(`/api/v1/payment/escrow/${transferId}/request-refund`, {
         reason
       });
       alert(`Refund request submitted! Amount: ₹${res.data.refundAmount}`);
@@ -60,7 +60,7 @@ export default function Escrow() {
 
     try {
       const query = format ? `?format=${format}` : '';
-      const response = await api.get(`/api/payment/docs/${transferId}/${type}${query}`, {
+      const response = await api.get(`/api/v1/payment/docs/${transferId}/${type}${query}`, {
         responseType: 'blob'
       });
 

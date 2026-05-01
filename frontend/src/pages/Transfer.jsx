@@ -45,7 +45,7 @@ export default function Transfer() {
     if (!produceId.trim()) { setError('ID daalo pehle'); return; }
     try {
       setError(''); setPriceError(''); setSplitError(''); setSplitResult(null); setShowSplitForm(false); setSplitQuantity(''); setTransferLotId('');
-      const res = await api.get(`/api/produce/${produceId.trim()}`);
+      const res = await api.get(`/api/v1/produce/${produceId.trim()}`);
       setProduce(res.data);
       setTransferLotId(res.data._id);
       const defaultTransferType = getDefaultTransferType();
@@ -100,7 +100,7 @@ export default function Transfer() {
     if (qty >= availableQty) { setSplitError(`Split quantity ${availableQty} kg se kam honi chahiye`); return; }
     setSplitLoading(true);
     try {
-      const res = await api.post(`/api/produce/${produce._id}/split`, { quantity: qty });
+      const res = await api.post(`/api/v1/produce/${produce._id}/split`, { quantity: qty });
       const childLot = res.data.childLot || res.data.childLots?.[0];
       if (!childLot?._id) throw new Error('Child lot create nahi hua');
       setSplitResult(res.data);
@@ -133,9 +133,9 @@ export default function Transfer() {
         }
       }
 
-      const produceRes = await api.get(`/api/produce/${transferLotId}`);
+      const produceRes = await api.get(`/api/v1/produce/${transferLotId}`);
       setTransferProduceDetails(produceRes.data);
-      const res = await api.post('/api/payment/request', {
+      const res = await api.post('/api/v1/payment/request', {
         produceMongoId: transferLotId,
         toEmail: form.toEmail,
         pricePerKg: Number(form.price),

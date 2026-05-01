@@ -5,8 +5,8 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const { OAuth2Client } = require('google-auth-library');
-const User = require('../models/User');
-const auth = require('../middleware/authMiddleware');
+const User = require('../../models/User');
+const auth = require('../../middleware/authMiddleware');
 const { z } = require('zod');
 
 // Schema Validation

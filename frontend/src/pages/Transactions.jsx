@@ -16,8 +16,8 @@ export default function Transactions() {
   const fetchData = async () => {
     try {
       const [txRes, notifRes] = await Promise.all([
-        api.get('/api/payment/transactions'),
-        api.get('/api/payment/notifications')
+        api.get('/api/v1/payment/transactions'),
+        api.get('/api/v1/payment/notifications')
       ]);
       setTransactions(txRes.data);
       setNotifications(notifRes.data);
@@ -25,7 +25,7 @@ export default function Transactions() {
   };
 
   const markRead = async (id) => {
-    await api.put(`/api/payment/notifications/${id}/read`);
+    await api.put(`/api/v1/payment/notifications/${id}/read`);
     setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
   };
 

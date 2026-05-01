@@ -28,7 +28,7 @@ const getBaseURL = () => {
     return configuredBaseUrl;
   }
 
-  return '/api';
+  return '/api/v1';
 };
 
 const api = axios.create({
@@ -46,10 +46,10 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Prevent duplicated /api path when deployment baseURL already ends with /api
+  // Prevent duplicated /api/v1 path when deployment baseURL already ends with /api/v1
   const base = (config.baseURL || '').replace(/\/+$/, '');
   if (typeof config.url === 'string' && /\/api$/i.test(base) && /^\/api\//i.test(config.url)) {
-    config.url = config.url.replace(/^\/api/i, '');
+    config.url = config.url.replace(/^\/api/v1/v1/i, '');
   }
 
   return config;

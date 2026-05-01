@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const Groq = require('groq-sdk');
-const auth = require('../middleware/authMiddleware');
-const Produce = require('../models/Produce');
-const User = require('../models/User');
-const Transfer = require('../models/Transfer');
-const Notification = require('../models/Notification');
+const auth = require('../../middleware/authMiddleware');
+const Produce = require('../../models/Produce');
+const User = require('../../models/User');
+const Transfer = require('../../models/Transfer');
+const Notification = require('../../models/Notification');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { validateSellPrice } = require('../utils/marketPricing');
+const { validateSellPrice } = require('../../utils/marketPricing');
 // Import file-type dynamically if using ES Module, or directly if CJS compatible
 let fileType;
 import('file-type').then(module => fileType = module).catch(e => console.log('file-type load err:', e));

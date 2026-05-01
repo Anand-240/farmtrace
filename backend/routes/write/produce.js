@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const QRCode = require('qrcode');
 const mongoose = require('mongoose');
-const auth = require('../middleware/authMiddleware');
-const Produce = require('../models/Produce');
-const Transfer = require('../models/Transfer');
-const { registerOnChain, getHistoryFromChain } = require('../blockchain/blockchainService');
-const { validateSellPrice } = require('../utils/marketPricing');
+const auth = require('../../middleware/authMiddleware');
+const Produce = require('../../models/Produce');
+const Transfer = require('../../models/Transfer');
+const { getHistoryFromChain } = require('../../blockchain/blockchainService');
+const { blockchainQueue } = require('../../utils/queue');
+const { validateSellPrice } = require('../../utils/marketPricing');
 const { z } = require('zod');
 
 // Schema Validation
@@ -93,14 +94,11 @@ router.post('/register', auth, async (req, res) => {
       await produce.save();
     }
 
-    const result = await registerOnChain(farmerName, cropType, origin, farmPrice);
-
-    if (result.success) {
-      produce.produceId = result.produceId;
-      produce.txHash = result.txHash;
-      produce.blockchainStatus = 'CONFIRMED';
-      await produce.save();
-    }
+    const job = await blockchainQueue.add('register', {
+      type: 'REGISTER',
+      data: { farmerName, cropType, origin, farmPrice },
+      produceMongoId: produce._id
+    });
 
     const verifyUrl = `${getFrontendBaseUrl(req)}/verify/${produce._id}`;
     const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl);
@@ -109,9 +107,8 @@ router.post('/register', auth, async (req, res) => {
       success: true,
       produce,
       qrCodeDataUrl,
-      txHash: result.txHash,
-      etherscanUrl: result.etherscanUrl,
-      message: 'Blockchain pe register ho gaya!'
+      jobId: job.id,
+      message: 'Blockchain registration queued for processing!'
     });
 
   } catch (err) {
