@@ -101,7 +101,7 @@ const apiLimiter = rateLimit({
   validate: { default: false },
   message: { error: 'Too many requests, slow down please' }
 });
-app.use('/api/v1', apiLimiter);
+let lastError = null;
 
 // For Razorpay webhook compatibility, use raw parser BEFORE express.json
 app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
@@ -110,9 +110,13 @@ app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
-let lastError = null;
+// ── API Routes (v1) ────────────────────────────────────────────────────────
+const v1Router = express.Router();
 
-app.get('/api/v1/health', (req, res) => {
+// Apply rate limiter to all v1 routes
+v1Router.use(apiLimiter);
+
+v1Router.get('/health', (req, res) => {
   res.json({
     status: mongoose.connection.readyState === 1 ? 'ok' : 'error',
     database: mongoState,
@@ -121,15 +125,22 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
-app.use('/api/v1/auth', require('./routes/write/auth'));
-app.use('/api/v1/produce', require('./routes/write/produce'));
-app.use('/api/v1/transfer', require('./routes/write/transfer'));
-app.use('/api/v1/payment', require('./routes/write/payment'));
-app.use('/api/v1/upload', require('./routes/write/upload'));
+v1Router.use('/auth', require('./routes/write/auth'));
+v1Router.use('/produce', require('./routes/write/produce'));
+v1Router.use('/transfer', require('./routes/write/transfer'));
+v1Router.use('/payment', require('./routes/write/payment'));
+v1Router.use('/upload', require('./routes/write/upload'));
 
-app.use('/api/v1/ai', require('./routes/read/ai'));
-app.use('/api/v1/market', require('./routes/read/market'));
-app.use('/api/v1/jobs', require('./routes/read/jobs'));
+v1Router.use('/ai', require('./routes/read/ai'));
+v1Router.use('/market', require('./routes/read/market'));
+v1Router.use('/jobs', require('./routes/read/jobs'));
+
+app.use('/api/v1', v1Router);
+
+// Root Welcome Route
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to FarmTrace API', version: '1.0.0' });
+});
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 

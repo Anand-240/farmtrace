@@ -46,12 +46,21 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Prevent duplicated /api/v1 path when deployment baseURL already ends with /api/v1
+  // Ensure config.url is a string
+  let url = config.url || '';
+
+  // If the URL already contains the baseURL prefix, strip it to avoid duplication by axios
   const base = (config.baseURL || '').replace(/\/+$/, '');
-  if (typeof config.url === 'string' && /\/api\/v1$/i.test(base) && /^\/api\/v1\//i.test(config.url)) {
-    config.url = config.url.replace(/^\/api\/v1/, '');
+  if (base && url.startsWith(base)) {
+    url = url.substring(base.length);
   }
 
+  // Ensure the URL starts with / if it's not an absolute URL
+  if (url && !url.startsWith('http') && !url.startsWith('/')) {
+    url = '/' + url;
+  }
+
+  config.url = url;
   return config;
 });
 
