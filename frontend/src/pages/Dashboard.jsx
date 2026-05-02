@@ -64,15 +64,15 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         if (user.role === 'FARMER') {
-          const res = await api.get('/api/v1/produce/farmer/my');
+          const res = await api.get('/produce/farmer/my');
           setMyProduces(res.data);
         } else {
-          const res = await api.get('/api/v1/produce/received/my');
+          const res = await api.get('/produce/received/my');
           setReceivedProduces(res.data);
-          const pending = await api.get('/api/v1/payment/pending');
+          const pending = await api.get('/payment/pending');
           setPendingCount(pending.data.length);
         }
-        const notifRes = await api.get('/api/v1/payment/notifications');
+        const notifRes = await api.get('/payment/notifications');
         const unreads = notifRes.data.filter(n => !n.isRead);
         setUnreadNotifs(unreads.length);
 
@@ -305,7 +305,7 @@ export default function Dashboard() {
       setMandiLoading(true);
       try {
         const targetState = liveState || user.state;
-        const mandiRes = await api.get('/api/v1/market/mandi', {
+        const mandiRes = await api.get('/market/mandi', {
           params: {
             state: targetState || undefined,
             commodity: cropFilter || undefined,
@@ -374,7 +374,7 @@ export default function Dashboard() {
   const showQR = async (produceId) => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/v1/produce/${produceId}`);
+      const res = await api.get(`/produce/${produceId}`);
       const produceData = res.data;
       
       const verifyUrl = `${window.location.origin}/verify/${produceId}`;

@@ -136,8 +136,8 @@ export default function AIAssistant() {
     const loadAssistant = async () => {
       try {
         const [bootRes, cropsRes] = await Promise.all([
-          api.get('/api/v1/ai/farmer-assistant/bootstrap'),
-          api.get('/api/v1/market/commodities')
+          api.get('/ai/farmer-assistant/bootstrap'),
+          api.get('/market/commodities')
         ]);
         
         setBootstrapData({
@@ -619,7 +619,7 @@ export default function AIAssistant() {
     setSubmitting(true);
     try {
       const cropType = form.cropType === 'OTHER' ? form.customCropType : form.cropType;
-      const res = await api.post('/api/v1/produce/register', {
+      const res = await api.post('/produce/register', {
         farmerName: form.farmerName || user.name,
         cropType,
         origin: form.origin,
@@ -648,7 +648,7 @@ export default function AIAssistant() {
           new Promise((resolve, reject) => {
             const checkJob = setInterval(async () => {
               try {
-                const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                const jobRes = await api.get(`/jobs/${jobId}`);
                 if (jobRes.data.state === 'completed') {
                   clearInterval(checkJob);
                   finishRegistration(res.data.produce, jobRes.data.result?.transactionHash || 'Verified');
@@ -688,7 +688,7 @@ export default function AIAssistant() {
         return;
       }
 
-      const res = await api.post('/api/v1/ai/confirm-transfer', {
+      const res = await api.post('/ai/confirm-transfer', {
         produceId: form.produceId,
         receiverEmail: form.receiverEmail,
         pricePerKg: Number(form.pricePerKg),
@@ -739,7 +739,7 @@ export default function AIAssistant() {
       const formData = new FormData();
       formData.append('image', finalFile);
 
-      const res = await api.post('/api/v1/ai/disease-detect', formData);
+      const res = await api.post('/ai/disease-detect', formData);
 
       const data = res.data.data;
       const remedyHtml = `
@@ -785,7 +785,7 @@ export default function AIAssistant() {
     try {
       // Send last 3 turns (6 messages) as history context
       const historyToSend = nextHistory.slice(-6);
-      const res = await api.post('/api/v1/ai/chat', {
+      const res = await api.post('/ai/chat', {
         message: msg,
         history: historyToSend.slice(0, -1) // exclude the message we just added
       });
