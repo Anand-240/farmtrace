@@ -65,9 +65,9 @@ export default function Login() {
     try {
       if (isRegister) {
         const fullPhone = `${form.countryCode}${form.phone}`;
-        await api.post('/api/v1/auth/register', { ...form, phone: fullPhone });
+        await api.post('/auth/register', { ...form, phone: fullPhone });
       }
-      const res = await api.post('/api/v1/auth/login', { identifier: form.email, password: form.password });
+      const res = await api.post('/auth/login', { identifier: form.email, password: form.password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');
@@ -181,7 +181,7 @@ export default function Login() {
               setError('');
               setLoading(true);
               try {
-                const res = await api.post('/api/v1/auth/google', {
+                const res = await api.post('/auth/google', {
                   idToken: credential,
                   mode: isRegister ? 'register' : 'login',
                   role: form.role,
