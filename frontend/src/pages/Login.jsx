@@ -67,7 +67,7 @@ export default function Login() {
         const fullPhone = `${form.countryCode}${form.phone}`;
         await api.post('/api/v1/auth/register', { ...form, phone: fullPhone });
       }
-      const res = await api.post('/api/v1/auth/login', { email: form.email, password: form.password });
+      const res = await api.post('/api/v1/auth/login', { identifier: form.email, password: form.password });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');

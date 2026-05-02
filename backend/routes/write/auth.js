@@ -148,7 +148,7 @@ router.post('/register', async (req, res) => {
     if (!parsedSchema.success) {
       return res.status(400).json({ 
         message: 'Validation error', 
-        errors: parsedSchema.error.errors.map(e => e.message) 
+        errors: parsedSchema.error.issues.map(e => e.message) 
       });
     }
 
@@ -202,7 +202,7 @@ router.post('/login', async (req, res) => {
     if (!parsedSchema.success) {
       return res.status(400).json({ 
         message: 'Validation error', 
-        errors: parsedSchema.error.errors.map(e => e.message) 
+        errors: parsedSchema.error.issues.map(e => e.message) 
       });
     }
 

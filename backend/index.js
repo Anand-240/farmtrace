@@ -98,6 +98,7 @@ const apiLimiter = rateLimit({
     }
     return req.ip;
   },
+  validate: { default: false },
   message: { error: 'Too many requests, slow down please' }
 });
 app.use('/api/v1', apiLimiter);
