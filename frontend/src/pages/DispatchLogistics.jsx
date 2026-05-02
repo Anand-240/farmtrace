@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import StateCitySelector from '../components/StateCitySelector';
@@ -7,11 +7,8 @@ import {
   Package, 
   MapPin, 
   Clock, 
-  ChevronRight, 
   ChevronDown, 
   Inbox, 
-  LogOut, 
-  ArrowRight, 
   Phone, 
   User, 
   Navigation, 
