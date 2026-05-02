@@ -12,7 +12,6 @@ import {
   Inbox, 
   LogOut, 
   ArrowRight, 
-  Calendar, 
   Phone, 
   User, 
   Navigation, 
@@ -34,19 +33,12 @@ export default function DispatchLogistics() {
   const [expandedCards, setExpandedCards] = useState({});
   const [gpsLoading, setGpsLoading] = useState({});
   const [activeTab, setActiveTab] = useState('incoming'); // 'incoming' or 'outgoing'
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 980);
   
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchDeliveries();
-  }, []);
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 980);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   const fetchDeliveries = async () => {

@@ -6,7 +6,7 @@ import api from '../lib/api';
 import { getMandiFloorForProduce } from '../lib/market';
 import { 
   Bot, Send, Image as ImageIcon, ArrowLeft, 
-  CheckCircle2, AlertCircle, Sparkles, Loader2 
+  CheckCircle2, Sparkles, Loader2 
 } from 'lucide-react';
 import './AIAssistant.css';
 
@@ -79,7 +79,6 @@ export default function AIAssistant() {
   const [flow, setFlow] = useState(null);
   const [form, setForm] = useState({});
   const [result, setResult] = useState(null);
-  const [error, setError] = useState('');
   const [sellMarketFloor, setSellMarketFloor] = useState(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -150,8 +149,6 @@ export default function AIAssistant() {
         pushAiMessage(bootRes.data.greeting || `Namaste ${user.name}! Main aapka FarmTrace AI assistant hoon.`);
         askAction();
       } catch (err) {
-        const message = err.response?.data?.message || 'AI assistant load nahi hua.';
-        setError(message);
         pushAiMessage(`Namaste ${user.name}! Main aapki madad karunga. Neeche se kaam chuno.`);
         askAction();
       } finally {
