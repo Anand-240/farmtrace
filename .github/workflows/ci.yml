@@ -1,0 +1,98 @@
+name: FarmTrace CI/CD Pipeline (Minimal)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  # ── 1. Backend: Dependency & Syntax Check (No Tests) ─────────────────────
+  check-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Backend Syntax (Dry Run)
+        run: node -c index.js
+
+  # ── 2. Smart Contracts: Compile Only ──────────────────────────────────────
+  build-contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./contracts
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./contracts/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile contracts
+        run: npx hardhat compile
+
+  # ── 3. Frontend: Production Build ─────────────────────────────────────────
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ./frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Production build
+        run: npm run build
+        env:
+          CI: false          # treat warnings as warnings, not errors
+          REACT_APP_API_URL: /api/v1
+
+  # ── 4. Docker Build (Optional Verification) ───────────────────────────────
+  docker-build:
+    needs: [ check-backend, build-contracts, build-frontend ]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image (Dry Run)
+        run: docker build -t farmtrace-backend:latest ./backend
+
+      - name: Build frontend image (Dry Run)
+        run: docker build -t farmtrace-frontend:latest ./frontend
