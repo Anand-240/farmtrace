@@ -1,13 +1,18 @@
-# ── Stage 1: Install production deps ──────────────────────────────────────
-FROM node:20-alpine AS deps
+# ── Stage 1: Build ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy manifests only — caches the npm install layer when code changes
 COPY package*.json ./
-RUN npm ci --only=production
+COPY prisma ./prisma/
 
-# ── Stage 2: Copy source ───────────────────────────────────────────────────
+# Install ALL dependencies (including devDeps like prisma) to generate client
+RUN npm ci
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# ── Stage 2: Runner ────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
 # Security: run as non-root
@@ -15,9 +20,8 @@ RUN addgroup -S farmtrace && adduser -S farmtrace -G farmtrace
 
 WORKDIR /app
 
-# Pull installed node_modules from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-
+# Copy production node_modules and generated prisma client from builder
+COPY --from=builder /app/node_modules ./node_modules
 # Copy application source
 COPY . .
 
