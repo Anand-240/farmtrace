@@ -1,13 +1,5 @@
 import axios from 'axios';
 
-const getRuntimeConfig = () => {
-  if (typeof window === 'undefined') {
-    return {};
-  }
-
-  return window.__FARMTRACE_CONFIG__ || {};
-};
-
 const getBaseURL = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
