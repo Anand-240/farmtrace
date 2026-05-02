@@ -28,7 +28,8 @@ const getBaseURL = () => {
     return configuredBaseUrl;
   }
 
-  return '/api/v1';
+  // Fallback to explicit Render URL if nothing else is set
+  return 'https://farmtrace-backend-6xzw.onrender.com/api/v1';
 };
 
 const api = axios.create({
@@ -49,10 +50,11 @@ api.interceptors.request.use((config) => {
   // Ensure config.url is a string
   let url = config.url || '';
 
-  // If the URL already contains the baseURL prefix, strip it to avoid duplication by axios
-  const base = (config.baseURL || '').replace(/\/+$/, '');
-  if (base && url.startsWith(base)) {
-    url = url.substring(base.length);
+  // If the URL already contains /api/v1, strip it to avoid duplication with baseURL
+  if (url.startsWith('/api/v1/')) {
+    url = url.substring(7); // Remove '/api/v1' but keep the leading slash
+  } else if (url.startsWith('/api/v1')) {
+    url = url.substring(7);
   }
 
   // Ensure the URL starts with / if it's not an absolute URL
