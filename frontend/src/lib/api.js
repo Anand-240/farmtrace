@@ -15,21 +15,8 @@ const getBaseURL = () => {
       return 'http://localhost:4000';
     }
   }
-
-  const runtimeConfig = getRuntimeConfig();
-  const runtimeBaseUrl = runtimeConfig.REACT_APP_API_URL?.trim();
-  if (runtimeBaseUrl) {
-    return runtimeBaseUrl;
-  }
-
-  const configuredBaseUrl = process.env.REACT_APP_API_URL?.trim();
-
-  if (configuredBaseUrl) {
-    return configuredBaseUrl;
-  }
-
-  // Fallback to explicit Render URL if nothing else is set
-  return 'https://farmtrace-backend-6xzw.onrender.com/api/v1';
+  // Force absolute path for deployment
+  return '/api/v1';
 };
 
 const api = axios.create({
@@ -37,9 +24,7 @@ const api = axios.create({
   timeout: 15000
 });
 
-if (process.env.NODE_ENV === 'development') {
-  console.log('API Base URL:', api.defaults.baseURL);
-}
+console.log('[FarmTrace] API BaseURL Initialized:', api.defaults.baseURL);
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -47,17 +32,19 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Ensure config.url is a string
   let url = config.url || '';
+  
+  // LOG THE REQUEST
+  console.log(`[FarmTrace] API Request: ${config.method?.toUpperCase()} ${url} (Base: ${config.baseURL})`);
 
-  // If the URL already contains /api/v1, strip it to avoid duplication with baseURL
+  // Strip duplicate prefix
   if (url.startsWith('/api/v1/')) {
-    url = url.substring(7); // Remove '/api/v1' but keep the leading slash
+    url = url.substring(7);
   } else if (url.startsWith('/api/v1')) {
     url = url.substring(7);
   }
 
-  // Ensure the URL starts with / if it's not an absolute URL
+  // Ensure absolute
   if (url && !url.startsWith('http') && !url.startsWith('/')) {
     url = '/' + url;
   }
