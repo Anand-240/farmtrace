@@ -58,6 +58,55 @@ export default function Payment() {
       }
 
       // Step 2: Razorpay checkout kholo
+      const testInput = window.prompt("Agar test payment karni hai toh 'test@razorpay' type karein, warna khali chhod de:");
+      if (testInput === 'test@razorpay') {
+        const verifyRes = await api.post('/payment/verify', {
+          razorpay_order_id: orderId,
+          razorpay_payment_id: 'test@razorpay',
+          razorpay_signature: 'test@razorpay',
+          transferId: transfer._id
+        });
+
+        if (verifyRes.data.success) {
+          track('payment_verified', { transferId: transfer._id, cropType: produce?.cropType });
+          const jobId = verifyRes.data.jobId;
+          if (jobId) {
+            toast.promise(
+              new Promise((resolve, reject) => {
+                const checkJob = setInterval(async () => {
+                  try {
+                    const jobRes = await api.get(`/jobs/${jobId}`);
+                    if (jobRes.data.state === 'completed') {
+                      clearInterval(checkJob);
+                      resolve(jobRes.data.result?.transactionHash || 'Verified');
+                    } else if (jobRes.data.state === 'failed') {
+                      clearInterval(checkJob);
+                      reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
+                    }
+                  } catch (e) {
+                    clearInterval(checkJob);
+                    reject(e);
+                  }
+                }, 2000);
+              }),
+              {
+                loading: 'Writing to Blockchain...',
+                success: (tx) => `✅ Done! Booking ho gayi!\nTX: ${tx.slice(0, 20)}...`,
+                error: (err) => `Blockchain failed: ${err.message}`
+              }
+            ).then(() => {
+              fetchPending();
+              navigate('/dashboard');
+            });
+          } else {
+            toast.success('Test Booking ho gayi!');
+            fetchPending();
+            navigate('/dashboard');
+          }
+        }
+        return;
+      }
+
       const options = {
         key: razorpayKeyId,
         amount: amount,
