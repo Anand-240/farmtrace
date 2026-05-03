@@ -19,6 +19,9 @@ const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
 const { startSync } = require('./workers/elasticSyncWorker');
+const elasticClient = require('./utils/elasticClient');
+const { pool: pgPool } = require('./prisma/client');
+const { pingRedis } = require('./utils/queue');
 const logger = require('./utils/logger');
 
 // Validate Environment Variables
@@ -40,6 +43,9 @@ if (!envParsed.success) {
 
 const app = express();
 let mongoState = 'connecting';
+let pgState = 'connecting';
+let redisState = 'connecting';
+let elasticState = 'connecting';
 
 const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
@@ -117,9 +123,18 @@ const v1Router = express.Router();
 v1Router.use(apiLimiter);
 
 v1Router.get('/health', (req, res) => {
-  res.json({
-    status: mongoose.connection.readyState === 1 ? 'ok' : 'error',
-    database: mongoState,
+  const allOk = mongoose.connection.readyState === 1
+    && pgState === 'connected'
+    && redisState === 'connected'
+    && elasticState === 'connected';
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'ok' : 'degraded',
+    services: {
+      mongodb: mongoState,
+      postgres: pgState,
+      redis: redisState,
+      elasticsearch: elasticState,
+    },
     error: lastError,
     time: new Date().toISOString()
   });
@@ -183,4 +198,37 @@ mongoose.connect(process.env.MONGO_URI)
     mongoState = 'error';
     lastError = err.message;
     logger.error({ err }, '❌ MongoDB connection error');
+  });
+
+pgPool.query('SELECT 1')
+  .then(() => {
+    pgState = 'connected';
+    logger.info('✅ PostgreSQL connected');
+  })
+  .catch(err => {
+    pgState = 'error';
+    lastError = err.message;
+    logger.error({ err }, '❌ PostgreSQL connection error');
+  });
+
+pingRedis()
+  .then(() => {
+    redisState = 'connected';
+    logger.info('✅ Redis connected');
+  })
+  .catch(err => {
+    redisState = 'error';
+    lastError = err.message;
+    logger.error({ err }, '❌ Redis connection error');
+  });
+
+elasticClient.ping()
+  .then(() => {
+    elasticState = 'connected';
+    logger.info('✅ Elasticsearch connected');
+  })
+  .catch(err => {
+    elasticState = 'error';
+    lastError = err.message;
+    logger.error({ err }, '❌ Elasticsearch connection error');
   });

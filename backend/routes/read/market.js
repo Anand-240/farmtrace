@@ -2,12 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../../utils/marketPricing');
-const { Client } = require('@elastic/elasticsearch');
+const elasticClient = require('../../utils/elasticClient');
 const logger = require('../../utils/logger').child({ module: 'market' });
-
-const elasticClient = new Client({
-  node: process.env.ELASTICSEARCH_URL,
-});
 
 const parseLimit = (rawLimit) => {
   const limit = Number(rawLimit);
