@@ -506,20 +506,15 @@ router.post('/verify', auth, async (req, res) => {
       transferId
     } = req.body;
 
-    let isTest = false;
-    if (razorpay_payment_id === 'test@razorpay' || razorpay_signature === 'test@razorpay') {
-      isTest = true;
-    } else {
-      // Signature verify
-      const body = razorpay_order_id + '|' + razorpay_payment_id;
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        .update(body)
-        .digest('hex');
+    // Signature verify
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest('hex');
 
-      if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ message: 'Payment invalid hai' });
-      }
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ message: 'Payment invalid hai' });
     }
 
     const transfer = await Transfer.findById(transferId);
