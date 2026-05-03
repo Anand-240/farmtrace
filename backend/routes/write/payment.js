@@ -443,15 +443,16 @@ router.post('/create-order', auth, async (req, res) => {
     const produce = await resolveTransferProduce(transfer);
     if (!produce) return res.status(404).json({ message: 'Produce nahi mila' });
 
-    const totalAmount = transfer.price * produce.quantity * 100;
+    const totalAmountRaw = transfer.price * produce.quantity * 100;
     
     // Differentiated milestone breakdown
     const { booking: bookingAmount, dispatch: dispatchAmount, delivery: deliveryAmount } = 
-      getMilestoneBreakdown(totalAmount, transfer.transferType);
+      getMilestoneBreakdown(totalAmountRaw, transfer.transferType);
 
-    // Escrow strategy: Charge FULL amount upfront and hold in platform for milestone release.
+    // Escrow strategy: Charge ONLY booking amount upfront.
+    // The rest will be handled via milestones later.
     const order = await razorpayClient.orders.create({
-      amount: totalAmount,
+      amount: bookingAmount,
       currency: 'INR',
       receipt: `transfer_${transferId}`,
       notes: {
@@ -459,10 +460,11 @@ router.post('/create-order', auth, async (req, res) => {
         produceId: transfer.produceId.toString(),
         fromPhone: transfer.fromPhone,
         toPhone: transfer.toPhone,
-        paymentType: 'TOTAL_ESCROW_PAYMENT',
+        paymentType: 'MILESTONE_BOOKING',
         booking: (bookingAmount / 100).toString(),
         dispatch: (dispatchAmount / 100).toString(),
-        delivery: (deliveryAmount / 100).toString()
+        delivery: (deliveryAmount / 100).toString(),
+        totalAmount: (totalAmountRaw / 100).toString()
       }
     });
 
@@ -470,9 +472,10 @@ router.post('/create-order', auth, async (req, res) => {
       success: true,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID,
       orderId: order.id,
-      amount: totalAmount,
+      amount: bookingAmount,
       currency: 'INR',
-      totalAmount: totalAmount / 100,
+      totalAmount: totalAmountRaw / 100,
+      payableNow: bookingAmount / 100,
       milestones: {
         booking: bookingAmount / 100,
         dispatch: dispatchAmount / 100,
