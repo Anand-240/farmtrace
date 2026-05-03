@@ -44,6 +44,8 @@ export default function Register() {
   const [result, setResult] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mandiRates, setMandiRates] = useState([]);
+  const [mandiLoading, setMandiLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -52,7 +54,7 @@ export default function Register() {
     const fetchCrops = async () => {
       setLoadingCrops(true);
       try {
-        const res = await api.get(`/api/v1/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
+        const res = await api.get(`/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
         if (res.data && res.data.commodities) {
           const fetchedCrops = res.data.commodities.map(c => ({ 
             value: c.name, 
@@ -74,7 +76,28 @@ export default function Register() {
       }
     };
     fetchCrops();
-  }, [form.originState]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [form.originState]);
+
+  useEffect(() => {
+    const loadMandi = async () => {
+      if (!form.originState) return;
+      setMandiLoading(true);
+      try {
+        const mandiRes = await api.get('/market/mandi', {
+          params: {
+            state: form.originState,
+            limit: 6
+          }
+        });
+        setMandiRates(mandiRes.data?.records || []);
+      } catch (err) {
+        console.error('Mandi API Error:', err);
+      } finally {
+        setMandiLoading(false);
+      }
+    };
+    loadMandi();
+  }, [form.originState]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -112,7 +135,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await api.post('/api/v1/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
+      const res = await api.post('/produce/register', { ...form, origin: submitOrigin, farmerName: form.farmerName || user.name, quantity: Number(form.quantity), farmPrice: Number(form.farmPrice) });
       const verifyUrl = `${window.location.origin}/verify/${res.data.produce._id}`;
       setQrDataUrl(verifyUrl);
 
@@ -122,7 +145,7 @@ export default function Register() {
           new Promise((resolve, reject) => {
             const checkJob = setInterval(async () => {
               try {
-                const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                const jobRes = await api.get(`/jobs/${jobId}`);
                 if (jobRes.data.state === 'completed') {
                   clearInterval(checkJob);
                   setResult({ ...res.data.produce, txHash: jobRes.data.result?.transactionHash || 'Verified on Ledger' });
@@ -305,13 +328,50 @@ export default function Register() {
                   </p>
                 )}
               </div>
-              <button type="submit" className="ft-btn ft-btn-primary ft-btn-full" disabled={loading || !isFormValid} style={{ height: '72px', fontSize: '1.25rem', marginTop: '2rem' }}>
-                {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register Harvest on Ledger'}
-              </button>
-            </div>
+              <button className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" type="submit" disabled={loading} style={{ height: '64px', fontSize: '1.1rem' }}>
+              {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register & Write to Blockchain'}
+            </button>
           </form>
-
         </div>
+
+        {/* ── LIVE MANDI WIDGET ── */}
+        <div style={{ marginTop: '3rem' }} className="ft-anim-slide-up">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>🌤️</span>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: 'var(--ft-forest)' }}>
+              Live Mandi Rates: {form.originState || 'Select State'}
+            </h3>
+          </div>
+          
+          {mandiLoading ? (
+            <div className="ft-card" style={{ padding: '2rem', textAlign: 'center' }}>
+              <div className="ft-loading-pulse">Fetching latest government rates...</div>
+            </div>
+          ) : mandiRates.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+              {mandiRates.map((record, i) => (
+                <div key={i} className="ft-card" style={{ padding: '1.25rem', border: '1.5px solid rgba(0,0,0,0.03)', background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: 900, color: 'var(--ft-forest)' }}>{record.commodity}</span>
+                    <span style={{ fontWeight: 900, color: 'var(--ft-forest)' }}>₹{(record.modal_price / 100).toFixed(2)}/kg</span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>
+                    📍 {record.market}, {record.state}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : form.originState ? (
+            <div className="ft-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--ft-text-muted)' }}>
+              Is rajya ke liye abhi live rates available nahi hain.
+            </div>
+          ) : (
+            <div className="ft-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--ft-text-muted)' }}>
+              Upar state select karein live rates dekhne ke liye.
+            </div>
+          )}
+        </div>
+
       </div>
       <style>{`
         .active-crop-p { background: var(--ft-sage-light) !important; color: var(--ft-forest) !important; transform: scale(1.05); }

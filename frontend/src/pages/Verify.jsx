@@ -13,7 +13,7 @@ export default function Verify() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get(`/api/v1/produce/${id}`)
+    api.get(`/produce/${id}`)
       .then(res => {
         setData(res.data);
         track('traceability_viewed', { produceId: id, cropType: res.data?.cropType });

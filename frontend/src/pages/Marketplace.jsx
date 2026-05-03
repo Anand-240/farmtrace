@@ -28,7 +28,7 @@ export default function Marketplace() {
 
   const fetchItems = async (pageNum, searchQuery) => {
     try {
-      const res = await api.get('/api/v1/market/search', {
+      const res = await api.get('/market/search', {
         params: { query: searchQuery, page: pageNum, limit: 10 }
       });
       return res.data;

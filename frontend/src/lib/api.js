@@ -4,7 +4,7 @@ const getBaseURL = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (['localhost', '127.0.0.1'].includes(hostname)) {
-      return 'http://localhost:4000';
+      return 'http://localhost:4000/api/v1';
     }
   }
   // Force absolute path for deployment
@@ -16,8 +16,6 @@ const api = axios.create({
   timeout: 15000
 });
 
-console.log('[FarmTrace] API BaseURL Initialized:', api.defaults.baseURL);
-
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -26,9 +24,6 @@ api.interceptors.request.use((config) => {
 
   let url = config.url || '';
   
-  // LOG THE REQUEST
-  console.log(`[FarmTrace] API Request: ${config.method?.toUpperCase()} ${url} (Base: ${config.baseURL})`);
-
   // Strip duplicate prefix
   if (url.startsWith('/api/v1/')) {
     url = url.substring(7);

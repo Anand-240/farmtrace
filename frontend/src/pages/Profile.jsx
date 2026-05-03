@@ -21,7 +21,7 @@ export default function Profile() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const res = await api.get('/api/v1/auth/me');
+        const res = await api.get('/auth/me');
         const u = res.data.user || {};
         setForm({ name: u.name || '', phone: u.phone || '', village: u.village || '', city: u.city || '', state: u.state || '', avatar: u.avatar || '' });
       } catch (err) {
@@ -40,7 +40,7 @@ export default function Profile() {
     e.preventDefault();
     setSaving(true); setError(''); setSuccess('');
     try {
-      const res = await api.put('/api/v1/auth/me', form);
+      const res = await api.put('/auth/me', form);
       if (res.data?.token && res.data?.user) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));

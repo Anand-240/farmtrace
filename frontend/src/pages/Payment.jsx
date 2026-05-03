@@ -29,7 +29,7 @@ export default function Payment() {
 
   const fetchPending = async () => {
     try {
-      const res = await api.get('/api/v1/payment/pending');
+      const res = await api.get('/payment/pending');
       setPendingRequests(res.data);
     } catch (err) {
       // silent — Payment page will show empty state
@@ -42,7 +42,7 @@ export default function Payment() {
     setPayingId(transfer._id);
     try {
       // Step 1: Razorpay order banao
-      const orderRes = await api.post('/api/v1/payment/create-order', {
+      const orderRes = await api.post('/payment/create-order', {
         transferId: transfer._id
       });
 
@@ -68,7 +68,7 @@ export default function Payment() {
         handler: async (response) => {
           try {
             // Step 3: Payment verify karo
-            const verifyRes = await api.post('/api/v1/payment/verify', {
+            const verifyRes = await api.post('/payment/verify', {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -83,7 +83,7 @@ export default function Payment() {
                   new Promise((resolve, reject) => {
                     const checkJob = setInterval(async () => {
                       try {
-                        const jobRes = await api.get(`/api/v1/jobs/${jobId}`);
+                        const jobRes = await api.get(`/jobs/${jobId}`);
                         if (jobRes.data.state === 'completed') {
                           clearInterval(checkJob);
                           resolve(jobRes.data.result?.transactionHash || 'Verified');
