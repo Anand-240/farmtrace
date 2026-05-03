@@ -1,13 +1,20 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
+  // 1. Priority: Environment Variable
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // 2. Localhost Development
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (['localhost', '127.0.0.1'].includes(hostname)) {
       return 'http://localhost:4000/api/v1';
     }
   }
-  // Force absolute path for deployment
+
+  // 3. Default Production Path
   return '/api/v1';
 };
 
@@ -22,18 +29,17 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
+  // Robust URL normalization to prevent double prefixing like "api/api/v1"
   let url = config.url || '';
   
-  // Strip duplicate prefix
-  if (url.startsWith('/api/v1/')) {
-    url = url.substring(7);
-  } else if (url.startsWith('/api/v1')) {
-    url = url.substring(7);
+  // If the URL already starts with http, don't touch it
+  if (url.startsWith('http')) {
+    return config;
   }
 
-  // Ensure absolute
-  if (url && !url.startsWith('http') && !url.startsWith('/')) {
-    url = '/' + url;
+  // Strip leading slash to let axios combine it cleanly with baseURL
+  if (url.startsWith('/')) {
+    url = url.substring(1);
   }
 
   config.url = url;
