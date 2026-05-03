@@ -1,3 +1,4 @@
+// Triggering fresh Vercel deployment with updated DATABASE_URL
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
