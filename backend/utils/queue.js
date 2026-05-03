@@ -6,6 +6,12 @@ const connection = {
 
 const blockchainQueue = new Queue('blockchainQueue', { connection });
 
+async function pingRedis() {
+  const client = await blockchainQueue.client;
+  return client.ping();
+}
+
 module.exports = {
-  blockchainQueue
+  blockchainQueue,
+  pingRedis
 };
