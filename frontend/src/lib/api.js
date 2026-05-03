@@ -21,14 +21,24 @@ const getBaseURL = () => {
     url = '/api/v1';
   }
 
-  // 4. Normalization: ensure /v1 is present but not doubled
+  // 4. Normalization: ensure /api/v1 is present exactly once
   if (url.startsWith('http')) {
     if (!url.includes('/api/v1')) {
       if (url.endsWith('/')) url = url.slice(0, -1);
-      url = url.endsWith('/api') ? url + '/v1' : url + '/api/v1';
+      if (url.endsWith('/api')) {
+        url = url + '/v1';
+      } else {
+        url = url + '/api/v1';
+      }
     }
-  } else if (url === '/api') {
-    url = '/api/v1';
+  } else {
+    // Relative URL case
+    if (url === '/api' || url === 'api') {
+      url = '/api/v1';
+    } else if (!url.startsWith('/api/v1') && !url.startsWith('api/v1')) {
+       // Only prepend if it doesn't already have it
+       if (url === '/' || !url) url = '/api/v1';
+    }
   }
 
   return url;
