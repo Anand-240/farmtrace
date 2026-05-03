@@ -18,11 +18,9 @@ const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
-const { startSync } = require('./workers/elasticSyncWorker');
 const logger = require('./utils/logger');
 const { pool: pgPool } = require('./prisma/client');
 const { pingRedis } = require('./utils/queue');
-const elasticClient = require('./utils/elasticClient');
 
 // Validate Environment Variables
 const envSchema = z.object({
@@ -45,7 +43,6 @@ const app = express();
 let mongoState = 'connecting';
 let postgresState = 'connecting';
 let redisState = 'connecting';
-let elasticState = 'connecting';
 
 const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
@@ -126,8 +123,7 @@ v1Router.get('/health', (req, res) => {
   const services = {
     mongodb: mongoState,
     postgres: postgresState,
-    redis: redisState,
-    elasticsearch: elasticState
+    redis: redisState
   };
 
   const isDegraded = Object.values(services).some(state => state !== 'connected');
@@ -191,7 +187,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     mongoState = 'connected';
     logger.info('✅ MongoDB connected');
-    startSync();
   })
   .catch(err => {
     mongoState = 'error';
@@ -223,14 +218,3 @@ pingRedis()
     logger.error({ err }, '❌ Redis connection error');
   });
 
-// Elasticsearch Startup Check
-elasticClient.ping()
-  .then(() => {
-    elasticState = 'connected';
-    logger.info('✅ Elasticsearch connected');
-  })
-  .catch(err => {
-    elasticState = 'error';
-    lastError = err.message;
-    logger.error({ err }, '❌ Elasticsearch connection error');
-  });

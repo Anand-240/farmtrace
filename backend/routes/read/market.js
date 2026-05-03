@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../../utils/marketPricing');
 const logger = require('../../utils/logger').child({ module: 'market' });
-const elasticClient = require('../../utils/elasticClient');
+const Produce = require('../../models/Produce');
 
 const parseLimit = (rawLimit) => {
   const limit = Number(rawLimit);
@@ -95,31 +95,32 @@ router.get('/search', async (req, res) => {
     const from = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
     const size = parseInt(limit);
 
-    const body = {};
+    const filter = {};
     if (query) {
-      body.query = {
-        multi_match: {
-          query,
-          fields: ['farmerName', 'cropType', 'origin', 'qualityGrade']
-        }
-      };
-    } else {
-      body.query = { match_all: {} };
+      const regex = new RegExp(String(query), 'i');
+      filter.$or = [
+        { farmerName: regex },
+        { cropType: regex },
+        { origin: regex },
+        { qualityGrade: regex }
+      ];
     }
 
-    const result = await elasticClient.search({
-      index: 'produce',
-      from,
-      size,
-      body
-    });
+    const total = await Produce.countDocuments(filter);
+    const results = await Produce.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(from)
+      .limit(size);
 
-    const results = result.hits.hits.map(hit => ({ id: hit._id, ...hit._source }));
-    const total = result.hits.total.value;
-    return res.json({ results, total, page: parseInt(page), limit: size });
+    return res.json({ 
+      results: results.map(r => ({ id: r._id, ...r.toObject() })), 
+      total, 
+      page: parseInt(page), 
+      limit: size 
+    });
   } catch (err) {
-    logger.error({ err }, 'Elasticsearch search error');
-    return res.status(502).json({ message: 'Search failed' });
+    logger.error({ err }, 'MongoDB search error');
+    return res.status(500).json({ message: 'Search failed' });
   }
 });
 

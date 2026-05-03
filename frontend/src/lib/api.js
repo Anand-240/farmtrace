@@ -1,21 +1,33 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
-  // 1. Priority: Environment Variable
-  if (process.env.REACT_APP_API_URL) {
-    return process.env.REACT_APP_API_URL;
-  }
+  let url = process.env.REACT_APP_API_URL || '';
 
-  // 2. Localhost Development
-  if (typeof window !== 'undefined') {
+  // 1. If no environment variable, use defaults
+  if (!url && typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (['localhost', '127.0.0.1'].includes(hostname)) {
-      return 'http://localhost:4000/api/v1';
+      url = 'http://localhost:4000/api/v1';
+    } else {
+      // For Vercel production, use relative /api/v1 which matches vercel.json rewrites
+      url = '/api/v1';
     }
   }
 
-  // 3. Default Production Path
-  return '/api/v1';
+  // 2. Safety Check: If the URL is provided but missing /api/v1, append it
+  // This handles cases where REACT_APP_API_URL is set to just the domain
+  if (url && url.startsWith('http') && !url.includes('/api/v1')) {
+    // Strip trailing slash
+    if (url.endsWith('/')) url = url.slice(0, -1);
+    
+    if (url.endsWith('/api')) {
+      url = url + '/v1';
+    } else {
+      url = url + '/api/v1';
+    }
+  }
+
+  return url;
 };
 
 const api = axios.create({
@@ -29,17 +41,23 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Robust URL normalization to prevent double prefixing like "api/api/v1"
+  // URL normalization to prevent double prefixing (like api/v1/api/v1)
   let url = config.url || '';
   
-  // If the URL already starts with http, don't touch it
   if (url.startsWith('http')) {
     return config;
   }
 
-  // Strip leading slash to let axios combine it cleanly with baseURL
-  if (url.startsWith('/')) {
-    url = url.substring(1);
+  // If the request already includes /api/v1, remove it because baseURL has it
+  if (url.startsWith('/api/v1')) {
+    url = url.substring(7);
+  } else if (url.startsWith('api/v1')) {
+    url = url.substring(6);
+  }
+
+  // Ensure it starts with a clean slash for axios to append to baseURL
+  if (!url.startsWith('/')) {
+    url = '/' + url;
   }
 
   config.url = url;
