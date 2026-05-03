@@ -1,10 +1,6 @@
-const { Client } = require('@elastic/elasticsearch');
 const Produce = require('../models/Produce');
 const logger = require('../utils/logger').child({ module: 'elasticSyncWorker' });
-
-const elasticClient = new Client({
-  node: process.env.ELASTICSEARCH_URL,
-});
+const elasticClient = require('../utils/elasticClient');
 
 async function setupElasticsearch() {
   const indexName = 'produce';

@@ -15,7 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@elastic/elasticsearch": "^9.3.4",
+    "@elastic/elasticsearch": "^7.17.0",
     "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
