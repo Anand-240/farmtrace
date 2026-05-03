@@ -329,8 +329,9 @@ export default function Register() {
                 )}
               </div>
               <button className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" type="submit" disabled={loading} style={{ height: '64px', fontSize: '1.1rem' }}>
-              {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register & Write to Blockchain'}
-            </button>
+                {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register & Write to Blockchain'}
+              </button>
+            </div>
           </form>
         </div>
 
