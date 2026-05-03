@@ -8,6 +8,7 @@ const { OAuth2Client } = require('google-auth-library');
 const User = require('../../models/User');
 const auth = require('../../middleware/authMiddleware');
 const { z } = require('zod');
+const { normalizePhone } = require('../../utils/phoneUtils');
 const logger = require('../../utils/logger').child({ module: 'auth' });
 
 // Schema Validation
@@ -154,7 +155,7 @@ router.post('/register', async (req, res) => {
 
     const { name, email, phone, password, role, village, city, district, state } = req.body;
     const normalizedEmail = email?.trim().toLowerCase();
-    const normalizedPhone = phone?.trim();
+    const normalizedPhone = normalizePhone(phone);
     const resolvedCity = city?.trim() || district?.trim();
 
     if (!name || !normalizedEmail || !normalizedPhone || !password || !role) {
@@ -266,7 +267,7 @@ router.post('/google', async (req, res) => {
     }
 
     const normalizedEmail = payload.email.trim().toLowerCase();
-    const normalizedPhone = phone?.trim() || undefined;
+    const normalizedPhone = normalizePhone(phone);
     const resolvedCity = city?.trim() || district?.trim();
     const resolvedRole = role || FARMER_ROLE;
 
@@ -352,8 +353,8 @@ router.put('/me', auth, async (req, res) => {
       return res.status(404).json({ message: 'User nahi mila' });
     }
 
-    if (phone?.trim()) {
-      const normalizedPhone = phone.trim();
+    if (phone) {
+      const normalizedPhone = normalizePhone(phone);
       const phoneExists = await User.findOne({ phone: normalizedPhone, _id: { $ne: user._id } });
       if (phoneExists) {
         return res.status(400).json({ message: 'Yeh phone number pehle se use ho raha hai' });

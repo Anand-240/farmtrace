@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { normalizePhone } = require('../utils/phoneUtils');
 
 const authMiddleware = (req, res, next) => {
   try {
@@ -10,6 +11,12 @@ const authMiddleware = (req, res, next) => {
 
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Auto-normalize phone in session for consistency
+    if (decoded && decoded.phone) {
+      decoded.phone = normalizePhone(decoded.phone);
+    }
+    
     req.user = decoded;
     next();
   } catch (err) {

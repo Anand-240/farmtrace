@@ -49,6 +49,8 @@ export default function Payment() {
       const { orderId, amount, produce, razorpayKeyId: serverRazorpayKeyId } = orderRes.data;
       const razorpayKeyId = serverRazorpayKeyId || getRazorpayKeyId();
 
+      console.log('🚀 Razorpay Order Created:', { orderId, amount, key: razorpayKeyId });
+
       if (!razorpayKeyId) {
         throw new Error('Razorpay key missing. Server ya frontend config check karo.');
       }
@@ -60,10 +62,10 @@ export default function Payment() {
       // Step 2: Razorpay checkout kholo
       const options = {
         key: razorpayKeyId,
-        amount: amount,
+        amount: Math.round(amount), // Ensure integer
         currency: 'INR',
         name: 'FarmTrace',
-        description: `${produce.cropType} — ${produce.origin} (Booking Amount)`,
+        description: `${produce.cropType} \u2014 ${produce.origin} (Booking Amount)`,
         order_id: orderId,
         handler: async (response) => {
           try {
@@ -75,43 +77,40 @@ export default function Payment() {
               transferId: transfer._id
             });
 
-            if (verifyRes.data.success) {
-              track('payment_verified', { transferId: transfer._id, cropType: produce?.cropType });
-              const jobId = verifyRes.data.jobId;
-              if (jobId) {
-                toast.promise(
-                  new Promise((resolve, reject) => {
-                    const checkJob = setInterval(async () => {
-                      try {
-                        const jobRes = await api.get(`/jobs/${jobId}`);
-                        if (jobRes.data.state === 'completed') {
-                          clearInterval(checkJob);
-                          resolve(jobRes.data.result?.transactionHash || 'Verified');
-                        } else if (jobRes.data.state === 'failed') {
-                          clearInterval(checkJob);
-                          reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
-                        }
-                      } catch (e) {
-                        clearInterval(checkJob);
-                        reject(e);
-                      }
-                    }, 2000);
-                  }),
-                  {
-                    loading: 'Writing to Blockchain...',
-                    success: (tx) => `✅ Done! Booking ho gayi!\nTX: ${tx.slice(0, 20)}...`,
-                    error: (err) => `Blockchain failed: ${err.message}`
+          if (verifyRes.data.success) {
+            track('payment_verified', { transferId: transfer._id, cropType: produce?.cropType });
+            const jobId = verifyRes.data.jobId;
+            if (jobId) {
+              const toastId = toast.loading('Writing to Blockchain...');
+              
+              const checkJob = setInterval(async () => {
+                try {
+                  const jobRes = await api.get(`/jobs/${jobId}`);
+                  if (jobRes.data.state === 'completed') {
+                    clearInterval(checkJob);
+                    const tx = jobRes.data.result?.txHash || 'Verified';
+                    toast.success(`✅ Done! Booking ho gayi!\nTX: ${tx.slice(0, 20)}...`, { id: toastId });
+                    fetchPending();
+                    navigate('/dashboard');
+                  } else if (jobRes.data.state === 'failed') {
+                    clearInterval(checkJob);
+                    toast.error(`Blockchain failed: ${jobRes.data.failedReason || 'Unknown error'}`, { id: toastId });
+                    fetchPending();
+                    navigate('/dashboard');
                   }
-                ).then(() => {
+                } catch (e) {
+                  clearInterval(checkJob);
+                  toast.error('Network error checking job status', { id: toastId });
                   fetchPending();
                   navigate('/dashboard');
-                });
-              } else {
-                toast.success('Booking ho gayi!');
-                fetchPending();
-                navigate('/dashboard');
-              }
+                }
+              }, 2000);
+            } else {
+              toast.success('Booking ho gayi!');
+              fetchPending();
+              navigate('/dashboard');
             }
+          }
           } catch (err) {
             toast.error('Payment verify nahi hua: ' + getApiErrorMessage(err, 'Verification failed'));
             setPayingId(null);

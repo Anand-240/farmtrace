@@ -13,9 +13,10 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(() => {}) // registered silently
-      .catch(() => {});
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (let registration of registrations) {
+      registration.unregister();
+      console.log('Service Worker Unregistered');
+    }
   });
 }

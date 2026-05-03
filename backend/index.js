@@ -21,6 +21,7 @@ const { z } = require('zod');
 const logger = require('./utils/logger');
 const { pool: pgPool } = require('./prisma/client');
 const { pingRedis } = require('./utils/queue');
+require('./workers/blockchainWorker'); // Start background workers
 
 // Validate Environment Variables
 const envSchema = z.object({
@@ -195,15 +196,27 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 // PostgreSQL Startup Check
+const postgresTimeout = setTimeout(() => {
+  if (postgresState === 'connecting') {
+    postgresState = 'error';
+    logger.error('❌ PostgreSQL connection timed out. Check your DATABASE_URL or IP whitelist.');
+  }
+}, 8000);
+
 pgPool.query('SELECT 1')
   .then(() => {
+    clearTimeout(postgresTimeout);
     postgresState = 'connected';
     logger.info('✅ PostgreSQL connected');
   })
   .catch(err => {
+    clearTimeout(postgresTimeout);
     postgresState = 'error';
     lastError = err.message;
-    logger.error({ err }, '❌ PostgreSQL connection error');
+    logger.error({ err: err.message }, '❌ PostgreSQL connection error');
+    if (err.message.includes('ECONNREFUSED') && process.env.DATABASE_URL.includes(':6543')) {
+      logger.warn('TIP: Use port 5432 instead of 6543 in DATABASE_URL if connection is refused.');
+    }
   });
 
 // Redis Startup Check

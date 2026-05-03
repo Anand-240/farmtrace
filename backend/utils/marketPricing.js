@@ -15,7 +15,9 @@ const CROP_COMMODITY_ALIASES = {
   wheat: ['wheat', 'gehu', 'gehun'],
   chawal: ['paddy', 'rice', 'chawal', 'dhaan', 'dhan'],
   paddy: ['paddy', 'rice', 'chawal', 'dhaan', 'dhan'],
-  rice: ['paddy', 'rice', 'chawal', 'dhaan', 'dhan']
+  rice: ['paddy', 'rice', 'chawal', 'dhaan', 'dhan'],
+  apple: ['apple', 'seb', 'sebh'],
+  seb: ['apple', 'seb', 'sebh']
 };
 
 const normalizeText = (value = '') => String(value)
@@ -116,13 +118,16 @@ const parseMspTable = () => {
 
 const getMspPriceForCrop = (cropType = '') => {
   const table = parseMspTable();
-  const normalized = normalizeText(cropType);
+  const candidates = getCommodityCandidates(cropType);
 
-  for (const [key, value] of Object.entries(table)) {
-    if (normalized.includes(normalizeText(key))) {
-      const price = Number(value);
-      if (Number.isFinite(price) && price > 0) {
-        return price;
+  for (const cand of candidates) {
+    const normalizedCand = normalizeText(cand);
+    for (const [key, value] of Object.entries(table)) {
+      if (normalizedCand.includes(normalizeText(key)) || normalizeText(key).includes(normalizedCand)) {
+        const price = Number(value);
+        if (Number.isFinite(price) && price > 0) {
+          return price;
+        }
       }
     }
   }
@@ -175,7 +180,8 @@ const fetchMandiRecords = async ({ commodity, state, limit = 20 }) => {
       { state: 'Uttar Pradesh', market: 'Agra', commodity: 'Potato', modal_price: '1100' },
       { state: 'Madhya Pradesh', market: 'Bhopal', commodity: 'Maize', modal_price: '2100' },
       { state: 'Gujarat', market: 'Rajkot', commodity: 'Cotton', modal_price: '6800' },
-      { state: 'Rajasthan', market: 'Jaipur', commodity: 'Mustard', modal_price: '5800' }
+      { state: 'Rajasthan', market: 'Jaipur', commodity: 'Mustard', modal_price: '5800' },
+      { state: 'Himachal Pradesh', market: 'Shimla', commodity: 'Apple', modal_price: '8500' }
     ];
     // Filter dummy records locally if commodity/state requested
     if (commodity) records = records.filter(r => r.commodity.toLowerCase().includes(commodity.toLowerCase()));

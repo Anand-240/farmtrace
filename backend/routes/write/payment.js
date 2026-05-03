@@ -28,6 +28,7 @@ const {
   parseSlotDateTime
 } = require('../../utils/logisticsPlanner');
 const { sendSms, smsTemplates } = require('../../utils/sms');
+const { normalizePhone } = require('../../utils/phoneUtils');
 const logger = require('../../utils/logger').child({ module: 'payment' });
 
 let razorpay = null;
@@ -327,7 +328,7 @@ router.post('/request', auth, async (req, res) => {
 
     const normalizedEmail = toEmail?.trim().toLowerCase();
     const toUser = await User.findOne(
-      normalizedEmail ? { email: normalizedEmail } : { phone: toPhone?.trim() }
+      normalizedEmail ? { email: normalizedEmail } : { phone: normalizePhone(toPhone) }
     );
     if (!toUser) {
       return res.status(404).json({ message: normalizedEmail ? 'Receiver nahi mila — email check karo' : 'Receiver nahi mila — phone check karo' });
@@ -449,10 +450,16 @@ router.post('/create-order', auth, async (req, res) => {
     const { booking: bookingAmount, dispatch: dispatchAmount, delivery: deliveryAmount } = 
       getMilestoneBreakdown(totalAmountRaw, transfer.transferType);
 
-    // Escrow strategy: Charge ONLY booking amount upfront.
-    // The rest will be handled via milestones later.
+    // Razorpay Test Mode Cap: prevent "Amount exceeds maximum amount allowed" (usually ₹50,000)
+    let finalBookingAmount = bookingAmount;
+    const isTestMode = process.env.RAZORPAY_KEY_ID?.startsWith('rzp_test_');
+    if (isTestMode && finalBookingAmount > 5000000) {
+      logger.warn({ originalAmount: bookingAmount, cappedAmount: 5000000 }, 'Capping test payment to ₹50,000');
+      finalBookingAmount = 5000000;
+    }
+
     const order = await razorpayClient.orders.create({
-      amount: bookingAmount,
+      amount: finalBookingAmount,
       currency: 'INR',
       receipt: `transfer_${transferId}`,
       notes: {
@@ -464,15 +471,18 @@ router.post('/create-order', auth, async (req, res) => {
         booking: (bookingAmount / 100).toString(),
         dispatch: (dispatchAmount / 100).toString(),
         delivery: (deliveryAmount / 100).toString(),
-        totalAmount: (totalAmountRaw / 100).toString()
+        totalAmount: (totalAmountRaw / 100).toString(),
+        isCapped: (finalBookingAmount !== bookingAmount).toString()
       }
     });
+
+    logger.info({ orderId: order.id, amount: finalBookingAmount, transferId }, 'Razorpay order created on server');
 
     res.json({
       success: true,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID,
       orderId: order.id,
-      amount: bookingAmount,
+      amount: finalBookingAmount,
       currency: 'INR',
       totalAmount: totalAmountRaw / 100,
       payableNow: bookingAmount / 100,
@@ -534,7 +544,7 @@ router.post('/verify', auth, async (req, res) => {
     // Blockchain pe transfer (immediate booking ke baad)
     let jobId = null;
     const chainProduceId = transfer.produceChainId || produce?.produceId || transfer.produceId;
-    if (chainProduceId && produce?.produceId) {
+    if (chainProduceId) { // Removed strict produce?.produceId check to allow worker to try fallback
       const toAddress = new (require('ethers').Wallet)(
         process.env.PLATFORM_PRIVATE_KEY
       ).address;
@@ -580,13 +590,13 @@ router.post('/verify', auth, async (req, res) => {
         fromName: toUser?.name,
         toPhone: transfer.fromPhone,
         toName: fromUser?.name,
-        amount: totalAmount,
+        amount: bookingAmount,
         pricePerKg: transfer.price,
         quantity: produce?.quantity,
         transferType: transfer.transferType,
         paymentId: razorpay_payment_id,
         txHash: null,
-        status: 'PENDING',
+        status: 'BOOKING_PAID',
         type: 'SENT'
       }
     });
@@ -600,13 +610,13 @@ router.post('/verify', auth, async (req, res) => {
         fromName: toUser?.name,
         toPhone: transfer.fromPhone,
         toName: fromUser?.name,
-        amount: totalAmount,
+        amount: bookingAmount,
         pricePerKg: transfer.price,
         quantity: produce?.quantity,
         transferType: transfer.transferType,
         paymentId: razorpay_payment_id,
         txHash: null,
-        status: 'PENDING',
+        status: 'BOOKING_PAID',
         type: 'RECEIVED'
       }
     });
@@ -659,11 +669,15 @@ router.get('/transactions', auth, async (req, res) => {
         ]
       },
       orderBy: { createdAt: 'desc' }
+    }).catch(err => {
+      logger.error({ err: err.message }, 'Transactions database fetch failed');
+      return []; // Return empty instead of crashing
     });
 
     res.json(transactions);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    logger.error({ err: err.message }, 'Transactions route error');
+    res.json([]); // Fail-safe
   }
 });
 

@@ -142,36 +142,37 @@ export default function Register() {
 
       const jobId = res.data.jobId;
       if (jobId) {
-        toast.promise(
-          new Promise((resolve, reject) => {
-            const checkJob = setInterval(async () => {
-              try {
-                const jobRes = await api.get(`/jobs/${jobId}`);
-                if (jobRes.data.state === 'completed') {
-                  clearInterval(checkJob);
-                  setResult({ ...res.data.produce, txHash: jobRes.data.result?.transactionHash || 'Verified on Ledger' });
-                  resolve();
-                } else if (jobRes.data.state === 'failed') {
-                  clearInterval(checkJob);
-                  reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
-                }
-              } catch (e) {
-                clearInterval(checkJob);
-                reject(e);
-              }
-            }, 2000);
-          }),
-          {
-            loading: 'Writing to Blockchain...',
-            success: '✅ Done',
-            error: (err) => `Blockchain writing failed: ${err.message}`
+        // Use a single toast ID to prevent duplicates if user double-clicks (though button is disabled)
+        const toastId = toast.loading('Writing to Blockchain...');
+        
+        const checkJob = setInterval(async () => {
+          try {
+            const jobRes = await api.get(`/jobs/${jobId}`);
+            if (jobRes.data.state === 'completed') {
+              clearInterval(checkJob);
+              const txHash = jobRes.data.result?.txHash || 'Verified on Ledger';
+              setResult({ ...res.data.produce, txHash });
+              toast.success('✅ Done', { id: toastId });
+              track('crop_registered', { cropType: form.cropType, grade: form.qualityGrade, origin: form.origin });
+            } else if (jobRes.data.state === 'failed') {
+              clearInterval(checkJob);
+              toast.error(`Blockchain writing failed: ${jobRes.data.failedReason || 'Unknown error'}`, { id: toastId });
+              setResult(res.data.produce); // Still show QR even if blockchain fail
+            }
+          } catch (e) {
+            clearInterval(checkJob);
+            toast.error('Network error checking job status', { id: toastId });
+            setResult(res.data.produce);
           }
-        );
+        }, 2000);
       } else {
         setResult(res.data.produce);
         track('crop_registered', { cropType: form.cropType, grade: form.qualityGrade, origin: form.origin });
       }
-    } catch (err) { setError('Registration failed. Check network.'); }
+    } catch (err) { 
+      setError('Registration failed. Check network.'); 
+      toast.error('Registration failed');
+    }
     finally { setLoading(false); }
   };
 

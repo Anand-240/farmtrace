@@ -1,30 +1,34 @@
 import axios from 'axios';
 
 const getBaseURL = () => {
-  let url = process.env.REACT_APP_API_URL || '';
+  // 1. Check runtime config (useful for Docker/Vercel)
+  const runtimeConfig = typeof window !== 'undefined' ? window.__FARMTRACE_CONFIG__ : null;
+  let url = runtimeConfig?.REACT_APP_API_URL || process.env.REACT_APP_API_URL || '';
 
-  // 1. If no environment variable, use defaults
-  if (!url && typeof window !== 'undefined') {
+  // 2. Handle Localhost / Development overrides
+  if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (['localhost', '127.0.0.1'].includes(hostname)) {
-      url = 'http://localhost:4000/api/v1';
-    } else {
-      // For Vercel production, use relative /api/v1 which matches vercel.json rewrites
-      url = '/api/v1';
+    const isLocal = ['localhost', '127.0.0.1'].includes(hostname) || hostname.startsWith('192.168.');
+    
+    // If we're on localhost but the URL is relative or pointing to production/wrong port
+    if (isLocal && (!url || url.startsWith('/') || !url.includes(':4000'))) {
+      url = `http://${hostname}:4000/api/v1`;
     }
   }
 
-  // 2. Safety Check: If the URL is provided but missing /api/v1, append it
-  // This handles cases where REACT_APP_API_URL is set to just the domain
-  if (url && url.startsWith('http') && !url.includes('/api/v1')) {
-    // Strip trailing slash
-    if (url.endsWith('/')) url = url.slice(0, -1);
-    
-    if (url.endsWith('/api')) {
-      url = url + '/v1';
-    } else {
-      url = url + '/api/v1';
+  // 3. Absolute Fallback: if no URL, assume same origin with v1
+  if (!url) {
+    url = '/api/v1';
+  }
+
+  // 4. Normalization: ensure /v1 is present but not doubled
+  if (url.startsWith('http')) {
+    if (!url.includes('/api/v1')) {
+      if (url.endsWith('/')) url = url.slice(0, -1);
+      url = url.endsWith('/api') ? url + '/v1' : url + '/api/v1';
     }
+  } else if (url === '/api') {
+    url = '/api/v1';
   }
 
   return url;
@@ -32,8 +36,10 @@ const getBaseURL = () => {
 
 const api = axios.create({
   baseURL: getBaseURL(),
-  timeout: 15000
+  timeout: 20000
 });
+
+console.log('🚀 API Client Initialized | BaseURL:', api.defaults.baseURL);
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -48,11 +54,15 @@ api.interceptors.request.use((config) => {
     return config;
   }
 
-  // If the request already includes /api/v1, remove it because baseURL has it
+  // URL normalization to prevent double prefixing (like /api/v1/v1 or /api/v1/api/v1)
   if (url.startsWith('/api/v1')) {
     url = url.substring(7);
   } else if (url.startsWith('api/v1')) {
     url = url.substring(6);
+  } else if (url.startsWith('/v1')) {
+    url = url.substring(3);
+  } else if (url.startsWith('v1')) {
+    url = url.substring(2);
   }
 
   // Ensure it starts with a clean slash for axios to append to baseURL

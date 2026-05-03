@@ -16,6 +16,7 @@ export default function Verify() {
     api.get(`/produce/${id}`)
       .then(res => {
         setData(res.data);
+        console.log('🧐 Traceability Data:', res.data);
         track('traceability_viewed', { produceId: id, cropType: res.data?.cropType });
       })
       .catch(() => setError('Produce nahi mila'))

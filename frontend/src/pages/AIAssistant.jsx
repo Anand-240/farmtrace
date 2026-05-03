@@ -644,31 +644,25 @@ export default function AIAssistant() {
 
       const jobId = res.data.jobId;
       if (jobId) {
-        toast.promise(
-          new Promise((resolve, reject) => {
-            const checkJob = setInterval(async () => {
-              try {
-                const jobRes = await api.get(`/jobs/${jobId}`);
-                if (jobRes.data.state === 'completed') {
-                  clearInterval(checkJob);
-                  finishRegistration(res.data.produce, jobRes.data.result?.transactionHash || 'Verified');
-                  resolve();
-                } else if (jobRes.data.state === 'failed') {
-                  clearInterval(checkJob);
-                  reject(new Error(jobRes.data.failedReason || 'Transaction failed'));
-                }
-              } catch (e) {
-                clearInterval(checkJob);
-                reject(e);
-              }
-            }, 2000);
-          }),
-          {
-            loading: 'Writing to Blockchain...',
-            success: '✅ Done',
-            error: (err) => `Blockchain failed: ${err.message}`
+        const toastId = toast.loading('Writing to Blockchain...');
+        
+        const checkJob = setInterval(async () => {
+          try {
+            const jobRes = await api.get(`/jobs/${jobId}`);
+            if (jobRes.data.state === 'completed') {
+              clearInterval(checkJob);
+              const txHash = jobRes.data.result?.txHash || 'Verified';
+              finishRegistration(res.data.produce, txHash);
+              toast.success('✅ Done', { id: toastId });
+            } else if (jobRes.data.state === 'failed') {
+              clearInterval(checkJob);
+              toast.error(`Blockchain failed: ${jobRes.data.failedReason || 'Unknown error'}`, { id: toastId });
+            }
+          } catch (e) {
+            clearInterval(checkJob);
+            toast.error('Network error checking job status', { id: toastId });
           }
-        );
+        }, 2000);
       } else {
         finishRegistration(res.data.produce, 'Verified on Ledger');
       }

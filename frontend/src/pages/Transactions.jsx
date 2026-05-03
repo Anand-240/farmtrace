@@ -9,19 +9,38 @@ export default function Transactions() {
   const [notifFilter, setNotifFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  
+  // Normalize local user phone to match API +91 format
+  const rawUser = JSON.parse(localStorage.getItem('user') || '{}');
+  if (rawUser.phone && !rawUser.phone.startsWith('+')) {
+    if (rawUser.phone.length === 10) rawUser.phone = '+91' + rawUser.phone;
+    else if (rawUser.phone.length === 12 && rawUser.phone.startsWith('91')) rawUser.phone = '+' + rawUser.phone;
+  }
+  const user = rawUser;
 
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const [txRes, notifRes] = await Promise.all([
-        api.get('/payment/transactions'),
-        api.get('/payment/notifications')
-      ]);
-      setTransactions(txRes.data);
-      setNotifications(notifRes.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+      const txPromise = api.get('/payment/transactions')
+        .then(res => {
+          if (Array.isArray(res.data)) setTransactions(res.data);
+        })
+        .catch(err => console.error('Transactions load error:', err));
+
+      const notifPromise = api.get('/payment/notifications')
+        .then(res => {
+          if (Array.isArray(res.data)) setNotifications(res.data);
+        })
+        .catch(err => console.error('Notifications load error:', err));
+
+      await Promise.allSettled([txPromise, notifPromise]);
+    } catch (err) { 
+      console.error('FetchData error:', err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const markRead = async (id) => {

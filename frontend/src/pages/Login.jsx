@@ -63,11 +63,13 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
+      console.log('Attempting Login with BaseURL:', api.defaults.baseURL);
       if (isRegister) {
         const fullPhone = `${form.countryCode}${form.phone}`;
         await api.post('/auth/register', { ...form, phone: fullPhone });
       }
       const res = await api.post('/auth/login', { identifier: form.email, password: form.password });
+      console.log('Login Success:', res.data);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');
