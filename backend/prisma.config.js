@@ -4,6 +4,6 @@ require("dotenv").config();
 module.exports = defineConfig({
   schema: "prisma/schema.prisma",
   datasource: {
-    url: env("DATABASE_URL"),
+    url: process.env.DATABASE_URL || "postgresql://dummy:dummy@localhost:5432/dummy",
   },
 });
