@@ -1,45 +1,35 @@
 'use strict';
 
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const logger = require('./logger').child({ module: 'email' });
 
-const isPlaceholder = (v = '') => {
-  const s = String(v).trim().toLowerCase();
-  return !s || s.includes('your-email') || s.includes('xxxx');
+const getClient = () => {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
 };
 
-const hasSmtp = () =>
-  Boolean(
-    process.env.SMTP_HOST &&
-    process.env.SMTP_USER &&
-    process.env.SMTP_PASS &&
-    !isPlaceholder(process.env.SMTP_USER) &&
-    !isPlaceholder(process.env.SMTP_PASS)
-  );
+const mailFrom = () => process.env.MAIL_FROM || 'FarmTrace <onboarding@resend.dev>';
 
-const mailFrom = () => {
-  const f = process.env.MAIL_FROM;
-  return !f || isPlaceholder(f) ? process.env.SMTP_USER : f;
-};
-
-const makeTransport = () =>
-  nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true',
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-  });
+// In testing mode all emails are redirected to EMAIL_TEST_OVERRIDE
+const resolveTo = (to) => process.env.EMAIL_TEST_OVERRIDE || to;
 
 async function sendMail({ to, subject, html }) {
-  if (!to || !hasSmtp()) {
-    logger.warn({ to, subject }, 'SMTP not configured — skipping email');
+  if (!to) return;
+  const client = getClient();
+  if (!client) {
+    logger.warn({ to, subject }, 'RESEND_API_KEY not set — skipping email');
     return;
   }
+  const resolvedTo = resolveTo(to);
   try {
-    await makeTransport().sendMail({ from: mailFrom(), to, subject, html });
-    logger.info({ to, subject }, 'Email sent');
+    const { error } = await client.emails.send({ from: mailFrom(), to: resolvedTo, subject, html });
+    if (error) {
+      logger.error({ error, to: resolvedTo, subject }, 'Resend send failed');
+    } else {
+      logger.info({ to: resolvedTo, originalTo: to, subject }, 'Email sent via Resend');
+    }
   } catch (err) {
-    logger.error({ err, to, subject }, 'Email send failed');
+    logger.error({ err, to: resolvedTo, subject }, 'Resend error');
   }
 }
 
@@ -59,6 +49,21 @@ const row = (label, value, shaded) =>
   `<tr${shaded ? ' style="background:#f5f5f5;"' : ''}><td style="padding:8px;color:#555;">${label}</td><td style="padding:8px;font-weight:bold;">${value}</td></tr>`;
 
 const emailTemplates = {
+  transferRequest({ recipientName, senderName, cropType, pricePerKg, location }) {
+    return {
+      subject: `FarmTrace: ${senderName} ne ${cropType} transfer request bheji`,
+      html: shell(`
+        <p>Namaste <strong>${recipientName}</strong>,</p>
+        <p><strong>${senderName}</strong> ne aapko <strong>${cropType}</strong> khareedne ki request bheji hai.</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          ${row('Fasal', cropType, true)}
+          ${row('Daam', `&#8377;${pricePerKg}/kg`, false)}
+          ${row('Jagah', location || '—', true)}
+        </table>
+        <p>FarmTrace app par login karke request <strong>accept ya reject</strong> karo.</p>`)
+    };
+  },
+
   transferReceived({ recipientName, senderName, cropType, pricePerKg, location }) {
     return {
       subject: `FarmTrace: ${senderName} ne ${cropType} transfer kiya`,
@@ -109,21 +114,6 @@ const emailTemplates = {
         <p><strong>${cropType}</strong> delivery update:</p>
         <p style="font-size:16px;font-weight:bold;color:#27500A;">${status}${location ? ` — ${location}` : ''}</p>
         <p>FarmTrace app par real-time track karo.</p>`)
-    };
-  },
-
-  transferRequest({ recipientName, senderName, cropType, pricePerKg, location }) {
-    return {
-      subject: `FarmTrace: ${senderName} ne ${cropType} transfer request bheji`,
-      html: shell(`
-        <p>Namaste <strong>${recipientName}</strong>,</p>
-        <p><strong>${senderName}</strong> ne aapko <strong>${cropType}</strong> khareedne ki request bheji hai.</p>
-        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-          ${row('Fasal', cropType, true)}
-          ${row('Daam', `&#8377;${pricePerKg}/kg`, false)}
-          ${row('Jagah', location || '—', true)}
-        </table>
-        <p>FarmTrace app par login karke request <strong>accept ya reject</strong> karo.</p>`)
     };
   },
 
