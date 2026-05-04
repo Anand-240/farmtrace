@@ -5,14 +5,14 @@ const { PrismaPg } = require('@prisma/adapter-pg');
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('❌ DATABASE_URL is missing! Check Vercel environment variables.');
+  throw new Error('❌ DATABASE_URL is missing! Set it in Render.com (or your host) environment variables.');
 }
 
-const pool = new Pool({ 
+const pool = new Pool({
   connectionString,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  max: 5,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 8000,
 });
 
 pool.on('error', (err) => {

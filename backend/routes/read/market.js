@@ -2,6 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 const { fetchMandiRecords, getSellPriceFloor, pickBestMandiRecord, getMspPriceForCrop, getStatePriceMap, normalizeText } = require('../../utils/marketPricing');
+const { getRoute, getRouteByCoords, CITY_COORDS } = require('../../utils/routingService');
+const { calculateTransportCost, getCurrentFuelPrices } = require('../../utils/fuelPricing');
 const logger = require('../../utils/logger').child({ module: 'market' });
 const Produce = require('../../models/Produce');
 
@@ -122,6 +124,78 @@ router.get('/search', async (req, res) => {
     logger.error({ err }, 'MongoDB search error');
     return res.status(500).json({ message: 'Search failed' });
   }
+});
+
+// Route cost: shortest path + fuel cost between two cities
+// GET /api/v1/market/route-cost?from=pune&to=mumbai&vehicleType=Mini+Truck
+router.get('/route-cost', async (req, res) => {
+  try {
+    const from = String(req.query.from || '').trim();
+    const to = String(req.query.to || '').trim();
+    const vehicleType = String(req.query.vehicleType || 'Mini Truck').trim();
+
+    if (!from || !to) {
+      return res.status(400).json({ message: 'from aur to city required hai' });
+    }
+
+    if (from.toLowerCase() === to.toLowerCase()) {
+      return res.status(400).json({ message: 'Dono same location hai. Alag areas enter karein.' });
+    }
+
+    const fromLat = parseFloat(req.query.fromLat);
+    const fromLng = parseFloat(req.query.fromLng);
+    const toLat   = parseFloat(req.query.toLat);
+    const toLng   = parseFloat(req.query.toLng);
+
+    let routeResult;
+    if (!isNaN(fromLat) && !isNaN(fromLng) && !isNaN(toLat) && !isNaN(toLng)) {
+      routeResult = await getRouteByCoords(from, { lat: fromLat, lng: fromLng }, to, { lat: toLat, lng: toLng });
+    } else {
+      routeResult = await getRoute(from, to);
+    }
+
+    if (routeResult.error) {
+      return res.status(404).json({
+        message: routeResult.error,
+        availableCities: Object.keys(CITY_COORDS)
+      });
+    }
+
+    if (routeResult.distanceKm < 0.5) {
+      return res.status(400).json({ message: 'Dono locations ek hi jagah ke paas hain. Alag areas enter karein.' });
+    }
+
+    const fuelResult = calculateTransportCost(routeResult.distanceKm, vehicleType);
+    const fuelPrices = getCurrentFuelPrices();
+
+    return res.json({
+      from: { name: routeResult.from.name, coords: routeResult.from.coords },
+      to: { name: routeResult.to.name, coords: routeResult.to.coords },
+      route: {
+        distanceKm: routeResult.distanceKm,
+        durationMin: routeResult.durationMin,
+        durationHours: `${Math.floor(routeResult.durationMin / 60)}h ${routeResult.durationMin % 60}m`,
+        geometry: routeResult.geometry,
+        source: routeResult.source
+      },
+      transport: fuelResult,
+      fuelPrices
+    });
+  } catch (err) {
+    logger.error({ err }, 'route-cost error');
+    return res.status(500).json({ message: 'Route calculate nahi ho paya: ' + err.message });
+  }
+});
+
+// List available cities for autocomplete
+router.get('/cities', (req, res) => {
+  const q = String(req.query.q || '').toLowerCase();
+  const cities = Object.keys(CITY_COORDS);
+  const filtered = q ? cities.filter(c => c.startsWith(q)) : cities;
+  return res.json(filtered.map(c => ({
+    name: c.charAt(0).toUpperCase() + c.slice(1),
+    coords: CITY_COORDS[c]
+  })));
 });
 
 module.exports = router;
