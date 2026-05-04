@@ -4,8 +4,11 @@ const auth = require('../../middleware/authMiddleware');
 const Transfer = require('../../models/Transfer');
 const Produce = require('../../models/Produce');
 const User = require('../../models/User');
+const Notification = require('../../models/Notification');
 const { transferOnChain } = require('../../blockchain/blockchainService');
 const { validateSellPrice } = require('../../utils/marketPricing');
+const { pushToUser } = require('../../utils/socket');
+const { sendMail, emailTemplates } = require('../../utils/email');
 const logger = require('../../utils/logger').child({ module: 'transfer' });
 
 router.post('/', auth, async (req, res) => {
@@ -82,6 +85,38 @@ router.post('/', auth, async (req, res) => {
     // Current owner update karo
     produce.currentOwner = receiver.phone;
     await produce.save();
+
+    // Notify receiver
+    const receiverNotif = await Notification.create({
+      userPhone: receiver.phone,
+      title: 'Produce Transfer Ho Gaya!',
+      message: `${req.user.name} ne aapko ${produce.cropType} transfer kiya — ₹${price}/kg at ${location}`,
+      type: 'TRANSFER_COMPLETE',
+      data: { transferId: transfer._id, produceId: produce._id }
+    });
+    pushToUser(receiver.phone, 'notification', receiverNotif.toObject());
+
+    // Notify sender
+    const senderNotif = await Notification.create({
+      userPhone: req.user.phone,
+      title: 'Transfer Successful!',
+      message: `${produce.cropType} successfully ${receiver.name} ko transfer ho gaya`,
+      type: 'TRANSFER_COMPLETE',
+      data: { transferId: transfer._id, produceId: produce._id }
+    });
+    pushToUser(req.user.phone, 'notification', senderNotif.toObject());
+
+    // Email receiver
+    if (receiver.email) {
+      const tmpl = emailTemplates.transferReceived({
+        recipientName: receiver.name,
+        senderName: req.user.name,
+        cropType: produce.cropType,
+        pricePerKg: price,
+        location
+      });
+      sendMail({ to: receiver.email, ...tmpl }).catch(() => {});
+    }
 
     res.json({
       success: true,

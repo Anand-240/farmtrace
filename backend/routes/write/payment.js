@@ -29,6 +29,8 @@ const {
 } = require('../../utils/logisticsPlanner');
 const { sendSms, smsTemplates } = require('../../utils/sms');
 const { normalizePhone } = require('../../utils/phoneUtils');
+const { pushToUser } = require('../../utils/socket');
+const { sendMail, emailTemplates } = require('../../utils/email');
 const logger = require('../../utils/logger').child({ module: 'payment' });
 
 let razorpay = null;
@@ -80,32 +82,32 @@ async function releaseMilestonePayment({ escrow, transferId, milestone, transfer
   if (milestone === 'DISPATCH' && !escrow.dispatchReleased) {
     escrow.dispatchReleased = true;
     escrow.dispatchReleasedAt = new Date();
-    
-    // Notify farmer only if there is a non-zero payout
+
     if (escrow.dispatchAmount > 0) {
-      await Notification.create({
+      const n = await Notification.create({
         userPhone: transfer.fromPhone,
         title: 'Dispatch Payment Released!',
         message: `${transfer.toPhone} ne pickup dispatch kiya. \u20b9${escrow.dispatchAmount.toLocaleString()} payment release ho gayi!`,
         type: 'PAYMENT_RECEIVED',
         data: { transferId, amount: escrow.dispatchAmount, milestone: 'DISPATCH' }
       });
+      pushToUser(transfer.fromPhone, 'notification', n.toObject());
     }
   }
-  
+
   if (milestone === 'DELIVERY' && !escrow.deliveryReleased) {
     escrow.deliveryReleased = true;
     escrow.deliveryReleasedAt = new Date();
     escrow.status = 'COMPLETED';
-    
-    // Notify farmer that final payment released
-    await Notification.create({
+
+    const n = await Notification.create({
       userPhone: transfer.fromPhone,
       title: 'Final Settlement!',
       message: `Lot delivery confirm ho gayi! Final payment \u20b9${escrow.deliveryAmount.toLocaleString()} release ho gayi.`,
       type: 'PAYMENT_RECEIVED',
       data: { transferId, amount: escrow.deliveryAmount, milestone: 'DELIVERY' }
     });
+    pushToUser(transfer.fromPhone, 'notification', n.toObject());
   }
   
   await prisma.escrow.update({
@@ -122,7 +124,7 @@ async function releaseMilestonePayment({ escrow, transferId, milestone, transfer
 
 async function notifyDeliveryParticipants({ transfer, actorPhone, title, message, type, data = {} }) {
   const targets = [transfer.fromPhone, transfer.toPhone].filter(Boolean);
-  await Promise.all(targets.map((phone) => Notification.create({
+  const notifs = await Promise.all(targets.map((phone) => Notification.create({
     userPhone: phone,
     title,
     message,
@@ -134,6 +136,7 @@ async function notifyDeliveryParticipants({ transfer, actorPhone, title, message
       ...data
     }
   })));
+  notifs.forEach((n) => pushToUser(n.userPhone, 'notification', n.toObject()));
 }
 
 function getClientIp(req) {
@@ -350,13 +353,27 @@ router.post('/request', auth, async (req, res) => {
     });
 
     // Receiver ko notification bhejo
-    await Notification.create({
+    const requestNotif = await Notification.create({
       userPhone: toUser.phone,
       title: 'Naya Transfer Request',
       message: `${req.user.name} ne ${produce.cropType} transfer karne ki request bheji hai — ₹${pricePerKg}/kg`,
       type: 'REQUEST_RECEIVED',
       data: { transferId: transfer._id, produceId: produceMongoId }
     });
+    pushToUser(toUser.phone, 'notification', requestNotif.toObject());
+
+    if (toUser.email) {
+      sendMail({
+        to: toUser.email,
+        ...emailTemplates.transferRequest({
+          recipientName: toUser.name,
+          senderName: req.user.name,
+          cropType: produce.cropType,
+          pricePerKg,
+          location
+        })
+      }).catch(() => {});
+    }
 
     res.json({ success: true, transfer, message: 'Transfer request bheji gayi!' });
 
@@ -622,22 +639,46 @@ router.post('/verify', auth, async (req, res) => {
     });
 
     // Farmer ko booking confirmation notification
-    await Notification.create({
+    const farmerNotif = await Notification.create({
       userPhone: transfer.fromPhone,
       title: 'Booking Amount Received!',
       message: `${toUser?.name} ne ₹${bookingAmount.toLocaleString()} booking fee paid. Dispatch ke baad ₹${dispatchAmount.toLocaleString()} aur milega.`,
       type: 'PAYMENT_RECEIVED',
       data: { transferId, amount: bookingAmount, milestone: 'BOOKING' }
     });
+    pushToUser(transfer.fromPhone, 'notification', farmerNotif.toObject());
 
     // Distributor ko confirmation notification
-    await Notification.create({
+    const buyerNotif = await Notification.create({
       userPhone: transfer.toPhone,
       title: 'Order Confirmed!',
       message: `${produce.cropType} payment verify ho gaya. Blockchain transfer processing in background.`,
       type: 'TRANSFER_COMPLETE',
       data: { transferId, milestone: 'BOOKING' }
     });
+    pushToUser(transfer.toPhone, 'notification', buyerNotif.toObject());
+
+    // Email: farmer booking confirmation
+    if (fromUser?.email) {
+      const tmpl = emailTemplates.bookingConfirmed({
+        recipientName: fromUser.name,
+        cropType: produce.cropType,
+        bookingAmount,
+        dispatchAmount
+      });
+      sendMail({ to: fromUser.email, ...tmpl }).catch(() => {});
+    }
+
+    // Email: buyer order confirmation
+    if (toUser?.email) {
+      const tmpl = emailTemplates.orderConfirmed({
+        recipientName: toUser.name,
+        cropType: produce.cropType,
+        milestones: { booking: bookingAmount, dispatch: dispatchAmount, delivery: deliveryAmount },
+        totalAmount
+      });
+      sendMail({ to: toUser.email, ...tmpl }).catch(() => {});
+    }
 
     // SMS: Farmer ko booking confirmation
     sendSms(
@@ -788,25 +829,55 @@ router.put('/deliveries/:transferId', auth, async (req, res) => {
         data: { deliveryStatus: transfer.deliveryStatus }
       });
 
-      // SMS Triggers
+      // SMS + Email triggers on status change
+      const [farmerUser, buyerUser] = await Promise.all([
+        User.findOne({ phone: transfer.fromPhone }),
+        User.findOne({ phone: transfer.toPhone })
+      ]);
+
       if (deliveryStatus === 'PICKUP_DISPATCHED') {
-        const farmerUser = await User.findOne({ phone: transfer.fromPhone });
         if (farmerUser?.phone) {
           sendSms(
             farmerUser.phone,
             smsTemplates.dispatchInitiated(crop, transfer.matchedTransporter?.name || 'Transporter', transfer.vehicleType || 'Vehicle')
           ).catch(() => {});
         }
+        [farmerUser, buyerUser].forEach((u) => {
+          if (u?.email) {
+            sendMail({
+              to: u.email,
+              ...emailTemplates.deliveryUpdate({ recipientName: u.name, cropType: crop, status: 'Pickup Dispatched', location: transfer.currentLocation })
+            }).catch(() => {});
+          }
+        });
+      }
+
+      if (deliveryStatus === 'IN_TRANSIT') {
+        [farmerUser, buyerUser].forEach((u) => {
+          if (u?.email) {
+            sendMail({
+              to: u.email,
+              ...emailTemplates.deliveryUpdate({ recipientName: u.name, cropType: crop, status: 'In Transit', location: transfer.currentLocation })
+            }).catch(() => {});
+          }
+        });
       }
 
       if (deliveryStatus === 'DELIVERED') {
-        const buyerUser = await User.findOne({ phone: transfer.toPhone });
         if (buyerUser?.phone) {
           sendSms(
             buyerUser.phone,
             smsTemplates.deliveryConfirmed(crop, transfer.price)
           ).catch(() => {});
         }
+        [farmerUser, buyerUser].forEach((u) => {
+          if (u?.email) {
+            sendMail({
+              to: u.email,
+              ...emailTemplates.deliveryUpdate({ recipientName: u.name, cropType: crop, status: 'Delivered', location: transfer.currentLocation })
+            }).catch(() => {});
+          }
+        });
       }
     }
 
@@ -1119,13 +1190,29 @@ router.post('/escrow/:transferId/request-refund', auth, async (req, res) => {
     await transfer.save();
 
     // Notify farmer about refund request
-    await Notification.create({
+    const refundNotif = await Notification.create({
       userPhone: transfer.fromPhone,
       title: 'Refund Requested!',
       message: `${transfer.toPhone} ne delivery reject kiya. Reason: ${reason}. \u20b9${refundAmount.toLocaleString()} refund process mein.`,
       type: 'PAYMENT_RECEIVED',
       data: { transferId: req.params.transferId, refundAmount, reason }
     });
+    pushToUser(transfer.fromPhone, 'notification', refundNotif.toObject());
+
+    const farmerUser = await User.findOne({ phone: transfer.fromPhone });
+    if (farmerUser?.email) {
+      const produce = await resolveTransferProduce(transfer);
+      sendMail({
+        to: farmerUser.email,
+        ...emailTemplates.refundRequested({
+          farmerName: farmerUser.name,
+          buyerPhone: transfer.toPhone,
+          cropType: produce?.cropType || 'Fasal',
+          refundAmount,
+          reason
+        })
+      }).catch(() => {});
+    }
 
     res.json({
       success: true,

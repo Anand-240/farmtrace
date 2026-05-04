@@ -1,12 +1,29 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import NotificationHub from '../components/NotificationHub';
 
 const NotificationContext = createContext();
 
 export const useNotification = () => useContext(NotificationContext);
 
+// In dev, connect directly to the backend port. In production nginx proxies /socket.io/.
+const getWsUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  const { hostname, protocol } = window.location;
+  const isLocal = ['localhost', '127.0.0.1'].includes(hostname) || hostname.startsWith('192.168.');
+  if (isLocal) return `${protocol}//${hostname}:4000`;
+  return window.location.origin; // nginx will proxy /socket.io/
+};
+
+const notifTypeToStyle = (type) => {
+  if (type === 'PAYMENT_RECEIVED') return 'whatsapp';
+  if (type === 'TRANSFER_COMPLETE') return 'system';
+  return 'sms';
+};
+
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
+  const socketRef = useRef(null);
 
   const removeNotification = useCallback((id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -18,17 +35,40 @@ export const NotificationProvider = ({ children }) => {
       id,
       message,
       title: options.title || 'FarmTrace Alert',
-      type: options.type || 'whatsapp', // 'whatsapp', 'sms', 'system'
+      type: options.type || 'whatsapp',
       duration: options.duration || 6000,
     };
-
     setNotifications(prev => [...prev, newNotif]);
-
-    // Auto remove
-    setTimeout(() => {
-      removeNotification(id);
-    }, newNotif.duration);
+    setTimeout(() => removeNotification(id), newNotif.duration);
   }, [removeNotification]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const socket = io(getWsUrl(), {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnectionDelay: 2000,
+      reconnectionAttempts: 10
+    });
+    socketRef.current = socket;
+
+    socket.on('notification', (notif) => {
+      showNotification(notif.message, {
+        title: notif.title,
+        type: notifTypeToStyle(notif.type)
+      });
+    });
+
+    // silently retry on auth/network errors — non-fatal
+    socket.on('connect_error', () => {});
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [showNotification]);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>

@@ -2,6 +2,7 @@ require('dotenv').config();
 
 // ── Sentry must be initialized FIRST before any other require ──────────────
 const Sentry = require('@sentry/node');
+const http = require('http');
 Sentry.init({
   dsn: process.env.SENTRY_DSN || '',
   enabled: Boolean(process.env.SENTRY_DSN),
@@ -22,6 +23,7 @@ const logger = require('./utils/logger');
 const { pool: pgPool } = require('./prisma/client');
 const { pingRedis } = require('./utils/queue');
 require('./workers/blockchainWorker'); // Start background workers
+const { initSocketServer } = require('./utils/socket');
 
 // Validate Environment Variables
 const envSchema = z.object({
@@ -71,13 +73,17 @@ app.options(/.*/, cors(corsOptions));
 // Strict CSP Headers with Helmet
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // Google Sign-In popup uses postMessage to return the credential;
+  // same-origin COOP blocks it — must be unsafe-none for GSI to work.
+  crossOriginOpenerPolicy: { policy: 'unsafe-none' },
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+      imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://lh3.googleusercontent.com"],
       connectSrc: ["'self'", "https:", "http:"],
+      frameSrc: ["https://accounts.google.com"],
     }
   }
 }));
@@ -180,7 +186,9 @@ process.on('uncaughtException', (err) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, '0.0.0.0', () => {
+const httpServer = http.createServer(app);
+initSocketServer(httpServer);
+httpServer.listen(PORT, '0.0.0.0', () => {
   logger.info({ port: PORT }, '🚀 FarmTrace backend running');
 });
 
