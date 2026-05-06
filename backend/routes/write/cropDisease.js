@@ -14,17 +14,15 @@ const upload = multer({
 });
 
 const DISEASE_ADVICE = {
-  'bacterial blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo. Infected plants hatao. Drainage improve karo.', severity: 'high' },
-  'brown spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole fungicide use karo. Nitrogen fertilizer balance rakho.', severity: 'medium' },
-  'leaf blast': { hi: 'Leaf Blast', remedy: 'Tricyclazole spray immediately karo. Potassium fertilizer badaho. Waterlogging avoid karo.', severity: 'high' },
-  'leaf blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo. Infected leaves kato aur jalao.', severity: 'high' },
-  'leaf scald': { hi: 'Leaf Scald', remedy: 'Systemic fungicide use karo. Silicon fertilizer apply karo.', severity: 'medium' },
-  'narrow brown leaf spot': { hi: 'Narrow Brown Spot', remedy: 'Fungicide spray karo. Waterlogged conditions improve karo.', severity: 'low' },
-  'neck blast': { hi: 'Neck Blast', remedy: 'Tricyclazole ya Isoprothiolane spray karo. Early stage mein treat karna zaroori hai.', severity: 'high' },
-  'rice hispa': { hi: 'Rice Hispa', remedy: 'Chlorpyriphos ya Quinalphos insecticide spray karo. Affected leaves kato.', severity: 'medium' },
-  'sheath blight': { hi: 'Sheath Blight', remedy: 'Hexaconazole ya Propiconazole fungicide use karo. Plant density kam karo.', severity: 'high' },
-  'sheath rot': { hi: 'Sheath Rot', remedy: 'Carbendazim fungicide spray karo. Phosphorus aur potassium fertilizer badaho.', severity: 'medium' },
-  'tungro': { hi: 'Tungro Virus', remedy: 'Infected plants uproot karo. Green leafhopper control karo — imidacloprid use karo.', severity: 'high' },
+  'bacterial_blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo. Infected plants hatao. Drainage improve karo.', severity: 'high' },
+  'blast': { hi: 'Blast (Bimari)', remedy: 'Tricyclazole ya Isoprothiolane fungicide use karo. Potassium fertilizer badaho.', severity: 'high' },
+  'brown_spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole spray karo. Nitrogen fertilizer balance rakho.', severity: 'medium' },
+  'leaf_blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo. Infected leaves kato aur jalao.', severity: 'high' },
+  'rust': { hi: 'Rust (Gerua)', remedy: 'Propiconazole ya Tebuconazole use karo. Affected parts hatao.', severity: 'high' },
+  'smut': { hi: 'Smut', remedy: 'Seed treatment karo aur infected parts hatao. Drainage sahi rakho.', severity: 'medium' },
+  'mosaic': { hi: 'Mosaic Virus', remedy: 'Infected plants uproot karo. Green leafhopper aur insects control karo.', severity: 'high' },
+  'septoria': { hi: 'Septoria Leaf Spot', remedy: 'Fungicide spray karo. Crop rotation follow karo.', severity: 'medium' },
+  'scab': { hi: 'Scab', remedy: 'Fungicide spray karo aur drainage improve karo.', severity: 'medium' },
   'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili. Regular monitoring jari rakho.', severity: 'none' },
 };
 
@@ -45,7 +43,7 @@ router.post('/detect', auth, upload.single('image'), async (req, res) => {
     if (!hfToken) return res.status(503).json({ message: 'HF_API_TOKEN not configured' });
 
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/iamnotpalak/yolov8-transfpn-crop-disease-detection',
+      'https://api-inference.huggingface.co/models/wambugu71/crop_leaf_diseases_vit',
       {
         method: 'POST',
         headers: {
@@ -58,7 +56,6 @@ router.post('/detect', auth, upload.single('image'), async (req, res) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      // Model cold start — HuggingFace returns 503 with estimated_time
       if (response.status === 503) {
         const errJson = JSON.parse(errText || '{}');
         return res.status(503).json({
@@ -76,22 +73,18 @@ router.post('/detect', auth, upload.single('image'), async (req, res) => {
       return res.json({ detections: [], summary: 'Koi bimari nahi mili ya image unclear hai.' });
     }
 
-    // Filter low-confidence results and enrich with advice
+    // Map detections to our advice table
     const results = detections
-      .filter(d => d.score >= 0.3)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5)
       .map(d => ({
         label: d.label,
         confidence: Math.round(d.score * 100),
-        box: d.box,
         ...getAdvice(d.label)
       }));
 
     const topDisease = results[0];
-    const summary = topDisease
-      ? `${topDisease.disease} detected (${topDisease.confidence}% confidence)`
-      : 'Fasal swasth lag rahi hai';
+    const summary = topDisease?.severity === 'none'
+      ? 'Fasal swasth lag rahi hai'
+      : `${topDisease.disease} detected (${topDisease.confidence}% confidence)`;
 
     logger.info({ userId: req.user.id, topDisease: topDisease?.label }, 'Crop disease detected');
 

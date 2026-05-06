@@ -268,7 +268,7 @@ router.post('/disease-detect', auth, (req, res, next) => {
     }
 
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/iamnotpalak/yolov8-transfpn-crop-disease-detection',
+      'https://api-inference.huggingface.co/models/wambugu71/crop_leaf_diseases_vit',
       {
         method: 'POST',
         headers: {
@@ -282,8 +282,10 @@ router.post('/disease-detect', auth, (req, res, next) => {
     if (!response.ok) {
       const errText = await response.text();
       if (response.status === 503) {
+        const errJson = JSON.parse(errText || '{}');
         return res.status(503).json({ 
-          message: 'HuggingFace model load ho raha hai, thodi der mein dobara try karein (Cold Start).' 
+          message: 'HuggingFace model load ho raha hai, thodi der mein dobara try karein.',
+          estimatedTime: errJson.estimated_time || 20 
         });
       }
       logger.error({ status: response.status, body: errText }, 'HF API error');
@@ -304,28 +306,26 @@ router.post('/disease-detect', auth, (req, res, next) => {
       });
     }
 
-    // Map detections to our advice table (reusing logic from cropDisease.js)
-    const DISEASE_ADVICE = {
-      'bacterial blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo.', severity: 'high' },
-      'brown spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole fungicide use karo.', severity: 'medium' },
-      'leaf blast': { hi: 'Leaf Blast', remedy: 'Tricyclazole spray immediately karo.', severity: 'high' },
-      'leaf blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo.', severity: 'high' },
-      'leaf scald': { hi: 'Leaf Scald', remedy: 'Systemic fungicide use karo.', severity: 'medium' },
-      'narrow brown leaf spot': { hi: 'Narrow Brown Spot', remedy: 'Fungicide spray karo.', severity: 'low' },
-      'neck blast': { hi: 'Neck Blast', remedy: 'Tricyclazole spray karo.', severity: 'high' },
-      'rice hispa': { hi: 'Rice Hispa', remedy: 'Chlorpyriphos insecticide spray karo.', severity: 'medium' },
-      'sheath blight': { hi: 'Sheath Blight', remedy: 'Hexaconazole fungicide use karo.', severity: 'high' },
-      'sheath rot': { hi: 'Sheath Rot', remedy: 'Carbendazim fungicide spray karo.', severity: 'medium' },
-      'tungro': { hi: 'Tungro Virus', remedy: 'Infected plants uproot karo.', severity: 'high' },
-      'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili.', severity: 'none' },
+    // Comprehensive mapping for common crop diseases (Rice, Wheat, Tomato, etc.)
+    const DISEASE_MAP = {
+      'bacterial_blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo. Infected plants hatao.', severity: 'high' },
+      'blast': { hi: 'Blast (Bimari)', remedy: 'Tricyclazole ya Isoprothiolane fungicide use karo.', severity: 'high' },
+      'brown_spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole spray karo. Nitrogen balance rakho.', severity: 'medium' },
+      'leaf_blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo. Infected leaves jala do.', severity: 'high' },
+      'rust': { hi: 'Rust (Gerua)', remedy: 'Propiconazole ya Tebuconazole use karo.', severity: 'high' },
+      'smut': { hi: 'Smut', remedy: 'Seed treatment karo aur infected parts hatao.', severity: 'medium' },
+      'mosaic': { hi: 'Mosaic Virus', remedy: 'Infected plants uproot karo. Insects control karo.', severity: 'high' },
+      'septoria': { hi: 'Septoria Leaf Spot', remedy: 'Fungicide spray karo. Crop rotation follow karo.', severity: 'medium' },
+      'scab': { hi: 'Scab', remedy: 'Fungicide spray karo aur drainage improve karo.', severity: 'medium' },
+      'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili. Monitoring jari rakho.', severity: 'none' },
     };
 
     const top = detections[0];
-    const key = top.label.toLowerCase();
+    const label = top.label.toLowerCase();
     let match = { disease: top.label, remedy: 'Nazdiki Krishi Vigyan Kendra (KVK) se sampark karo.', severity: 'unknown' };
 
-    for (const [d, advice] of Object.entries(DISEASE_ADVICE)) {
-      if (key.includes(d)) {
+    for (const [key, advice] of Object.entries(DISEASE_MAP)) {
+      if (label.includes(key)) {
         match = { disease: advice.hi, remedy: advice.remedy, severity: advice.severity };
         break;
       }
@@ -337,7 +337,7 @@ router.post('/disease-detect', auth, (req, res, next) => {
         disease: match.disease,
         severity: match.severity,
         remedies: [match.remedy],
-        preventions: ["Khet mein paani ka drainage sahi rakho.", "Infected patti ko jala do."]
+        preventions: ["Khet mein paani ka drainage sahi rakho.", "Infected patti ko khet se door jala do."]
       }
     });
 
