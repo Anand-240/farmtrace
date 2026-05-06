@@ -25,10 +25,7 @@ async function uploadToCloudinary(buffer, filename) {
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: 'farmtrace_kyc',
-        public_id: filename,
-        // private delivery — not publicly listed
-        type: 'upload',
-        access_mode: 'authenticated'
+        public_id: filename
       },
       (err, result) => {
         if (err) return reject(err);
@@ -251,19 +248,7 @@ router.get('/admin/signed-image/:kycId/:side', async (req, res) => {
     const imageUrl = side === 'front' ? kyc.frontImageUrl : kyc.backImageUrl;
     if (!imageUrl) return res.status(404).json({ message: 'Image upload nahi hua' });
 
-    // Extract public_id from Cloudinary URL (strips version and extension)
-    const match = imageUrl.match(/\/(?:authenticated|upload)\/(?:v\d+\/)?(.+?)(?:\.[^./]+)?$/);
-    const publicId = match ? match[1] : null;
-    if (!publicId) return res.status(500).json({ message: 'Image URL parse fail' });
-
-    const signedUrl = cloudinary.url(publicId, {
-      sign_url: true,
-      type: 'authenticated',
-      resource_type: 'image',
-      expires_at: Math.floor(Date.now() / 1000) + 900 // 15 minutes
-    });
-
-    res.json({ url: signedUrl, expiresIn: 900 });
+    res.json({ url: imageUrl, expiresIn: 900 });
   } catch (err) {
     logger.error({ err }, 'KYC signed image error');
     res.status(500).json({ message: 'Image URL generate nahi hua' });
