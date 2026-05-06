@@ -154,6 +154,7 @@ v1Router.use('/payment', require('./routes/write/payment'));
 v1Router.use('/upload', require('./routes/write/upload'));
 
 v1Router.use('/ai', require('./routes/read/ai'));
+v1Router.use('/crop-disease', require('./routes/write/cropDisease'));
 v1Router.use('/market', require('./routes/read/market'));
 v1Router.use('/jobs', require('./routes/read/jobs'));
 

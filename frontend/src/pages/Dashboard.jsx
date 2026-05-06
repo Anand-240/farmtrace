@@ -7,7 +7,7 @@ import { useLanguage } from '../lib/language';
 import { useNotification } from '../context/NotificationContext';
 import {
   Sprout, Truck, Coins, History, User, Layers,
-  PackageCheck, ShieldCheck, Bot, LogOut,
+  PackageCheck, ShieldCheck, Bot, LogOut, Microscope,
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
   Search, ChevronDown, ChevronUp, SlidersHorizontal,
@@ -745,6 +745,14 @@ export default function Dashboard() {
             </div>
             <span className="action-card-label">Milestone Pay</span>
           </button>
+          {user.role === 'FARMER' && (
+            <button onClick={() => navigate('/crop-disease')} className="action-card">
+              <div className="action-card-icon-wrap" style={{ background: '#F1F8E9' }}>
+                <Microscope className="action-card-icon" color="#33691E" />
+              </div>
+              <span className="action-card-label">Bimari Scanner</span>
+            </button>
+          )}
           {user.role === 'FARMER' && (
             <button onClick={() => navigate('/ai')} className="action-card ai-card">
               <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>

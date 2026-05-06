@@ -19,6 +19,7 @@ import Escrow from './pages/Escrow';
 import Marketplace from './pages/Marketplace';
 import KycVerification from './pages/KycVerification';
 import AdminKyc from './pages/AdminKyc';
+import CropDisease from './pages/CropDisease';
 import { Toaster } from 'react-hot-toast';
 import { SentryErrorBoundary } from './lib/sentry';
 import { identifyUser } from './lib/posthog';
@@ -84,6 +85,9 @@ function App() {
               <PrivateRoute><AIAssistant /></PrivateRoute>
             } />
             <Route path="/admin" element={<AdminKyc />} />
+            <Route path="/crop-disease" element={
+              <PrivateRoute><CropDisease /></PrivateRoute>
+            } />
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
         </BrowserRouter>
