@@ -1127,7 +1127,16 @@ export default function DispatchLogistics() {
                                         <label className="pl-label">Driver Phone</label>
                                         <div className="input-icon-left">
                                           <Phone size={13} />
-                                          <input className="dl-input" placeholder="+91..." value={f.driverPhone || ''} onChange={e => setField(d._id, 'driverPhone', e.target.value)} />
+                                          <input
+                                            className="dl-input"
+                                            placeholder="10 digits"
+                                            maxLength={10}
+                                            value={f.driverPhone || ''}
+                                            onChange={e => {
+                                              const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                              setField(d._id, 'driverPhone', val);
+                                            }}
+                                          />
                                         </div>
                                       </div>
                                       <div>

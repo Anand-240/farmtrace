@@ -305,6 +305,13 @@ function streamCsv(res, csv, filename) {
 // Transfer request banao
 router.post('/request', auth, async (req, res) => {
   try {
+    if (req.user.kycStatus !== 'VERIFIED') {
+      return res.status(403).json({
+        message: 'KYC verification zaroori hai transfer karne ke liye',
+        kycRequired: true
+      });
+    }
+
     const { produceMongoId, toPhone, toEmail, pricePerKg, location, transferType } = req.body;
 
     const produce = await Produce.findById(produceMongoId);
@@ -448,6 +455,13 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 // Razorpay order create
 router.post('/create-order', auth, async (req, res) => {
   try {
+    if (req.user.kycStatus !== 'VERIFIED') {
+      return res.status(403).json({
+        message: 'KYC verification zaroori hai payment karne ke liye',
+        kycRequired: true
+      });
+    }
+
     if (!ensureRazorpayConfigured()) {
       return res.status(500).json({ message: 'Razorpay config missing on server' });
     }

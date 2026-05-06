@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Skeleton from 'react-loading-skeleton';
@@ -24,6 +24,8 @@ export default function Marketplace() {
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
+  const fetchingMoreRef = useRef(false);
   const navigate = useNavigate();
 
   const fetchItems = async (pageNum, searchQuery) => {
@@ -31,8 +33,10 @@ export default function Marketplace() {
       const res = await api.get('/market/search', {
         params: { query: searchQuery, page: pageNum, limit: 10 }
       });
+      setApiError(false);
       return res.data;
     } catch (err) {
+      setApiError(true);
       return { results: [], total: 0 };
     }
   };
@@ -59,13 +63,20 @@ export default function Marketplace() {
   }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchMoreData = async () => {
-    const nextPage = page + 1;
-    const data = await fetchItems(nextPage, query);
-    setItems((prev) => [...prev, ...data.results]);
-    setTotal(data.total);
-    setPage(nextPage);
-    if (items.length + data.results.length >= data.total) {
-      setHasMore(false);
+    if (fetchingMoreRef.current) return;
+    fetchingMoreRef.current = true;
+    try {
+      const nextPage = page + 1;
+      const data = await fetchItems(nextPage, query);
+      setItems((prev) => {
+        const newItems = [...prev, ...data.results];
+        if (newItems.length >= data.total) setHasMore(false);
+        return newItems;
+      });
+      setTotal(data.total);
+      setPage(nextPage);
+    } finally {
+      fetchingMoreRef.current = false;
     }
   };
 
@@ -125,6 +136,15 @@ export default function Marketplace() {
 
         {loading ? (
           renderSkeletons()
+        ) : apiError ? (
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', background: '#fff1f1', borderRadius: '16px', border: '1px solid #f8b4b4' }}>
+            <p style={{ fontSize: '1.5rem', marginBottom: '0.75rem' }}>⚠️</p>
+            <p style={{ fontWeight: 800, color: '#c0392b', marginBottom: '0.5rem' }}>Server se data nahi aaya</p>
+            <p style={{ color: '#888', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Network check karein ya thodi der baad dobara try karein.</p>
+            <button onClick={() => { setApiError(false); setLoading(true); setPage(1); fetchItems(1, query).then(data => { setItems(data.results); setTotal(data.total); setHasMore(data.results.length < data.total); setLoading(false); }); }} style={{ padding: '0.75rem 2rem', background: '#27500A', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+              🔄 Retry
+            </button>
+          </div>
         ) : (
           <InfiniteScroll
             dataLength={items.length}
@@ -133,7 +153,7 @@ export default function Marketplace() {
             loader={<div style={{ textAlign: 'center', padding: '2rem' }}><div className="ft-spinner" style={{ margin: '0 auto' }}></div></div>}
             endMessage={
               <p style={{ textAlign: 'center', color: 'var(--ft-text-muted)', padding: '2rem', fontWeight: 600 }}>
-                {total > 0 ? 'You have seen it all! 🌾' : 'No produce found matching your search. 🌱'}
+                {total > 0 ? 'You have seen it all! 🌾' : 'Is search ke liye koi produce nahi mila. 🌱'}
               </p>
             }
             style={{ overflow: 'visible' }}

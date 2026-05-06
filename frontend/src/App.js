@@ -17,6 +17,8 @@ import LotOperations from './pages/LotOperations';
 import DispatchLogistics from './pages/DispatchLogistics';
 import Escrow from './pages/Escrow';
 import Marketplace from './pages/Marketplace';
+import KycVerification from './pages/KycVerification';
+import AdminKyc from './pages/AdminKyc';
 import { Toaster } from 'react-hot-toast';
 import { SentryErrorBoundary } from './lib/sentry';
 import { identifyUser } from './lib/posthog';
@@ -75,9 +77,13 @@ function App() {
             <Route path="/marketplace" element={
               <PrivateRoute><Marketplace /></PrivateRoute>
             } />
+            <Route path="/kyc" element={
+              <PrivateRoute><KycVerification /></PrivateRoute>
+            } />
             <Route path="/ai" element={
               <PrivateRoute><AIAssistant /></PrivateRoute>
             } />
+            <Route path="/admin" element={<AdminKyc />} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
         </BrowserRouter>

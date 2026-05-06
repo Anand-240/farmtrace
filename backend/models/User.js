@@ -12,7 +12,20 @@ const optionalRegexValidator = (regex, message) => ({
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  phone: { type: String, unique: true, sparse: true, trim: true },
+  phone: { 
+    type: String, 
+    unique: true, 
+    sparse: true, 
+    trim: true,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        const cleaned = v.replace(/\D/g, '');
+        return cleaned.length === 10 || (cleaned.length === 12 && cleaned.startsWith('91'));
+      },
+      message: props => `${props.value} is not a valid 10-digit phone number!`
+    }
+  },
   password: { type: String },
   authProvider: { type: String, enum: ['local', 'google'], default: 'local' },
   googleId: { type: String, unique: true, sparse: true },
@@ -41,7 +54,12 @@ const userSchema = new mongoose.Schema({
     validate: optionalRegexValidator(PAN_REGEX, 'Invalid PAN format')
   },
   resetPasswordToken: String,
-  resetPasswordExpires: Date
+  resetPasswordExpires: Date,
+  kycStatus: {
+    type: String,
+    enum: ['PENDING', 'SUBMITTED', 'VERIFIED', 'REJECTED'],
+    default: 'PENDING'
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

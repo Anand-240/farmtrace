@@ -42,6 +42,7 @@ export default function Register() {
 
   const [cropOptions, setCropOptions] = useState([]);
   const [loadingCrops, setLoadingCrops] = useState(true);
+  const [cropLoadError, setCropLoadError] = useState(false);
   const [result, setResult] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -51,33 +52,66 @@ export default function Register() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const FALLBACK_CROPS = [
+    { value: 'Wheat', floorPrice: 21.75, label: '🌾 Wheat (Floor: ₹21.75/kg)' },
+    { value: 'Paddy(Dhaan)(Common)', floorPrice: 21.83, label: '🌾 Dhaan/Paddy (Floor: ₹21.83/kg)' },
+    { value: 'Tomato', floorPrice: 8.0, label: '🍅 Tomato (Floor: ₹8.00/kg)' },
+    { value: 'Potato', floorPrice: 6.5, label: '🥔 Potato (Floor: ₹6.50/kg)' },
+    { value: 'Onion', floorPrice: 10.0, label: '🧅 Onion (Floor: ₹10.00/kg)' },
+    { value: 'Cotton', floorPrice: 66.0, label: '🪴 Cotton (Floor: ₹66.00/kg)' },
+    { value: 'Mustard', floorPrice: 55.5, label: '🌻 Mustard (Floor: ₹55.50/kg)' },
+    { value: 'Soyabean', floorPrice: 43.0, label: '🫛 Soyabean (Floor: ₹43.00/kg)' },
+  ];
+
   useEffect(() => {
     const fetchCrops = async () => {
       setLoadingCrops(true);
+      setCropLoadError(false);
       try {
         const res = await api.get(`/market/commodities${form.originState ? `?state=${form.originState}` : ''}`);
-        if (res.data && res.data.commodities) {
-          const fetchedCrops = res.data.commodities.map(c => ({ 
-            value: c.name, 
+        if (res.data && res.data.commodities && res.data.commodities.length > 0) {
+          const fetchedCrops = res.data.commodities.map(c => ({
+            value: c.name,
             floorPrice: Number(c.price),
-            label: `${getCropEmoji(c.name)} ${c.name} (Floor: ₹${c.price}/kg)` 
+            label: `${getCropEmoji(c.name)} ${c.name} (Floor: ₹${c.price}/kg)`
           }));
-          if (fetchedCrops.length > 0) {
-            setCropOptions(fetchedCrops);
-            // Only set default if nothing is selected or current selected is not in new list
-            if (!form.cropType || !fetchedCrops.find(c => c.value === form.cropType)) {
-              setForm(prev => ({ ...prev, cropType: fetchedCrops[0].value }));
-            }
+          setCropOptions(fetchedCrops);
+          if (!form.cropType || !fetchedCrops.find(c => c.value === form.cropType)) {
+            setForm(prev => ({ ...prev, cropType: fetchedCrops[0].value }));
           }
+        } else {
+          setCropOptions(FALLBACK_CROPS);
+          if (!form.cropType) setForm(prev => ({ ...prev, cropType: FALLBACK_CROPS[0].value }));
         }
       } catch (err) {
         console.error('Failed to load mandi crops', err);
+        setCropLoadError(true);
+        setCropOptions(FALLBACK_CROPS);
+        if (!form.cropType) setForm(prev => ({ ...prev, cropType: FALLBACK_CROPS[0].value }));
       } finally {
         setLoadingCrops(false);
       }
     };
     fetchCrops();
   }, [form.originState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save form draft to localStorage on every change
+  useEffect(() => {
+    if (!result) {
+      localStorage.setItem('register_form_draft', JSON.stringify(form));
+    }
+  }, [form, result]);
+
+  // Restore draft on mount
+  useEffect(() => {
+    const draft = localStorage.getItem('register_form_draft');
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        setForm(prev => ({ ...prev, ...parsed }));
+      } catch (e) { /* ignore corrupt draft */ }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const loadMandi = async () => {
@@ -151,6 +185,7 @@ export default function Register() {
             if (jobRes.data.state === 'completed') {
               clearInterval(checkJob);
               const txHash = jobRes.data.result?.txHash || 'Verified on Ledger';
+              localStorage.removeItem('register_form_draft');
               setResult({ ...res.data.produce, txHash });
               toast.success('✅ Done', { id: toastId });
               track('crop_registered', { cropType: form.cropType, grade: form.qualityGrade, origin: form.origin });
@@ -166,6 +201,7 @@ export default function Register() {
           }
         }, 2000);
       } else {
+        localStorage.removeItem('register_form_draft');
         setResult(res.data.produce);
         track('crop_registered', { cropType: form.cropType, grade: form.qualityGrade, origin: form.origin });
       }
@@ -250,6 +286,11 @@ export default function Register() {
               </div>
               <div className="ft-input-group">
                 <label className="ft-label">Crop Type (Via Live Govt Mandi API) / फसल चयन</label>
+                {cropLoadError && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #f59e0b', borderRadius: '8px', padding: '0.6rem 0.9rem', marginBottom: '0.5rem', fontSize: '0.82rem', color: '#92400e', fontWeight: 600 }}>
+                    ⚠️ Mandi API se crops load nahi hui. Fallback crops dikh rahe hain — prices approximate hain.
+                  </div>
+                )}
                 {loadingCrops ? (
                   <div className="ft-loading-pulse" style={{ padding: '1rem', border: '1.5px solid var(--ft-border)', borderRadius: '12px' }}>
                     Fetching available live Mandi crops...

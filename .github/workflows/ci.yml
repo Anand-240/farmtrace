@@ -81,9 +81,25 @@ jobs:
           CI: false          # treat warnings as warnings, not errors
           REACT_APP_API_URL: /api/v1
 
-  # ── 4. Docker Build (Optional Verification) ───────────────────────────────
+  # ── 4. Kubernetes: Manifest Validation ────────────────────────────────────
+  validate-kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          KUBECONFORM_VERSION=v0.6.7
+          curl -L https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kubernetes Manifests
+        run: |
+          kubeconform -strict -summary -output text k8s/
+
+  # ── 5. Docker Build (Optional Verification) ───────────────────────────────
   docker-build:
-    needs: [ check-backend, build-contracts, build-frontend ]
+    needs: [ check-backend, build-contracts, build-frontend, validate-kubernetes ]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
@@ -99,7 +115,7 @@ jobs:
       - name: Build frontend image (Dry Run)
         run: docker build -t farmtrace-frontend:latest ./frontend
 
-  # ── 5. Deploy Backend to Render ───────────────────────────────────────────
+  # ── 6. Deploy Backend to Render ───────────────────────────────────────────
   deploy-backend:
     needs: [ docker-build ]
     runs-on: ubuntu-latest
@@ -115,7 +131,7 @@ jobs:
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
           echo "Deployment triggered successfully on Render!"
 
-  # ── 6. Deploy Frontend to Vercel ──────────────────────────────────────────
+  # ── 7. Deploy Frontend to Vercel ──────────────────────────────────────────
   deploy-frontend:
     needs: [ docker-build ]
     runs-on: ubuntu-latest

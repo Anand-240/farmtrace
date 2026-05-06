@@ -194,14 +194,19 @@ export default function Escrow() {
 
                   {escrow.status !== 'REFUNDED' && (
                     <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--ft-border)' }}>
-                      <button 
-                        onClick={() => setExpandedId(expandedId === id ? null : id)} 
-                        className="ft-btn ft-btn-ghost ft-btn-full" 
-                        style={{ color: 'var(--ft-error)', borderColor: 'rgba(185, 28, 28, 0.2)' }}
+                      <button
+                        onClick={() => setExpandedId(expandedId === id ? null : id)}
+                        className="ft-btn ft-btn-ghost ft-btn-full"
+                        style={{ color: transfer.deliveryStatus === 'DELIVERED' ? 'var(--ft-error)' : 'var(--ft-text-muted)', borderColor: transfer.deliveryStatus === 'DELIVERED' ? 'rgba(185, 28, 28, 0.2)' : 'var(--ft-border)' }}
                         disabled={transfer.deliveryStatus !== 'DELIVERED'}
                       >
                         {expandedId === id ? '✕ Cancel Refund' : 'Request Dispute / Refund'}
                       </button>
+                      {transfer.deliveryStatus !== 'DELIVERED' && (
+                        <p style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', marginTop: '0.5rem', textAlign: 'center', fontWeight: 600 }}>
+                          🔒 Refund tab available hoga jab delivery status "DELIVERED" ho jaaye. Abhi: <strong>{transfer.deliveryStatus || 'PENDING_DISPATCH'}</strong>
+                        </p>
+                      )}
 
                       {expandedId === id && (
                         <div style={{ marginTop: '1rem' }}>

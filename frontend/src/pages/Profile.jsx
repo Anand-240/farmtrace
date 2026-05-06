@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import LocationAutocompleteInput from '../components/LocationAutocompleteInput';
@@ -14,9 +14,11 @@ export default function Profile() {
   const [form, setForm] = useState({ name: '', phone: '', village: '', city: '', state: '', avatar: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [avatarBroken, setAvatarBroken] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -36,8 +38,35 @@ export default function Profile() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Sirf JPG, PNG ya WEBP upload karo');
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await api.post('/upload', formData);
+      if (res.data.thumbnailUrl) {
+        updateField('avatar', res.data.thumbnailUrl);
+        setAvatarBroken(false);
+        setSuccess('Photo upload ho gayi! Save karo profile update karne ke liye.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Photo upload nahi hua');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true); setError(''); setSuccess('');
     try {
       const res = await api.put('/auth/me', form);
@@ -71,12 +100,30 @@ export default function Profile() {
           <>
             {/* AVATAR CARD */}
             <div style={s.avatarCard} className="animate-slide-up">
-              <div style={s.avatarCircle}>
-                {form.avatar && !avatarBroken ? (
-                  <img src={form.avatar} alt="Avatar" style={s.avatarImg} onError={() => setAvatarBroken(true)} />
-                ) : (
-                  <span style={{ fontSize: '3rem' }}>{roleEmoji[user.role] || '👤'}</span>
-                )}
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <div style={s.avatarCircle}>
+                  {form.avatar && !avatarBroken ? (
+                    <img src={form.avatar} alt="Avatar" style={s.avatarImg} onError={() => setAvatarBroken(true)} />
+                  ) : (
+                    <span style={{ fontSize: '3rem' }}>{roleEmoji[user.role] || '👤'}</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  style={{ position: 'absolute', bottom: -8, right: -8, width: 32, height: 32, borderRadius: '50%', background: uploading ? '#888' : 'var(--ft-forest)', color: '#fff', border: '2px solid #fff', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
+                  title="Photo upload karo"
+                >
+                  {uploading ? '⏳' : '📷'}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarUpload}
+                />
               </div>
               <div>
                 <div style={s.avatarName}>{form.name || user.name}</div>
@@ -84,6 +131,9 @@ export default function Profile() {
                 <span style={{ ...s.roleBadge, background: roleColor[user.role] || 'var(--ft-forest)' }}>
                   {user.role}
                 </span>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--ft-text-muted)', fontWeight: 600 }}>
+                  📷 Photo ke liye camera icon tap karo
+                </div>
               </div>
             </div>
 
@@ -96,7 +146,7 @@ export default function Profile() {
               <form onSubmit={handleSubmit}>
                 {[
                   { label: 'Aapka Naam', key: 'name', icon: '👤', placeholder: 'Jaise: Ram Singh' },
-                  { label: 'Phone Number', key: 'phone', icon: '📱', placeholder: '+91...' },
+                  { label: 'Phone Number', key: 'phone', icon: '📱', placeholder: '10 digits' },
                 ].map(({ label, key, icon, placeholder }) => (
                   <div key={key} style={s.fieldWrap}>
                     <label style={s.label}>{icon} {label}</label>
@@ -104,7 +154,14 @@ export default function Profile() {
                       style={s.input}
                       className="ft-input"
                       value={form[key]}
-                      onChange={(e) => updateField(key, e.target.value)}
+                      maxLength={key === 'phone' ? 10 : undefined}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (key === 'phone') {
+                          val = val.replace(/\D/g, '').slice(0, 10);
+                        }
+                        updateField(key, val);
+                      }}
                       placeholder={placeholder}
                     />
                   </div>
@@ -144,9 +201,9 @@ export default function Profile() {
                 </div>
 
                 <div style={s.fieldWrap}>
-                  <label style={s.label}>🖼️ Avatar URL (optional)</label>
-                  <input style={s.input} className="ft-input" value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://..." />
-                  {form.avatar && avatarBroken && <p style={s.helperErr}>URL se image load nahi hui, sahi URL daalo</p>}
+                  <label style={s.label}>🖼️ Avatar URL (ya upar se photo upload karo)</label>
+                  <input style={s.input} className="ft-input" value={form.avatar} onChange={(e) => updateField('avatar', e.target.value)} placeholder="https://... ya upar camera icon se photo upload karo" />
+                  {form.avatar && avatarBroken && <p style={s.helperErr}>URL se image load nahi hui — naya URL daalo ya camera se photo upload karo</p>}
                 </div>
 
                 <button type="submit" className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" disabled={saving}>

@@ -100,7 +100,7 @@ export default function Login() {
           });
           localStorage.setItem('token', res.data.token);
           localStorage.setItem('user', JSON.stringify(res.data.user));
-          navigate('/dashboard');
+          navigate('/kyc');
         } else {
           // Regular email/password signup
           const fullPhone = `${form.countryCode}${form.phone}`;
@@ -108,7 +108,7 @@ export default function Login() {
           const res = await api.post('/auth/login', { identifier: form.email, password: form.password });
           localStorage.setItem('token', res.data.token);
           localStorage.setItem('user', JSON.stringify(res.data.user));
-          navigate('/dashboard');
+          navigate('/kyc');
         }
       } else {
         const res = await api.post('/auth/login', { identifier: form.email, password: form.password });
@@ -245,7 +245,11 @@ export default function Login() {
                 style={{ flex: 1, paddingLeft: '1.25rem' }}
                 placeholder="Phone Number"
                 value={form.phone}
-                onChange={e => updateField('phone', e.target.value)}
+                maxLength={10}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length <= 10) updateField('phone', val);
+                }}
                 required={isRegister}
               />
             </div>

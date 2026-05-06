@@ -95,9 +95,19 @@ export default function LotOperations() {
   const handleSplit = async () => {
     if (!selectedSplitLot) return;
     const quantities = splitRows.map(r => Number(r.quantity)).filter(q => q > 0);
-    
+
     if (quantities.length < 1) {
-      setError('Kam se kam ek quantity bharo');
+      setError('Kam se kam ek valid quantity bharo');
+      return;
+    }
+
+    if (quantities.some(q => q <= 0)) {
+      setError('Saari quantities zero se zyada honi chahiye');
+      return;
+    }
+
+    if (totalSplitQty >= selectedSplitLot.quantity) {
+      setError(`Kul split quantity (${totalSplitQty} kg) original lot (${selectedSplitLot.quantity} kg) se kam honi chahiye — kuch remainder parent lot mein rehna chahiye`);
       return;
     }
 
@@ -382,26 +392,36 @@ export default function LotOperations() {
                       <div className="split-summary-box">
                         <div className="progress-label">
                           <span>Split Distribution</span>
-                          <span className={totalSplitQty > selectedSplitLot.quantity ? 'text-error' : ''}>
+                          <span className={totalSplitQty >= selectedSplitLot.quantity ? 'text-error' : ''}>
                             {totalSplitQty} / {selectedSplitLot.quantity} kg
                           </span>
                         </div>
                         <div className="progress-track">
-                          <div 
-                            className={`progress-fill ${totalSplitQty > selectedSplitLot.quantity ? 'error' : ''}`}
+                          <div
+                            className={`progress-fill ${totalSplitQty >= selectedSplitLot.quantity ? 'error' : ''}`}
                             style={{ width: `${Math.min((totalSplitQty / selectedSplitLot.quantity) * 100, 100)}%` }}
                           />
                         </div>
                         <div className="remaining-label">
-                          Remaining: <strong>{remainingQty} kg</strong>
+                          Parent lot mein bachegi: <strong style={{ color: Number(remainingQty) < 0 ? '#ff6b6b' : 'var(--ft-forest)' }}>{remainingQty} kg</strong>
                         </div>
+                        {Number(remainingQty) > 0 && (
+                          <div style={{ marginTop: '0.75rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '0.6rem 0.9rem', fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>
+                            ℹ️ <strong>{remainingQty} kg</strong> original lot mein rahegi — sirf naye child lots transfer honge.
+                          </div>
+                        )}
+                        {Number(remainingQty) <= 0 && totalSplitQty > 0 && (
+                          <div style={{ marginTop: '0.75rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '0.6rem 0.9rem', fontSize: '0.8rem', color: '#b91c1c', fontWeight: 600 }}>
+                            ⚠️ Parent lot mein kuch quantity bachni chahiye. Ek ya zyada split quantities kam karo.
+                          </div>
+                        )}
                       </div>
 
                       <div className="action-footer">
                         <button 
                           className="ft-btn ft-btn-primary ft-btn-full"
                           onClick={handleSplit}
-                          disabled={loading || totalSplitQty <= 0 || totalSplitQty > selectedSplitLot.quantity}
+                          disabled={loading || totalSplitQty <= 0 || totalSplitQty >= selectedSplitLot.quantity}
                         >
                           {loading ? <div className="ft-spinner" /> : (
                             <>

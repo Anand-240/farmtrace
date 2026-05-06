@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../lib/api';
@@ -10,10 +10,13 @@ import {
   PackageCheck, ShieldCheck, Bot, LogOut,
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
-  Search, ChevronDown, ChevronUp, SlidersHorizontal, 
-  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink, ShoppingCart
+  Search, ChevronDown, ChevronUp, SlidersHorizontal,
+  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink, ShoppingCart,
+  AlertTriangle
 } from 'lucide-react';
 import './Dashboard.css';
+
+const PRODUCE_PAGE_SIZE = 20;
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest First' },
@@ -58,41 +61,82 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState('newest');
   const navigate = useNavigate();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [produceDisplayLimit, setProduceDisplayLimit] = useState(PRODUCE_PAGE_SIZE);
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [kycStatus, setKycStatus] = useState(storedUser.kycStatus || 'PENDING');
+  const user = storedUser;
+  const hasShownNotifRef = useRef(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      if (user.role === 'FARMER') {
+        const [produceRes, notifRes, kycRes] = await Promise.allSettled([
+          api.get('/produce/farmer/my'),
+          api.get('/payment/notifications'),
+          api.get('/kyc/status')
+        ]);
+        if (produceRes.status === 'fulfilled') setMyProduces(produceRes.value.data);
+        if (notifRes.status === 'fulfilled') {
+          const unreads = notifRes.value.data.filter(n => !n.isRead);
+          setUnreadNotifs(unreads.length);
+          if (unreads.length > 0 && !hasShownNotifRef.current) {
+            hasShownNotifRef.current = true;
+            setTimeout(() => {
+              showNotification(`Namaste ${user.name}, aapke paas ${unreads.length} naye updates hain!`, {
+                title: 'FarmTrace', type: 'sms', duration: 7000
+              });
+            }, 1500);
+          }
+        }
+        if (kycRes.status === 'fulfilled') {
+          const freshKycStatus = kycRes.value.data.kycStatus;
+          if (freshKycStatus !== kycStatus) {
+            setKycStatus(freshKycStatus);
+            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKycStatus }));
+          }
+        }
+      } else {
+        const [produceRes, pendingRes, notifRes, kycRes] = await Promise.allSettled([
+          api.get('/produce/received/my'),
+          api.get('/payment/pending'),
+          api.get('/payment/notifications'),
+          api.get('/kyc/status')
+        ]);
+        if (produceRes.status === 'fulfilled') setReceivedProduces(produceRes.value.data);
+        if (pendingRes.status === 'fulfilled') setPendingCount(pendingRes.value.data.length);
+        if (notifRes.status === 'fulfilled') {
+          const unreads = notifRes.value.data.filter(n => !n.isRead);
+          setUnreadNotifs(unreads.length);
+          if (unreads.length > 0 && !hasShownNotifRef.current) {
+            hasShownNotifRef.current = true;
+            setTimeout(() => {
+              showNotification(`Namaste ${user.name}, aapke paas ${unreads.length} naye updates hain!`, {
+                title: 'FarmTrace', type: 'sms', duration: 7000
+              });
+            }, 1500);
+          }
+        }
+        if (kycRes.status === 'fulfilled') {
+          const freshKycStatus = kycRes.value.data.kycStatus;
+          if (freshKycStatus !== kycStatus) {
+            setKycStatus(freshKycStatus);
+            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKycStatus }));
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.role, user.name, showNotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (user.role === 'FARMER') {
-          const res = await api.get('/produce/farmer/my');
-          setMyProduces(res.data);
-        } else {
-          const res = await api.get('/produce/received/my');
-          setReceivedProduces(res.data);
-          const pending = await api.get('/payment/pending');
-          setPendingCount(pending.data.length);
-        }
-        const notifRes = await api.get('/payment/notifications');
-        const unreads = notifRes.data.filter(n => !n.isRead);
-        setUnreadNotifs(unreads.length);
-
-        if (unreads.length > 0) {
-          setTimeout(() => {
-            showNotification(`Namaste ${user.name}, aapke paas ${unreads.length} naye updates hain!`, {
-              title: 'FarmTrace',
-              type: 'sms',
-              duration: 7000
-            });
-          }, 1500);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
-  }, [user.role, user.name, showNotification]);
+    const handleVisibility = () => { if (!document.hidden) fetchData(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [fetchData]);
 
   const [weather, setWeather] = useState(null);
   const [mandiRates, setMandiRates] = useState([]);
@@ -102,6 +146,7 @@ export default function Dashboard() {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState('checking');
   const [weatherPromptMessage, setWeatherPromptMessage] = useState('');
+  const mandiCacheRef = useRef({});
 
   useEffect(() => {
     const fetchWeatherByCoords = async (latitude, longitude) => {
@@ -302,17 +347,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loadMandi = async () => {
+      const targetState = liveState || user.state;
+      const cacheKey = `${targetState || ''}:${cropFilter}`;
+      if (mandiCacheRef.current[cacheKey]) {
+        setMandiRates(mandiCacheRef.current[cacheKey]);
+        return;
+      }
       setMandiLoading(true);
       try {
-        const targetState = liveState || user.state;
         const mandiRes = await api.get('/market/mandi', {
-          params: {
-            state: targetState || undefined,
-            commodity: cropFilter || undefined,
-            limit: 5
-          }
+          params: { state: targetState || undefined, commodity: cropFilter || undefined, limit: 5 }
         });
-        setMandiRates(mandiRes.data?.records || []);
+        const records = mandiRes.data?.records || [];
+        mandiCacheRef.current[cacheKey] = records;
+        setMandiRates(records);
       } catch (err) { console.error('Mandi API Error:', err); }
       setMandiLoading(false);
     };
@@ -450,10 +498,38 @@ export default function Dashboard() {
 
   const resetFilters = () => {
     setSearchText(''); setStatusFilter('ALL'); setDateFrom(''); setDateTo(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest');
+    setProduceDisplayLimit(PRODUCE_PAGE_SIZE);
   };
+
+  const paginatedList = filteredList.slice(0, produceDisplayLimit);
 
   return (
     <div className="dashboard-page">
+
+      {/* ── KYC VERIFICATION BANNER ── */}
+      {kycStatus !== 'VERIFIED' && (
+        <div
+          onClick={() => navigate('/kyc')}
+          style={{
+            position: 'sticky', top: 0, zIndex: 999, cursor: 'pointer',
+            background: kycStatus === 'SUBMITTED' ? '#FFF8E1' : '#FFF3E0',
+            borderBottom: `3px solid ${kycStatus === 'SUBMITTED' ? '#FFD54F' : '#FF7043'}`,
+            padding: '0.75rem 1.5rem',
+            display: 'flex', alignItems: 'center', gap: '0.75rem'
+          }}
+        >
+          <AlertTriangle size={18} style={{ color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', flexShrink: 0 }} />
+          <span style={{ fontWeight: 700, color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', fontSize: '0.9rem' }}>
+            {kycStatus === 'SUBMITTED'
+              ? 'KYC review mein hai — 24 ghante mein verify ho jaayega'
+              : 'Account verify karo — Aadhaar / PAN / eShram se — Transfer & Payment ke liye zaroori hai'}
+          </span>
+          <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: '0.85rem', color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', whiteSpace: 'nowrap' }}>
+            {kycStatus === 'SUBMITTED' ? 'Status Dekho →' : 'Verify Karo →'}
+          </span>
+        </div>
+      )}
+
       {/* ── UNIFIED QR & TRACEABILITY MODAL ── */}
       {qrModal && (
         <div className="ft-modal-overlay" onClick={() => setQrModal(null)}>
@@ -915,7 +991,7 @@ export default function Dashboard() {
               )}
 
               {/* FARMER — cards */}
-              {user.role === 'FARMER' && filteredList.map((p, idx) => (
+              {user.role === 'FARMER' && paginatedList.map((p, idx) => (
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-header-area">
                     <div className="produce-meta-row">
@@ -983,7 +1059,7 @@ export default function Dashboard() {
               )}
 
               {/* DISTRIBUTOR/RETAILER — cards */}
-              {user.role !== 'FARMER' && filteredList.map((p, idx) => (
+              {user.role !== 'FARMER' && paginatedList.map((p, idx) => (
                 <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
                   <div className="produce-header-area">
                     <div className="produce-meta-row">
@@ -1031,6 +1107,18 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+
+            {filteredList.length > produceDisplayLimit && (
+              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                <button
+                  onClick={() => setProduceDisplayLimit(prev => prev + PRODUCE_PAGE_SIZE)}
+                  className="ft-btn ft-btn-ghost"
+                  style={{ padding: '0.75rem 2rem', fontWeight: 700 }}
+                >
+                  Load More ({filteredList.length - produceDisplayLimit} remaining)
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

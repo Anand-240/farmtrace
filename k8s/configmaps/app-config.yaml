@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: farmtrace-config
+  namespace: farmtrace
+data:
+  NODE_ENV: "production"
+  PORT: "4000"
+  MONGO_URI: "mongodb://mongo-service:27017/farmtrace"
+  REDIS_URL: "redis://redis-service:6379"
+  DATABASE_URL: "postgresql://farmtrace:farmtrace_secret@postgres-service:5432/farmtrace"
+  BACKEND_URL: "http://backend-service:4000"
+  FRONTEND_URL: "https://farmtrace.example.com"
+  REACT_APP_API_URL: "/api/v1"

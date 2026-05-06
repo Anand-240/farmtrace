@@ -7,6 +7,7 @@ export default function Transactions() {
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('transactions');
   const [notifFilter, setNotifFilter] = useState('ALL');
+  const [txStatusFilter, setTxStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   
@@ -49,6 +50,11 @@ export default function Transactions() {
   };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const filteredTransactions = transactions.filter(t => {
+    if (txStatusFilter === 'ALL') return true;
+    return t.status === txStatusFilter;
+  });
 
   const filteredNotifications = notifications.filter((n) => {
     if (notifFilter === 'UNREAD') return !n.isRead;
@@ -107,15 +113,25 @@ export default function Transactions() {
             {/* ─── TRANSACTIONS ─── */}
             {activeTab === 'transactions' && (
               <div>
-                {transactions.length === 0 ? (
+                <div style={s.filterRow}>
+                  {['ALL', 'PENDING', 'COMPLETED', 'FAILED'].map(f => (
+                    <button key={f} style={{ ...s.filterBtn, ...(txStatusFilter === f ? s.filterBtnActive : {}) }} onClick={() => setTxStatusFilter(f)}>
+                      {f === 'ALL' ? 'Sabhi' : f}
+                    </button>
+                  ))}
+                </div>
+                {filteredTransactions.length === 0 ? (
                   <div style={s.empty}>
                     <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>💸</div>
                     <p style={s.emptyTitle}>Koi transaction nahi mili</p>
                     <p style={s.emptySub}>Jab aap payment karenge ya receive karenge, yahan dikhegi</p>
                   </div>
                 ) : (
-                  transactions.map((t, idx) => {
+                  filteredTransactions.map((t, idx) => {
                     const isSent = t.fromPhone === user.phone;
+                    const txDate = new Date(t.createdAt);
+                    const dateStr = txDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const timeStr = txDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
                     return (
                       <div key={t._id} style={{ ...s.txCard, animationDelay: `${idx * 0.04}s` }}>
                         <div style={s.txIconWrap}>
@@ -132,7 +148,7 @@ export default function Transactions() {
                             <div style={s.txSub}>₹{t.pricePerKg}/kg × {t.quantity}kg</div>
                           )}
                           <div style={s.txDate}>
-                            📅 {new Date(t.createdAt).toLocaleDateString('hi-IN')}
+                            📅 {dateStr} · ⏰ {timeStr}
                           </div>
                           {t.txHash && (
                             <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" style={s.txLink}>
@@ -188,7 +204,7 @@ export default function Transactions() {
                             <span style={{ ...s.notifTypeBadge, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                           </div>
                           <p style={s.notifMsg}>{n.message}</p>
-                          <p style={s.notifDate}>📅 {new Date(n.createdAt).toLocaleDateString('hi-IN')}</p>
+                          <p style={s.notifDate}>📅 {new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ⏰ {new Date(n.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                         {!n.isRead && <div style={s.unreadDot} />}
                       </div>

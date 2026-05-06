@@ -22,12 +22,14 @@ cloudinary.config({
  * @returns {Promise<{ ipfsCid: string, thumbnailUrl: string }>}
  */
 async function uploadProduceImage(buffer, originalName, mimeType) {
-  // 1. Upload high-res to IPFS
-  const blob = new Blob([buffer], { type: mimeType });
-  const file = new File([blob], originalName, { type: mimeType });
-  
-  const upload = await pinata.upload.file(file);
-  const ipfsCid = upload.IpfsHash;
+  // 1. Upload high-res to IPFS (optional — skipped if PINATA_JWT not configured)
+  let ipfsCid = null;
+  if (process.env.PINATA_JWT) {
+    const blob = new Blob([buffer], { type: mimeType });
+    const file = new File([blob], originalName, { type: mimeType });
+    const upload = await pinata.upload.file(file);
+    ipfsCid = upload.IpfsHash;
+  }
 
   // 2. Upload thumbnail to Cloudinary
   const thumbnailUrl = await new Promise((resolve, reject) => {

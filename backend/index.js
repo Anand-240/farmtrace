@@ -47,10 +47,13 @@ let mongoState = 'connecting';
 let postgresState = 'connecting';
 let redisState = 'connecting';
 
-const frontendURLs = (process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(Boolean);
+const frontendURLs = [
+  ...(process.env.FRONTEND_URL || 'https://farmtrace-bay.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean),
+  ...(process.env.ADMIN_PANEL_URL ? [process.env.ADMIN_PANEL_URL.trim()] : [])
+];
 
 const isLocalhostOrigin = (origin = '') => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
@@ -64,7 +67,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'x-admin-key']
 };
 
 app.use(cors(corsOptions));
@@ -144,6 +147,7 @@ v1Router.get('/health', (req, res) => {
 });
 
 v1Router.use('/auth', require('./routes/write/auth'));
+v1Router.use('/kyc', require('./routes/write/kyc'));
 v1Router.use('/produce', require('./routes/write/produce'));
 v1Router.use('/transfer', require('./routes/write/transfer'));
 v1Router.use('/payment', require('./routes/write/payment'));

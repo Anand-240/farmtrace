@@ -15,7 +15,10 @@ const logger = require('../../utils/logger').child({ module: 'auth' });
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
-  phone: z.string().min(10, 'Phone must be at least 10 digits'),
+  phone: z.string().refine(val => {
+    const cleaned = val.replace(/\D/g, '');
+    return cleaned.length === 10 || (cleaned.length === 12 && cleaned.startsWith('91'));
+  }, 'Phone must be exactly 10 digits'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   role: z.enum(['FARMER', 'DISTRIBUTOR', 'RETAILER', 'CONSUMER']),
   village: z.string().optional(),
@@ -122,7 +125,7 @@ const sendResetMail = async ({ to, name, resetUrl }) => {
 
 const buildAuthResponse = (user) => {
   const token = jwt.sign(
-    { id: user._id, phone: user.phone, role: user.role, name: user.name },
+    { id: user._id, phone: user.phone, role: user.role, name: user.name, kycStatus: user.kycStatus || 'PENDING' },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -135,6 +138,7 @@ const buildAuthResponse = (user) => {
       email: user.email,
       phone: user.phone,
       role: user.role,
+      kycStatus: user.kycStatus || 'PENDING',
       village: user.village,
       city: user.city || user.district,
       state: user.state,
@@ -332,6 +336,7 @@ router.get('/me', auth, async (req, res) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        kycStatus: user.kycStatus || 'PENDING',
         village: user.village,
         city: user.city || user.district,
         state: user.state,

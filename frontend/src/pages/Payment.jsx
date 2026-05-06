@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
@@ -160,9 +160,14 @@ export default function Payment() {
   const [expandedRoute, setExpandedRoute] = useState(null);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const activeIntervalsRef = useRef([]);
 
   useEffect(() => {
     fetchPending();
+    return () => {
+      activeIntervalsRef.current.forEach(clearInterval);
+      activeIntervalsRef.current = [];
+    };
   }, []);
 
   const fetchPending = async () => {
@@ -214,23 +219,27 @@ export default function Payment() {
                     const jobRes = await api.get(`/jobs/${jobId}`);
                     if (jobRes.data.state === 'completed') {
                       clearInterval(checkJob);
+                      activeIntervalsRef.current = activeIntervalsRef.current.filter(id => id !== checkJob);
                       const tx = jobRes.data.result?.txHash || 'Verified';
                       toast.success(`✅ Done! Booking ho gayi!\nTX: ${tx.slice(0, 20)}...`, { id: toastId });
                       fetchPending();
                       navigate('/dashboard');
                     } else if (jobRes.data.state === 'failed') {
                       clearInterval(checkJob);
+                      activeIntervalsRef.current = activeIntervalsRef.current.filter(id => id !== checkJob);
                       toast.error(`Blockchain failed: ${jobRes.data.failedReason || 'Unknown error'}`, { id: toastId });
                       fetchPending();
                       navigate('/dashboard');
                     }
                   } catch (e) {
                     clearInterval(checkJob);
+                    activeIntervalsRef.current = activeIntervalsRef.current.filter(id => id !== checkJob);
                     toast.error('Network error checking job status', { id: toastId });
                     fetchPending();
                     navigate('/dashboard');
                   }
                 }, 2000);
+                activeIntervalsRef.current.push(checkJob);
               } else {
                 toast.success('Booking ho gayi!');
                 fetchPending();

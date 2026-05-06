@@ -27,6 +27,7 @@ export default function Transfer() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
   const [transferProduceDetails, setTransferProduceDetails] = useState(null);
   const [marketFloor, setMarketFloor] = useState(null);
   const [priceError, setPriceError] = useState('');
@@ -114,6 +115,11 @@ export default function Transfer() {
 
   const handleRequest = async (e) => {
     e.preventDefault();
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+    setShowConfirm(false);
     setLoading(true); setError('');
     try {
       if (!transferLotId) { setError('Transfer lot select nahi hua'); setLoading(false); return; }
@@ -334,16 +340,44 @@ export default function Transfer() {
                   required
                 />
 
-                <button
-                  type="submit"
-                  style={{
-                    ...s.primaryBtn,
-                    ...(loading || Boolean(priceError) ? s.primaryBtnDisabled : {})
-                  }}
-                  disabled={loading || Boolean(priceError)}
-                >
-                  {loading ? '⏳ Bheji ja rahi hai...' : priceError ? '🚫 Transfer Request Locked' : '🚀 Transfer Request Bhejo'}
-                </button>
+                {showConfirm && (
+                  <div style={{ background: '#fffbeb', border: '2px solid #f59e0b', borderRadius: '12px', padding: '1.25rem', marginTop: '1rem' }}>
+                    <p style={{ fontWeight: 800, color: '#92400e', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+                      ⚠️ Kya aap sure hain? Ye transfer bhej di jaayegi:
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: '#78350f', marginBottom: '0.25rem' }}>📧 To: <strong>{form.toEmail}</strong></p>
+                    <p style={{ fontSize: '0.9rem', color: '#78350f', marginBottom: '0.25rem' }}>💰 Price: <strong>₹{form.price}/kg</strong></p>
+                    <p style={{ fontSize: '0.9rem', color: '#78350f', marginBottom: '1rem' }}>📍 Location: <strong>{form.location}</strong></p>
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <button
+                        type="submit"
+                        style={{ ...s.primaryBtn, flex: 1, marginTop: 0, background: '#d97706' }}
+                      >
+                        ✅ Haan, Bhejo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm(false)}
+                        style={{ ...s.primaryBtn, flex: 1, marginTop: 0, background: '#6b7280' }}
+                      >
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!showConfirm && (
+                  <button
+                    type="submit"
+                    style={{
+                      ...s.primaryBtn,
+                      ...(loading || Boolean(priceError) ? s.primaryBtnDisabled : {})
+                    }}
+                    disabled={loading || Boolean(priceError)}
+                  >
+                    {loading ? '⏳ Bheji ja rahi hai...' : priceError ? '🚫 Transfer Request Locked' : '🚀 Transfer Request Bhejo'}
+                  </button>
+                )}
               </form>
             </div>
           </>

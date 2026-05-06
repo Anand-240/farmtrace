@@ -130,6 +130,88 @@ const emailTemplates = {
         </table>
         <p>FarmTrace app par apna escrow status dekho.</p>`)
     };
+  },
+
+  kycSubmitted({ userName, documentType, masked }) {
+    const docLabel = { AADHAAR: 'Aadhaar Card', PAN: 'PAN Card', ESHRAM: 'eShram Card' }[documentType] || documentType;
+    return {
+      subject: 'FarmTrace: KYC Submit Ho Gaya — Review Shuru Ho Rahi Hai',
+      html: shell(`
+        <p>Namaste <strong>${userName}</strong>,</p>
+        <p>Aapka KYC verification document successfully submit ho gaya hai.</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          ${row('Document Type', docLabel, true)}
+          ${row('Document Number', masked, false)}
+          ${row('Status', '⏳ Review Mein Hai', true)}
+        </table>
+        <p>Hamare team <strong>24 ghante ke andar</strong> aapka document review karegi.</p>
+        <p>Verify hone par aapko email aayega — tab transfer aur payment features unlock ho jaayenge.</p>
+        <p style="color:#888;font-size:13px;">Document number encrypted rakha jaata hai — aapki privacy surakshit hai.</p>`)
+    };
+  },
+
+  kycAdminAlert({ userName, userEmail, userId, documentType, masked, submittedAt }) {
+    const docLabel = { AADHAAR: 'Aadhaar Card', PAN: 'PAN Card', ESHRAM: 'eShram Card' }[documentType] || documentType;
+    const adminPanelUrl = process.env.ADMIN_PANEL_URL || '';
+    return {
+      subject: `[FarmTrace Admin] Naya KYC — ${userName} (${docLabel})`,
+      html: shell(`
+        <p><strong>Naya KYC submission aaya hai — review karo</strong></p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          ${row('User', userName, true)}
+          ${row('Email', userEmail, false)}
+          ${row('User ID', userId, true)}
+          ${row('Document', docLabel, false)}
+          ${row('Masked Number', masked, true)}
+          ${row('Submitted At', new Date(submittedAt).toLocaleString('en-IN'), false)}
+        </table>
+        ${adminPanelUrl
+          ? `<div style="text-align:center;margin:24px 0;">
+              <a href="${adminPanelUrl}" style="display:inline-block;padding:14px 32px;background:#1B5E20;color:#fff;border-radius:10px;text-decoration:none;font-weight:bold;font-size:16px;">
+                🛡️ Admin Panel Kholein — KYC Review Karo
+              </a>
+              <p style="color:#888;font-size:12px;margin-top:8px;">${adminPanelUrl}</p>
+             </div>`
+          : `<p style="color:#888;font-size:13px;">ADMIN_PANEL_URL env variable set karo taaki direct link email mein aaye.</p>`
+        }`)
+    };
+  },
+
+  kycApproved({ userName }) {
+    return {
+      subject: 'FarmTrace: KYC Verify Ho Gaya! 🎉 — Ab Sab Features Unlock',
+      html: shell(`
+        <p>Namaste <strong>${userName}</strong>,</p>
+        <p style="font-size:18px;color:#2E7D32;font-weight:bold;">✅ Aapka KYC verification complete ho gaya!</p>
+        <p>Ab aap FarmTrace ke <strong>sare features use kar sakte hain</strong>:</p>
+        <ul style="margin:12px 0;padding-left:20px;">
+          <li>💸 Transfer & Payment</li>
+          <li>🛒 Marketplace listing</li>
+          <li>📦 Dispatch & Logistics</li>
+          <li>🔒 Escrow payments</li>
+        </ul>
+        <p>FarmTrace app par login karo aur apna verified account use karo.</p>`)
+    };
+  },
+
+  kycRejected({ userName, rejectionReason }) {
+    return {
+      subject: 'FarmTrace: KYC Review — Dobara Submit Karo',
+      html: shell(`
+        <p>Namaste <strong>${userName}</strong>,</p>
+        <p>Aapka KYC document review hua, lekin kuch issue mili:</p>
+        <div style="background:#FFEBEE;border-left:4px solid #C62828;padding:12px 16px;border-radius:4px;margin:16px 0;">
+          <strong style="color:#C62828;">Reason:</strong>
+          <p style="margin:4px 0 0;color:#B71C1C;">${rejectionReason || 'Document clearly visible nahi hai'}</p>
+        </div>
+        <p><strong>Kya karo:</strong></p>
+        <ul style="margin:8px 0;padding-left:20px;">
+          <li>FarmTrace app mein /kyc page par jao</li>
+          <li>Sahi aur clear document dobara upload karo</li>
+          <li>Ensure karo ki document readable aur valid ho</li>
+        </ul>
+        <p>Koi bhi samasya ho toh support@farmtrace.in par likhein.</p>`)
+    };
   }
 };
 
