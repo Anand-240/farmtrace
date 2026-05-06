@@ -21,7 +21,7 @@ spec:
         env:
         - name: REACT_APP_API_URL
           valueFrom:
-            configMapRef:
+            configMapKeyRef:
               name: farmtrace-config
               key: REACT_APP_API_URL
         resources:
