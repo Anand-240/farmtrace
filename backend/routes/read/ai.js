@@ -262,62 +262,88 @@ router.post('/disease-detect', auth, (req, res, next) => {
       return res.status(400).json({ message: 'Koi image upload nahi hui.' });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({ message: 'GEMINI_API_KEY server par set nahi hai.' });
+    const hfToken = process.env.HF_API_TOKEN;
+    if (!hfToken) {
+      return res.status(503).json({ message: 'HF_API_TOKEN server par set nahi hai.' });
     }
 
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-flash-latest',
-      generationConfig: { responseMimeType: 'application/json' }
-    });
-
-    const prompt = `You are an expert AI agricultural assistant for Indian farmers. 
-Analyze the provided image of a crop leaf.
-Identify the disease, its severity, and provide practical home remedies and prevention steps.
-Write your answers in simple Hindi (Latin alphabet is fine, or simple Devanagari).
-Respond ONLY with this JSON structure:
-{
-  "disease": "name of the disease",
-  "severity": "Low, Medium, or High",
-  "remedies": ["remedy 1", "remedy 2"],
-  "preventions": ["prevention 1", "prevention 2"]
-}`;
-
-    const imageParts = [
+    const response = await fetch(
+      'https://api-inference.huggingface.co/models/iamnotpalak/yolov8-transfpn-crop-disease-detection',
       {
-        inlineData: {
-          data: req.file.buffer.toString("base64"),
-          mimeType: req.file.mimetype
-        }
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${hfToken}`,
+          'Content-Type': req.file.mimetype
+        },
+        body: req.file.buffer
       }
-    ];
+    );
 
-    const result = await model.generateContent([prompt, ...imageParts]);
-    const responseText = result.response.text();
-    
-    let parsedData;
-    try {
-      const cleanText = responseText.replace(/```json|```/g, '').trim();
-      parsedData = JSON.parse(cleanText);
-    } catch (parseErr) {
-      console.error('Gemini JSON Parse Error:', parseErr, 'Raw Text:', responseText);
-      // Fallback detection if JSON fails
-      parsedData = {
-        disease: "Nirdharit nahi ho paaya (AI error)",
-        severity: "Unknown",
-        remedies: ["Kripya photo dubara saaf karke upload karein."],
-        preventions: []
-      };
+    if (!response.ok) {
+      const errText = await response.text();
+      if (response.status === 503) {
+        return res.status(503).json({ 
+          message: 'HuggingFace model load ho raha hai, thodi der mein dobara try karein (Cold Start).' 
+        });
+      }
+      logger.error({ status: response.status, body: errText }, 'HF API error');
+      throw new Error('Detection service temporarily unavailable');
+    }
+
+    const detections = await response.json();
+
+    if (!Array.isArray(detections) || detections.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          disease: "Koi bimari nahi mili",
+          severity: "Low",
+          remedies: ["Fasal swasth lag rahi hai. Regular checkup karte rahein."],
+          preventions: []
+        }
+      });
+    }
+
+    // Map detections to our advice table (reusing logic from cropDisease.js)
+    const DISEASE_ADVICE = {
+      'bacterial blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo.', severity: 'high' },
+      'brown spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole fungicide use karo.', severity: 'medium' },
+      'leaf blast': { hi: 'Leaf Blast', remedy: 'Tricyclazole spray immediately karo.', severity: 'high' },
+      'leaf blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo.', severity: 'high' },
+      'leaf scald': { hi: 'Leaf Scald', remedy: 'Systemic fungicide use karo.', severity: 'medium' },
+      'narrow brown leaf spot': { hi: 'Narrow Brown Spot', remedy: 'Fungicide spray karo.', severity: 'low' },
+      'neck blast': { hi: 'Neck Blast', remedy: 'Tricyclazole spray karo.', severity: 'high' },
+      'rice hispa': { hi: 'Rice Hispa', remedy: 'Chlorpyriphos insecticide spray karo.', severity: 'medium' },
+      'sheath blight': { hi: 'Sheath Blight', remedy: 'Hexaconazole fungicide use karo.', severity: 'high' },
+      'sheath rot': { hi: 'Sheath Rot', remedy: 'Carbendazim fungicide spray karo.', severity: 'medium' },
+      'tungro': { hi: 'Tungro Virus', remedy: 'Infected plants uproot karo.', severity: 'high' },
+      'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili.', severity: 'none' },
+    };
+
+    const top = detections[0];
+    const key = top.label.toLowerCase();
+    let match = { disease: top.label, remedy: 'Nazdiki Krishi Vigyan Kendra (KVK) se sampark karo.', severity: 'unknown' };
+
+    for (const [d, advice] of Object.entries(DISEASE_ADVICE)) {
+      if (key.includes(d)) {
+        match = { disease: advice.hi, remedy: advice.remedy, severity: advice.severity };
+        break;
+      }
     }
 
     res.json({
       success: true,
-      data: parsedData
+      data: {
+        disease: match.disease,
+        severity: match.severity,
+        remedies: [match.remedy],
+        preventions: ["Khet mein paani ka drainage sahi rakho.", "Infected patti ko jala do."]
+      }
     });
 
   } catch (err) {
-    logger.error({ err }, 'Disease detection error');
-    res.status(500).json({ message: 'Bimari pehchanne mein dikkat aayi.' });
+    logger.error({ err }, 'HF Disease detection error');
+    res.status(500).json({ message: 'Bimari pehchanne mein dikkat aayi. Kripya baad mein try karein.' });
   }
 });
 
@@ -403,7 +429,7 @@ If the user asks something outside your scope, politely redirect them.`;
     // ── Fallback: Google Gemini ───────────────────────────────────────────────
     if (!reply && process.env.GEMINI_API_KEY) {
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         // Gemini uses a different message format — no 'system' role in generateContent
         const geminiHistory = trimmedHistory.map(h => ({

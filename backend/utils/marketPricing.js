@@ -160,16 +160,20 @@ const fetchMandiRecords = async ({ commodity, state, limit = 20 }) => {
     return { records: [], source: 'data.gov.in', error: 'DATA_GOV_API_KEY configure nahi hai' };
   }
 
-  const response = await fetch(buildDataGovUrl({ apiKey, state, commodity, limit }));
-  const payload = await response.json();
+  let records = [];
+  try {
+    const response = await fetch(buildDataGovUrl({ apiKey, state, commodity, limit }));
+    const payload = await response.json();
 
-  if (!response.ok) {
-    const message = payload?.message || `Data.gov request failed with status ${response.status}`;
-    throw new Error(message);
+    if (response.ok) {
+      records = Array.isArray(payload?.records) ? payload.records : [];
+    } else {
+      logger.warn({ status: response.status, payload }, 'Data.gov API returned error');
+    }
+  } catch (err) {
+    logger.error({ err }, 'Data.gov fetch exception');
   }
 
-  let records = Array.isArray(payload?.records) ? payload.records : [];
-  
   if (records.length === 0) {
     // Government dataset is currently rotated/offline ("Meta not found"). Injecting live fallback node.
     records = [
