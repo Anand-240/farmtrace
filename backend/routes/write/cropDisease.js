@@ -13,26 +13,7 @@ const upload = multer({
   }
 });
 
-const DISEASE_ADVICE = {
-  'bacterial_blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo. Infected plants hatao. Drainage improve karo.', severity: 'high' },
-  'blast': { hi: 'Blast (Bimari)', remedy: 'Tricyclazole ya Isoprothiolane fungicide use karo. Potassium fertilizer badaho.', severity: 'high' },
-  'brown_spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole spray karo. Nitrogen fertilizer balance rakho.', severity: 'medium' },
-  'leaf_blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo. Infected leaves kato aur jalao.', severity: 'high' },
-  'rust': { hi: 'Rust (Gerua)', remedy: 'Propiconazole ya Tebuconazole use karo. Affected parts hatao.', severity: 'high' },
-  'smut': { hi: 'Smut', remedy: 'Seed treatment karo aur infected parts hatao. Drainage sahi rakho.', severity: 'medium' },
-  'mosaic': { hi: 'Mosaic Virus', remedy: 'Infected plants uproot karo. Green leafhopper aur insects control karo.', severity: 'high' },
-  'septoria': { hi: 'Septoria Leaf Spot', remedy: 'Fungicide spray karo. Crop rotation follow karo.', severity: 'medium' },
-  'scab': { hi: 'Scab', remedy: 'Fungicide spray karo aur drainage improve karo.', severity: 'medium' },
-  'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili. Regular monitoring jari rakho.', severity: 'none' },
-};
-
-function getAdvice(label = '') {
-  const key = label.toLowerCase().trim();
-  for (const [disease, advice] of Object.entries(DISEASE_ADVICE)) {
-    if (key.includes(disease)) return { disease: advice.hi, remedy: advice.remedy, severity: advice.severity };
-  }
-  return { disease: label, remedy: 'Nazdiki Krishi Vigyan Kendra (KVK) se sampark karo.', severity: 'unknown' };
-}
+const { getAdvice } = require('../../utils/diseaseMapping');
 
 // POST /api/v1/crop-disease/detect
 router.post('/detect', auth, upload.single('image'), async (req, res) => {
@@ -43,7 +24,7 @@ router.post('/detect', auth, upload.single('image'), async (req, res) => {
     if (!hfToken) return res.status(503).json({ message: 'HF_API_TOKEN not configured' });
 
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/wambugu71/crop_leaf_diseases_vit',
+      'https://router.huggingface.co/hf-inference/models/linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification',
       {
         method: 'POST',
         headers: {
@@ -64,7 +45,10 @@ router.post('/detect', auth, upload.single('image'), async (req, res) => {
         });
       }
       logger.error({ status: response.status, body: errText }, 'HF API error');
-      return res.status(502).json({ message: 'Detection service unavailable' });
+      return res.status(response.status).json({ 
+        message: `HuggingFace API Error: ${response.status}`,
+        details: errText.substring(0, 100)
+      });
     }
 
     const detections = await response.json();

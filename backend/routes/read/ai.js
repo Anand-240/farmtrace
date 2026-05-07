@@ -241,110 +241,83 @@ router.post('/confirm-transfer', auth, async (req, res) => {
   }
 });
 
-router.post('/disease-detect', auth, (req, res, next) => {
+const { getAdvice } = require('../../utils/diseaseMapping');
+
+// POST /api/v1/ai/disease-detect
+router.post('/disease-detect', auth, (req, res) => {
   upload.single('image')(req, res, async function (err) {
     if (err) {
-      console.error('Multer error:', err);
-      return res.status(400).json({ message: err.message || 'Image upload fail ho gaya.' });
+      logger.error({ err }, 'Multer upload error (AI Assistant)');
+      return res.status(400).json({ message: 'Image upload fail ho gaya.' });
     }
     
-    if (req.file && fileType) {
-      const type = await fileType.fileTypeFromBuffer(req.file.buffer);
-      if (!type || !type.mime.startsWith('image/')) {
-        return res.status(400).json({ message: 'Invalid file type. Only images are allowed.' });
-      }
-    }
-    next();
-  });
-}, async (req, res) => {
-  try {
     if (!req.file) {
-      return res.status(400).json({ message: 'Koi image upload nahi hui.' });
+      return res.status(400).json({ message: 'Image upload karna zaroori hai.' });
     }
 
-    const hfToken = process.env.HF_API_TOKEN;
-    if (!hfToken) {
-      return res.status(503).json({ message: 'HF_API_TOKEN server par set nahi hai.' });
-    }
-
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/wambugu71/crop_leaf_diseases_vit',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${hfToken}`,
-          'Content-Type': req.file.mimetype
-        },
-        body: req.file.buffer
+    try {
+      const hfToken = process.env.HF_API_TOKEN;
+      if (!hfToken) {
+        return res.status(503).json({ message: 'HF_API_TOKEN server par set nahi hai.' });
       }
-    );
 
-    if (!response.ok) {
-      const errText = await response.text();
-      if (response.status === 503) {
-        const errJson = JSON.parse(errText || '{}');
-        return res.status(503).json({ 
-          message: 'HuggingFace model load ho raha hai, thodi der mein dobara try karein.',
-          estimatedTime: errJson.estimated_time || 20 
+      const response = await fetch(
+        'https://router.huggingface.co/hf-inference/models/linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${hfToken}`,
+            'Content-Type': req.file.mimetype
+          },
+          body: req.file.buffer
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        if (response.status === 503) {
+          const errJson = JSON.parse(errText || '{}');
+          return res.status(503).json({ 
+            message: 'HuggingFace model load ho raha hai, thodi der mein dobara try karein.',
+            estimatedTime: errJson.estimated_time || 20 
+          });
+        }
+        logger.error({ status: response.status, body: errText }, 'HF API error (AI Assistant)');
+        return res.status(response.status).json({ message: `HuggingFace API Error: ${response.status}` });
+      }
+
+      const detections = await response.json();
+
+      if (!Array.isArray(detections) || detections.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            disease: "Koi bimari nahi mili",
+            severity: "none",
+            remedies: ["Fasal swasth lag rahi hai. Regular monitoring jari rakho."],
+            preventions: ["Khet mein safai rakho."]
+          }
         });
       }
-      logger.error({ status: response.status, body: errText }, 'HF API error');
-      throw new Error('Detection service temporarily unavailable');
-    }
 
-    const detections = await response.json();
+      const top = detections[0];
+      const advice = getAdvice(top.label);
 
-    if (!Array.isArray(detections) || detections.length === 0) {
-      return res.json({
+      res.json({
         success: true,
         data: {
-          disease: "Koi bimari nahi mili",
-          severity: "Low",
-          remedies: ["Fasal swasth lag rahi hai. Regular checkup karte rahein."],
-          preventions: []
+          disease: advice.disease,
+          severity: advice.severity,
+          remedies: [advice.remedy],
+          preventions: ["Khet mein paani ka drainage sahi rakho.", "Infected parts ko khet se door jala do."]
         }
       });
+
+    } catch (err) {
+      logger.error({ err }, 'HF Disease detection error (AI Assistant)');
+      res.status(500).json({ message: 'Bimari pehchanne mein dikkat aayi. Kripya baad mein try karein.' });
     }
-
-    // Comprehensive mapping for common crop diseases (Rice, Wheat, Tomato, etc.)
-    const DISEASE_MAP = {
-      'bacterial_blight': { hi: 'Bacterial Blight', remedy: 'Copper-based fungicide spray karo. Infected plants hatao.', severity: 'high' },
-      'blast': { hi: 'Blast (Bimari)', remedy: 'Tricyclazole ya Isoprothiolane fungicide use karo.', severity: 'high' },
-      'brown_spot': { hi: 'Brown Spot', remedy: 'Mancozeb ya Tricyclazole spray karo. Nitrogen balance rakho.', severity: 'medium' },
-      'leaf_blight': { hi: 'Leaf Blight', remedy: 'Propiconazole fungicide spray karo. Infected leaves jala do.', severity: 'high' },
-      'rust': { hi: 'Rust (Gerua)', remedy: 'Propiconazole ya Tebuconazole use karo.', severity: 'high' },
-      'smut': { hi: 'Smut', remedy: 'Seed treatment karo aur infected parts hatao.', severity: 'medium' },
-      'mosaic': { hi: 'Mosaic Virus', remedy: 'Infected plants uproot karo. Insects control karo.', severity: 'high' },
-      'septoria': { hi: 'Septoria Leaf Spot', remedy: 'Fungicide spray karo. Crop rotation follow karo.', severity: 'medium' },
-      'scab': { hi: 'Scab', remedy: 'Fungicide spray karo aur drainage improve karo.', severity: 'medium' },
-      'healthy': { hi: 'Fasal Swasth Hai', remedy: 'Koi bimari nahi mili. Monitoring jari rakho.', severity: 'none' },
-    };
-
-    const top = detections[0];
-    const label = top.label.toLowerCase();
-    let match = { disease: top.label, remedy: 'Nazdiki Krishi Vigyan Kendra (KVK) se sampark karo.', severity: 'unknown' };
-
-    for (const [key, advice] of Object.entries(DISEASE_MAP)) {
-      if (label.includes(key)) {
-        match = { disease: advice.hi, remedy: advice.remedy, severity: advice.severity };
-        break;
-      }
-    }
-
-    res.json({
-      success: true,
-      data: {
-        disease: match.disease,
-        severity: match.severity,
-        remedies: [match.remedy],
-        preventions: ["Khet mein paani ka drainage sahi rakho.", "Infected patti ko khet se door jala do."]
-      }
-    });
-
-  } catch (err) {
-    logger.error({ err }, 'HF Disease detection error');
-    res.status(500).json({ message: 'Bimari pehchanne mein dikkat aayi. Kripya baad mein try karein.' });
-  }
+  });
 });
 
 /**
