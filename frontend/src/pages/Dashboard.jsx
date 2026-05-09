@@ -763,6 +763,71 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* ── eNAM FEATURES ── */}
+        <p className="dash-section-title">🌾 eNAM-Inspired Features</p>
+        <div className="dashboard-actions-row">
+          <button onClick={() => navigate('/mandi-prices')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
+              <span style={{ fontSize: '1.4rem' }}>📊</span>
+            </div>
+            <span className="action-card-label">Mandi Prices</span>
+          </button>
+          <button onClick={() => navigate('/auction')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#fef3c7' }}>
+              <span style={{ fontSize: '1.4rem' }}>🏷</span>
+            </div>
+            <span className="action-card-label">Live Auction</span>
+          </button>
+          <button onClick={() => navigate('/quality-grading')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#f0f9ff' }}>
+              <span style={{ fontSize: '1.4rem' }}>🔬</span>
+            </div>
+            <span className="action-card-label">Quality Grade</span>
+          </button>
+          <button onClick={() => navigate('/warehouse')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#fff7ed' }}>
+              <span style={{ fontSize: '1.4rem' }}>🏭</span>
+            </div>
+            <span className="action-card-label">Warehouse</span>
+          </button>
+          <button onClick={() => navigate('/finance')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
+              <span style={{ fontSize: '1.4rem' }}>💳</span>
+            </div>
+            <span className="action-card-label">Agri Credit</span>
+          </button>
+          <button onClick={() => navigate('/dispute')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#fff1f2' }}>
+              <span style={{ fontSize: '1.4rem' }}>⚖️</span>
+            </div>
+            <span className="action-card-label">Dispute</span>
+          </button>
+          <button onClick={() => navigate('/market-advisory')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#ecfdf5' }}>
+              <span style={{ fontSize: '1.4rem' }}>📈</span>
+            </div>
+            <span className="action-card-label">Market Advisory</span>
+          </button>
+          <button onClick={() => navigate('/buyer-ratings')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#fffbeb' }}>
+              <span style={{ fontSize: '1.4rem' }}>⭐</span>
+            </div>
+            <span className="action-card-label">Buyer Ratings</span>
+          </button>
+          <button onClick={() => navigate('/govt-schemes')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
+              <span style={{ fontSize: '1.4rem' }}>🏛️</span>
+            </div>
+            <span className="action-card-label">Govt Schemes</span>
+          </button>
+          <button onClick={() => navigate('/gst-invoice')} className="action-card">
+            <div className="action-card-icon-wrap" style={{ background: '#f8fafc' }}>
+              <span style={{ fontSize: '1.4rem' }}>🧾</span>
+            </div>
+            <span className="action-card-label">GST Invoice</span>
+          </button>
+        </div>
+
         {/* ── STATS ── */}
         {!loading && (
           <>

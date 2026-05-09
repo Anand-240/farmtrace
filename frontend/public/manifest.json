@@ -1,6 +1,7 @@
 {
   "short_name": "FarmTrace",
-  "name": "FarmTrace Blockchain Supply Chain",
+  "name": "FarmTrace — Agri Supply Chain",
+  "description": "eNAM-inspired agricultural supply chain: live mandi prices, auctions, quality grading, warehouse, loans & government schemes",
   "icons": [
     {
       "src": "favicon.ico",
@@ -21,8 +22,34 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "theme_color": "#27500A",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "categories": ["agriculture", "finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Mandi Prices",
+      "short_name": "Mandi",
+      "description": "Real-time mandi rates",
+      "url": "/mandi-prices",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Live Auction",
+      "short_name": "Auction",
+      "description": "eNAM-style bidding",
+      "url": "/auction",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Govt Schemes",
+      "short_name": "Schemes",
+      "description": "PM-Kisan, PMFBY & more",
+      "url": "/govt-schemes",
+      "icons": [{ "src": "logo192.png", "sizes": "192x192" }]
+    }
+  ]
 }

@@ -152,11 +152,20 @@ v1Router.use('/produce', require('./routes/write/produce'));
 v1Router.use('/transfer', require('./routes/write/transfer'));
 v1Router.use('/payment', require('./routes/write/payment'));
 v1Router.use('/upload', require('./routes/write/upload'));
+v1Router.use('/auction', require('./routes/write/auction'));
+v1Router.use('/quality', require('./routes/write/quality'));
+v1Router.use('/warehouse', require('./routes/write/warehouse'));
+v1Router.use('/finance', require('./routes/write/finance'));
+v1Router.use('/dispute', require('./routes/write/dispute'));
+v1Router.use('/rating', require('./routes/write/rating'));
+v1Router.use('/invoice', require('./routes/write/invoice'));
 
 v1Router.use('/ai', require('./routes/read/ai'));
 v1Router.use('/crop-disease', require('./routes/write/cropDisease'));
 v1Router.use('/market', require('./routes/read/market'));
 v1Router.use('/jobs', require('./routes/read/jobs'));
+v1Router.use('/auctions', require('./routes/read/auction'));
+v1Router.use('/schemes', require('./routes/read/schemes'));
 
 app.use('/api/v1', v1Router);
 
