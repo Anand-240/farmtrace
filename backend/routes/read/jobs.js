@@ -6,6 +6,7 @@ const logger = require('../../utils/logger').child({ module: 'jobs' });
 
 router.get('/:id', auth, async (req, res) => {
   try {
+    if (!blockchainQueue) return res.status(503).json({ message: 'Queue unavailable (Redis offline)' });
     const job = await blockchainQueue.getJob(req.params.id);
     
     if (!job) {

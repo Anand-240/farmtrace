@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../lib/api';
 import LanguageToggle from '../components/LanguageToggle';
@@ -10,20 +10,12 @@ import {
   PackageCheck, ShieldCheck, Bot, LogOut, Microscope,
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
-  Search, ChevronDown, ChevronUp, SlidersHorizontal,
-  Filter, Calendar, ArrowUpDown, IndianRupee, ExternalLink, ShoppingCart,
-  AlertTriangle
+  Search, ExternalLink, ShoppingCart,
+  AlertTriangle, Menu, Bell, ChevronRight, Home,
+  TrendingUp, Star, Gavel, FlaskConical, CreditCard,
+  Scale, BarChart3, FileText, ArrowRight, Building2
 } from 'lucide-react';
 import './Dashboard.css';
-
-const PRODUCE_PAGE_SIZE = 20;
-
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'oldest', label: 'Oldest First' },
-  { value: 'priceHigh', label: 'Highest Price' },
-  { value: 'priceLow', label: 'Lowest Price' }
-];
 
 const CROP_EMOJIS = {
   wheat: '🌾', gehu: '🌾', rice: '🌾', dhaan: '🌾', paddy: '🌾',
@@ -43,30 +35,45 @@ function getCropEmoji(cropType = '') {
   return CROP_EMOJIS[key] || '🌱';
 }
 
+const GOVT_SCHEMES = [
+  { icon: '💰', name: 'PM-KISAN', desc: 'Samman Nidhi — ₹6000/saal' },
+  { icon: '🌾', name: 'PM Fasal Bima', desc: 'Fasal ka insurance' },
+  { icon: '💳', name: 'Kisan Credit Card', desc: 'Kam byaj par loan' },
+  { icon: '💧', name: 'PM Krishi Sinchai', desc: 'Har khet ko paani' },
+];
+
 export default function Dashboard() {
   const { t } = useLanguage();
   const { showNotification } = useNotification();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [loading, setLoading] = useState(true);
   const [qrModal, setQrModal] = useState(null);
-  const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sortBy, setSortBy] = useState('newest');
-  const navigate = useNavigate();
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [produceDisplayLimit, setProduceDisplayLimit] = useState(PRODUCE_PAGE_SIZE);
+
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [kycStatus, setKycStatus] = useState(storedUser.kycStatus || 'PENDING');
   const user = storedUser;
   const hasShownNotifRef = useRef(false);
 
+  // Weather state
+  const [weather, setWeather] = useState(null);
+  const [mandiRates, setMandiRates] = useState([]);
+  const [mandiLoading, setMandiLoading] = useState(false);
+  const [cropFilter, setCropFilter] = useState('');
+  const [liveState, setLiveState] = useState(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [locationPermission, setLocationPermission] = useState('checking');
+  const [weatherPromptMessage, setWeatherPromptMessage] = useState('');
+  const mandiCacheRef = useRef({});
+
+  // ── FETCH DATA ──
   const fetchData = useCallback(async () => {
     try {
       if (user.role === 'FARMER') {
@@ -89,10 +96,10 @@ export default function Dashboard() {
           }
         }
         if (kycRes.status === 'fulfilled') {
-          const freshKycStatus = kycRes.value.data.kycStatus;
-          if (freshKycStatus !== kycStatus) {
-            setKycStatus(freshKycStatus);
-            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKycStatus }));
+          const freshKyc = kycRes.value.data.kycStatus;
+          if (freshKyc !== kycStatus) {
+            setKycStatus(freshKyc);
+            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKyc }));
           }
         }
       } else {
@@ -117,10 +124,10 @@ export default function Dashboard() {
           }
         }
         if (kycRes.status === 'fulfilled') {
-          const freshKycStatus = kycRes.value.data.kycStatus;
-          if (freshKycStatus !== kycStatus) {
-            setKycStatus(freshKycStatus);
-            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKycStatus }));
+          const freshKyc = kycRes.value.data.kycStatus;
+          if (freshKyc !== kycStatus) {
+            setKycStatus(freshKyc);
+            localStorage.setItem('user', JSON.stringify({ ...storedUser, kycStatus: freshKyc }));
           }
         }
       }
@@ -138,100 +145,52 @@ export default function Dashboard() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchData]);
 
-  const [weather, setWeather] = useState(null);
-  const [mandiRates, setMandiRates] = useState([]);
-  const [mandiLoading, setMandiLoading] = useState(false);
-  const [cropFilter, setCropFilter] = useState('');
-  const [liveState, setLiveState] = useState(null);
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [locationPermission, setLocationPermission] = useState('checking');
-  const [weatherPromptMessage, setWeatherPromptMessage] = useState('');
-  const mandiCacheRef = useRef({});
-
+  // ── WEATHER ──
   useEffect(() => {
     const fetchWeatherByCoords = async (latitude, longitude) => {
       const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
       const weatherData = await weatherRes.json();
-
-      if (!weatherData?.current_weather) {
-        throw new Error('Weather data unavailable for current location');
-      }
-
+      if (!weatherData?.current_weather) throw new Error('Weather data unavailable');
       let locationName = 'Live Location';
       try {
         const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
         const titleData = await titleRes.json();
         locationName = titleData.city || titleData.locality || locationName;
-        if (titleData.principalSubdivision) {
-          setLiveState(titleData.principalSubdivision);
-        }
-      } catch (e) {
-        // Reverse geocode best-effort hai; weather render ko block nahi karte.
-      }
-
-      setWeather({
-        temp: weatherData.current_weather.temperature,
-        windspeed: weatherData.current_weather.windspeed,
-        code: weatherData.current_weather.weathercode,
-        location: `${locationName} 📍`
-      });
+        if (titleData.principalSubdivision) setLiveState(titleData.principalSubdivision);
+      } catch (e) {}
+      setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: `${locationName} 📍` });
     };
 
     const fetchWeatherByCity = async (city) => {
       try {
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
         const geoData = await geoRes.json();
-        if (geoData.results && geoData.results.length > 0) {
+        if (geoData.results?.length > 0) {
           const { latitude, longitude, name } = geoData.results[0];
           await fetchWeatherByCoords(latitude, longitude);
-          setWeather((prev) => ({ ...prev, location: `${name} (Profile City)` }));
+          setWeather(prev => ({ ...prev, location: `${name} (Profile City)` }));
         }
       } catch (err) { console.error('Weather error:', err); }
     };
 
     const requestLocationWeather = () => {
-      if (!navigator.geolocation) {
-        setLocationPermission('unsupported');
-        setWeatherPromptMessage('Aapke browser mein location support nahi hai.');
-        return;
-      }
-
+      if (!navigator.geolocation) { setLocationPermission('unsupported'); setWeatherPromptMessage('Aapke browser mein location support nahi hai.'); return; }
       setWeatherLoading(true);
       setWeatherPromptMessage('');
-
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           try {
-            const { latitude, longitude } = position.coords;
-            await fetchWeatherByCoords(latitude, longitude);
+            await fetchWeatherByCoords(position.coords.latitude, position.coords.longitude);
             setLocationPermission('granted');
             setWeatherPromptMessage('');
           } catch (err) {
-            console.error('Weather by location error:', err);
             await fetchWeatherByCity(user.city || 'Lucknow');
-            setWeatherPromptMessage('Live location weather load nahi hua, profile city weather dikhaya gaya hai.');
-          } finally {
-            setWeatherLoading(false);
-          }
+            setWeatherPromptMessage('Live location nahi mila, profile city weather dikhaya.');
+          } finally { setWeatherLoading(false); }
         },
         async (error) => {
-          console.log('Geo error:', error.code, error.message);
-          let errorInfo = '';
-          if (error.code === 1) {
-            setLocationPermission('denied');
-            setWeather(null);
-            errorInfo = 'Permission denied. Browser site settings mein location enable karein.';
-          } else if (error.code === 2) {
-            await fetchWeatherByCity(user.city || 'Lucknow');
-            errorInfo = 'Signal weak hai, profile city weather dikhaya gaya hai.';
-          } else if (error.code === 3) {
-            await fetchWeatherByCity(user.city || 'Lucknow');
-            errorInfo = 'Location timeout. Profile city show kiya gaya.';
-          } else {
-            await fetchWeatherByCity(user.city || 'Lucknow');
-            errorInfo = 'Signal weak hai, profile city weather dikhaya gaya hai.';
-          }
-          setWeatherPromptMessage(errorInfo);
+          if (error.code === 1) { setLocationPermission('denied'); setWeather(null); setWeatherPromptMessage('Permission denied. Browser site settings mein location enable karein.'); }
+          else { await fetchWeatherByCity(user.city || 'Lucknow'); setWeatherPromptMessage('Profile city weather dikhaya gaya hai.'); }
           setWeatherLoading(false);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
@@ -239,48 +198,25 @@ export default function Dashboard() {
     };
 
     const loadWeather = async () => {
-      if (!navigator.geolocation) {
-        setLocationPermission('unsupported');
-        await fetchWeatherByCity(user.city || 'Lucknow');
-        return;
-      }
-
+      if (!navigator.geolocation) { setLocationPermission('unsupported'); await fetchWeatherByCity(user.city || 'Lucknow'); return; }
       if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        setLocationPermission('unsupported');
-        setWeatherPromptMessage('Location permission ke liye HTTPS zaroori hai. Production domain par secure HTTPS check karein.');
-        await fetchWeatherByCity(user.city || 'Lucknow');
-        return;
+        setLocationPermission('unsupported'); await fetchWeatherByCity(user.city || 'Lucknow'); return;
       }
-
       if (navigator.permissions?.query) {
         try {
           const permissionStatus = await navigator.permissions.query({ name: 'geolocation' });
           setLocationPermission(permissionStatus.state);
-
-          if (permissionStatus.state === 'denied') {
-            setWeatherPromptMessage('Blocked 🚫: Site settings se location allow karein.');
-            return;
-          }
-
-          if (permissionStatus.state === 'granted') {
-            requestLocationWeather();
-          }
-
+          if (permissionStatus.state === 'denied') { setWeatherPromptMessage('Blocked 🚫: Site settings se location allow karein.'); return; }
+          if (permissionStatus.state === 'granted') requestLocationWeather();
           permissionStatus.onchange = () => {
             const newState = permissionStatus.state;
             setLocationPermission(newState);
-            if (newState === 'granted') {
-              requestLocationWeather();
-            } else if (newState === 'denied') {
-              setWeatherPromptMessage('Permission blocked.');
-            }
+            if (newState === 'granted') requestLocationWeather();
+            else if (newState === 'denied') setWeatherPromptMessage('Permission blocked.');
           };
           return;
-        } catch (err) {
-          console.error('Permission query failed:', err);
-        }
+        } catch (err) {}
       }
-
       requestLocationWeather();
     };
 
@@ -288,17 +224,10 @@ export default function Dashboard() {
   }, [user.city, user.role]);
 
   const handleEnableLocationWeather = () => {
-    if (user.role !== 'FARMER') return;
-
     if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      setWeatherPromptMessage('HTTPS ke bina browser location prompt nahi dikhata. AWS deployment par SSL certificate ensure karein.');
-      return;
+      setWeatherPromptMessage('HTTPS zaroori hai location ke liye.'); return;
     }
-
-    setLocationPermission('prompt');
-    setWeather(null);
-    setWeatherLoading(true);
-
+    setLocationPermission('prompt'); setWeather(null); setWeatherLoading(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -306,7 +235,6 @@ export default function Dashboard() {
           const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
           const weatherData = await weatherRes.json();
           if (!weatherData?.current_weather) throw new Error('Weather data missing');
-
           let locationName = 'Live Location';
           try {
             const titleRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
@@ -314,50 +242,29 @@ export default function Dashboard() {
             locationName = titleData.city || titleData.locality || locationName;
             if (titleData.principalSubdivision) setLiveState(titleData.principalSubdivision);
           } catch (e) {}
-
-          setWeather({
-            temp: weatherData.current_weather.temperature,
-            windspeed: weatherData.current_weather.windspeed,
-            code: weatherData.current_weather.weathercode,
-            location: `${locationName} 📍`
-          });
-          setLocationPermission('granted');
-          setWeatherPromptMessage('');
-        } catch (err) {
-          console.error('Enable location weather error:', err);
-          setWeatherPromptMessage('Weather load nahi hua. Dobara try karein.');
-        } finally {
-          setWeatherLoading(false);
-        }
+          setWeather({ temp: weatherData.current_weather.temperature, windspeed: weatherData.current_weather.windspeed, code: weatherData.current_weather.weathercode, location: `${locationName} 📍` });
+          setLocationPermission('granted'); setWeatherPromptMessage('');
+        } catch (err) { setWeatherPromptMessage('Weather load nahi hua. Dobara try karein.'); }
+        finally { setWeatherLoading(false); }
       },
       (error) => {
-        if (error.code === 1) {
-          setLocationPermission('denied');
-          setWeatherPromptMessage('Location abhi blocked hai. Browser site settings me jaake Location ko Allow karein, phir dobara Enable Location dabayein.');
-        } else if (error.code === 3) {
-          setWeatherPromptMessage('Location timeout ho gaya. Signal slow ho sakta hai, dobara try karein.');
-        } else {
-          setWeatherPromptMessage('Location fetch fail hua (Unavailable). GPS on karein aur dobara try karein.');
-        }
+        if (error.code === 1) { setLocationPermission('denied'); setWeatherPromptMessage('Location blocked. Browser site settings me jaake Location ko Allow karein.'); }
+        else setWeatherPromptMessage('Location fetch fail hua. GPS on karein aur dobara try karein.');
         setWeatherLoading(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
+  // ── MANDI ──
   useEffect(() => {
     const loadMandi = async () => {
       const targetState = liveState || user.state;
       const cacheKey = `${targetState || ''}:${cropFilter}`;
-      if (mandiCacheRef.current[cacheKey]) {
-        setMandiRates(mandiCacheRef.current[cacheKey]);
-        return;
-      }
+      if (mandiCacheRef.current[cacheKey]) { setMandiRates(mandiCacheRef.current[cacheKey]); return; }
       setMandiLoading(true);
       try {
-        const mandiRes = await api.get('/market/mandi', {
-          params: { state: targetState || undefined, commodity: cropFilter || undefined, limit: 5 }
-        });
+        const mandiRes = await api.get('/market/mandi', { params: { state: targetState || undefined, commodity: cropFilter || undefined, limit: 5 } });
         const records = mandiRes.data?.records || [];
         mandiCacheRef.current[cacheKey] = records;
         setMandiRates(records);
@@ -367,833 +274,535 @@ export default function Dashboard() {
     if (user.role === 'FARMER') loadMandi();
   }, [user.state, user.role, cropFilter, liveState]);
 
-  const logout = () => { 
-    localStorage.removeItem('token'); 
-    localStorage.removeItem('user'); 
-    navigate('/login'); 
-  };
+  // ── UTILS ──
+  const logout = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); };
 
   const fallbackCopyText = (text) => {
     const area = document.createElement('textarea');
-    area.value = text;
-    area.setAttribute('readonly', '');
-    area.style.position = 'fixed';
-    area.style.top = '-9999px';
-    area.style.left = '-9999px';
-    document.body.appendChild(area);
-    area.focus();
-    area.select();
-
-    let copied = false;
-    try {
-      copied = document.execCommand('copy');
-    } catch (err) {
-      copied = false;
-    }
-
-    document.body.removeChild(area);
-    return copied;
+    area.value = text; area.setAttribute('readonly', ''); area.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+    document.body.appendChild(area); area.focus(); area.select();
+    let copied = false; try { copied = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(area); return copied;
   };
 
   const copyId = async (id) => {
     const text = String(id || '').trim();
     if (!text) return;
-
     try {
-      if (navigator.clipboard?.writeText && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const copied = fallbackCopyText(text);
-        if (!copied) {
-          throw new Error('Clipboard fallback failed');
-        }
-      }
-
+      if (navigator.clipboard?.writeText && window.isSecureContext) await navigator.clipboard.writeText(text);
+      else { const ok = fallbackCopyText(text); if (!ok) throw new Error('fallback failed'); }
       showNotification('ID copy ho gayi! ✅', { type: 'sms', duration: 2500 });
-    } catch (err) {
-      showNotification(`Auto-copy fail hua. Manual copy ke liye ID: ${text}`, {
-        title: 'Copy Failed',
-        type: 'sms',
-        duration: 7000
-      });
-    }
+    } catch (err) { showNotification(`Manual copy karein: ${text}`, { title: 'Copy Failed', type: 'sms', duration: 7000 }); }
   };
 
   const showQR = async (produceId) => {
     try {
       setLoading(true);
       const res = await api.get(`/produce/${produceId}`);
-      const produceData = res.data;
-      
-      const verifyUrl = `${window.location.origin}/verify/${produceId}`;
-      
-      setQrModal({ 
-        url: verifyUrl, 
-        details: produceData 
-      });
-    } catch (err) { 
-      console.error(err);
-      showNotification('QR journey load nahi hua. Network check karein.', { type: 'sms', tone: 'error' });
-    } finally {
-      setLoading(false);
-    }
+      setQrModal({ url: `${window.location.origin}/verify/${produceId}`, details: res.data });
+    } catch (err) { showNotification('QR load nahi hua. Network check karein.', { type: 'sms', tone: 'error' }); }
+    finally { setLoading(false); }
   };
 
-
+  // ── COMPUTED ──
   const roleLabel = user.role || 'USER';
-
-  const normalizeDate = (value) => {
-    if (!value) return null;
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-
-  const getPrice = (item) => {
-    if (user.role === 'FARMER') return Number(item.farmPrice) || 0;
-    return Number(item.receivedPrice ?? item.farmPrice) || 0;
-  };
-
   const baseList = user.role === 'FARMER' ? myProduces : receivedProduces;
-  const totalProduce = baseList.length;
-  const totalSales = baseList.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * getPrice(item)), 0);
+  const totalSales = baseList.reduce((sum, item) => {
+    const price = user.role === 'FARMER' ? Number(item.farmPrice) || 0 : Number(item.receivedPrice ?? item.farmPrice) || 0;
+    return sum + (Number(item.quantity) || 0) * price;
+  }, 0);
 
   const quickStats = [
-    { label: t('dash_stat_total_produce'), value: totalProduce, tone: 'produce', icon: '🌾' },
-    { label: t('dash_stat_pending_payments'), value: pendingCount, tone: 'payments', icon: '💰' },
-    { label: t('dash_stat_unread'), value: unreadNotifs, tone: 'notifications', icon: '🔔' },
-    { label: t('dash_stat_total_sales'), value: `₹${Math.round(totalSales).toLocaleString('en-IN')}`, tone: 'sales', icon: '📈' }
+    { label: user.role === 'FARMER' ? 'Meri Fasal' : 'Prapt Utpaad', value: baseList.length, icon: '🌾', tone: 'produce' },
+    { label: 'Pending Pay', value: pendingCount, icon: '💰', tone: 'payments' },
+    { label: 'Notifications', value: unreadNotifs, icon: '🔔', tone: 'notifs' },
+    { label: 'Total Value', value: `₹${Math.round(totalSales).toLocaleString('en-IN')}`, icon: '📈', tone: 'sales' },
   ];
 
-  const filteredList = baseList
-    .filter((item) => {
-      const searchValue = searchText.trim().toLowerCase();
-      const searchableText = [item.cropType, item.origin, item.farmerName, item.qualityGrade, item.lotCode, item._id].filter(Boolean).join(' ').toLowerCase();
-      if (searchValue && !searchableText.includes(searchValue)) return false;
-      if (statusFilter !== 'ALL') {
-        const statusValue = item.blockchainStatus === 'CONFIRMED' ? 'VERIFIED' : 'PENDING';
-        if (statusValue !== statusFilter) return false;
-      }
-      const createdAtDate = normalizeDate(item.createdAt);
-      const from = normalizeDate(dateFrom);
-      const to = normalizeDate(dateTo);
-      if (from && (!createdAtDate || createdAtDate < from)) return false;
-      if (to) {
-        const end = new Date(to);
-        end.setHours(23, 59, 59, 999);
-        if (!createdAtDate || createdAtDate > end) return false;
-      }
-      const price = getPrice(item);
-      const min = minPrice === '' ? null : Number(minPrice);
-      const max = maxPrice === '' ? null : Number(maxPrice);
-      if (min !== null && !Number.isNaN(min) && price < min) return false;
-      if (max !== null && !Number.isNaN(max) && price > max) return false;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'oldest') return new Date(a.createdAt) - new Date(b.createdAt);
-      if (sortBy === 'priceHigh') return getPrice(b) - getPrice(a);
-      if (sortBy === 'priceLow') return getPrice(a) - getPrice(b);
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+  const recentProduces = baseList.slice(0, 3);
 
-  const resetFilters = () => {
-    setSearchText(''); setStatusFilter('ALL'); setDateFrom(''); setDateTo(''); setMinPrice(''); setMaxPrice(''); setSortBy('newest');
-    setProduceDisplayLimit(PRODUCE_PAGE_SIZE);
-  };
-
-  const paginatedList = filteredList.slice(0, produceDisplayLimit);
+  // ── SIDEBAR ITEMS ──
+  const sidebarSections = [
+    {
+      title: 'Main',
+      items: [
+        { label: 'Dashboard', icon: <Home size={18} />, path: '/dashboard', show: true },
+        { label: 'Profile', icon: <User size={18} />, path: '/profile', show: true },
+        { label: t('dash_action_history') || 'Transactions', icon: <History size={18} />, path: '/transactions', show: true, badge: unreadNotifs },
+      ]
+    },
+    {
+      title: 'Kisan Operations',
+      items: [
+        { label: t('dash_action_register') || 'Register Produce', icon: <Sprout size={18} />, path: '/register-produce', show: user.role === 'FARMER' },
+        { label: 'Transfer', icon: <Truck size={18} />, path: '/transfer', show: user.role !== 'CONSUMER' },
+        { label: 'Pending Payments', icon: <Coins size={18} />, path: '/payment', show: user.role !== 'FARMER', badge: pendingCount },
+        { label: 'AgriMarket', icon: <ShoppingCart size={18} />, path: '/marketplace', show: user.role !== 'FARMER' },
+        { label: 'Lot Management', icon: <Layers size={18} />, path: '/lot-ops', show: true },
+        { label: 'Dispatch', icon: <PackageCheck size={18} />, path: '/dispatch-logistics', show: user.role !== 'CONSUMER' },
+        { label: 'Milestone Pay', icon: <ShieldCheck size={18} />, path: '/escrow', show: true },
+        { label: 'Bimari Scanner', icon: <Microscope size={18} />, path: '/crop-disease', show: user.role === 'FARMER' },
+        { label: 'AI Kisan Mitra', icon: <Bot size={18} />, path: '/ai', show: user.role === 'FARMER' },
+      ]
+    },
+    {
+      title: 'eNAM Features',
+      items: [
+        { label: 'Mandi Prices', icon: <TrendingUp size={18} />, path: '/mandi-prices', show: true },
+        { label: 'Live Auction', icon: <Gavel size={18} />, path: '/auction', show: true },
+        { label: 'Quality Grade', icon: <FlaskConical size={18} />, path: '/quality-grading', show: true },
+        { label: 'Warehouse', icon: <Building2 size={18} />, path: '/warehouse', show: true },
+        { label: 'Agri Credit', icon: <CreditCard size={18} />, path: '/finance', show: true },
+        { label: 'Dispute', icon: <Scale size={18} />, path: '/dispute', show: true },
+        { label: 'Market Advisory', icon: <BarChart3 size={18} />, path: '/market-advisory', show: true },
+        { label: 'Buyer Ratings', icon: <Star size={18} />, path: '/buyer-ratings', show: true },
+        { label: 'Govt Schemes', icon: <Home size={18} />, path: '/govt-schemes', show: true },
+        { label: 'GST Invoice', icon: <FileText size={18} />, path: '/gst-invoice', show: true },
+      ]
+    },
+    {
+      title: 'Account',
+      items: [
+        { label: 'KYC Verify', icon: <ShieldCheck size={18} />, path: '/kyc', show: kycStatus !== 'VERIFIED' },
+      ]
+    }
+  ];
 
   return (
-    <div className="dashboard-page">
+    <div className="fd-layout">
 
-      {/* ── KYC VERIFICATION BANNER ── */}
-      {kycStatus !== 'VERIFIED' && (
-        <div
-          onClick={() => navigate('/kyc')}
-          style={{
-            position: 'sticky', top: 0, zIndex: 999, cursor: 'pointer',
-            background: kycStatus === 'SUBMITTED' ? '#FFF8E1' : '#FFF3E0',
-            borderBottom: `3px solid ${kycStatus === 'SUBMITTED' ? '#FFD54F' : '#FF7043'}`,
-            padding: '0.75rem 1.5rem',
-            display: 'flex', alignItems: 'center', gap: '0.75rem'
-          }}
-        >
-          <AlertTriangle size={18} style={{ color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', flexShrink: 0 }} />
-          <span style={{ fontWeight: 700, color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', fontSize: '0.9rem' }}>
-            {kycStatus === 'SUBMITTED'
-              ? 'KYC review mein hai — 24 ghante mein verify ho jaayega'
-              : 'Account verify karo — Aadhaar / PAN / eShram se — Transfer & Payment ke liye zaroori hai'}
-          </span>
-          <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: '0.85rem', color: kycStatus === 'SUBMITTED' ? '#E65100' : '#BF360C', whiteSpace: 'nowrap' }}>
-            {kycStatus === 'SUBMITTED' ? 'Status Dekho →' : 'Verify Karo →'}
-          </span>
-        </div>
+      {/* ── SIDEBAR OVERLAY (mobile) ── */}
+      {sidebarOpen && (
+        <div className="fd-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ── UNIFIED QR & TRACEABILITY MODAL ── */}
-      {qrModal && (
-        <div className="ft-modal-overlay" onClick={() => setQrModal(null)}>
-          <div className="ft-modal dashboard-qr-trace-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(850px, 95%)', maxHeight: '90vh' }}>
-            <button
-              type="button"
-              className="dashboard-modal-close"
-              onClick={() => setQrModal(null)}
-              style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: 'var(--ft-bg)', padding: '10px', borderRadius: '50%', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
-            >
-              <X size={20} strokeWidth={2.5} />
-            </button>
-
-            <div className="modal-inner-grid" style={{ display: 'flex', minHeight: '520px' }}>
-              <div className="modal-qr-section" style={{ width: '320px', flexShrink: 0, padding: '3.5rem 2.5rem', borderRight: '1.5px solid rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div className="modal-header-mini">
-                  <div className="dashboard-brand-icon" style={{ width: 32, height: 32, fontSize: '1rem' }}>🌱</div>
-                  <h3 className="ft-modal-title">Product Passport</h3>
-                </div>
-                
-                <div className="qr-container-premium" style={{ background: '#fff', padding: '2rem', borderRadius: '32px', boxShadow: '0 15px 40px rgba(0,0,0,0.05)', marginBottom: '2rem', border: '1px solid rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <QRCodeSVG value={qrModal.url} size={200} style={{ borderRadius: '12px' }} />
-                  <p className="modal-qr-sub" style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--ft-text-muted)', marginTop: '1.25rem', textAlign: 'center' }}>Scan to trace on blockchain</p>
-                </div>
-
-                <div className="produce-info-mini">
-                  <h4 className="mini-crop-name">{getCropEmoji(qrModal.details.cropType)} {qrModal.details.cropType}</h4>
-                  <div className="mini-details-row">
-                    <span><Info size={16} /> {qrModal.details.origin}</span>
-                    <span><Layers size={16} /> {qrModal.details.quantity}kg</span>
-                  </div>
-                  <div className="mini-id-badge">LOT ID: {qrModal.details._id.slice(-8).toUpperCase()}</div>
-                </div>
-              </div>
-
-              <div className="modal-trace-section" style={{ flex: 1, padding: '4rem', display: 'flex', flexDirection: 'column' }}>
-                <h4 className="trace-section-title">Timeline — Journey to You</h4>
-                <div className="trace-timeline">
-                  {/* Start Point */}
-                  <div className="trace-step">
-                    <div className="trace-marker green"></div>
-                    <div className="trace-content">
-                      <p className="trace-step-title">Farm Origin — {qrModal.details.farmerName}</p>
-                      <p className="trace-step-sub">{qrModal.details.origin}</p>
-                      <p className="trace-step-price">₹{qrModal.details.farmPrice}/kg</p>
-                    </div>
-                  </div>
-
-                  {/* Transfer Points */}
-                  {(qrModal.details.dbTransfers || []).map((t, i) => (
-                    <div key={i} className="trace-step">
-                      <div className="trace-marker blue"></div>
-                      <div className="trace-content">
-                        <p className="trace-step-title">{t.transferType.replace(/_/g, ' ')}</p>
-                        <p className="trace-step-sub">{t.location}</p>
-                        <p className="trace-step-price">₹{t.price}/kg</p>
-                        {t.txHash && <a href={`https://sepolia.etherscan.io/tx/${t.txHash}`} target="_blank" rel="noreferrer" className="trace-proof-link">Verify Proof <ExternalLink size={12} /></a>}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {(!qrModal.details.dbTransfers || qrModal.details.dbTransfers.length === 0) && (
-                    <p className="trace-empty-note">Awaiting shipment transfers...</p>
-                  )}
-                </div>
-                
-                {qrModal.details.isBlockchainVerified && (
-                  <div className="modal-blockchain-verified">
-                    <ShieldCheck size={16} /> Immutable Blockchain Verified 
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ padding: '2.5rem 4rem 3.5rem', display: 'flex', gap: '1.5rem', background: '#fff' }}>
-              <button onClick={() => setQrModal(null)} className="ft-btn ft-btn-ghost ft-btn-full">
-                Close Popup
-              </button>
-              <button 
-                onClick={() => {
-                  window.open(qrModal.url, '_blank');
-                }} 
-                className="ft-btn ft-btn-primary ft-btn-full"
-              >
-                Go to History Page
-              </button>
-            </div>
+      {/* ── SIDEBAR ── */}
+      <aside className={`fd-sidebar ${sidebarOpen ? 'fd-sidebar-open' : 'fd-sidebar-closed'}`}>
+        <div className="fd-sidebar-header">
+          <div className="fd-sidebar-brand">
+            <div className="fd-sidebar-brand-icon">🌱</div>
+            <span className="fd-sidebar-brand-name">FarmTrace</span>
           </div>
-        </div>
-      )}
-
-      {/* ── STICKY HEADER ── */}
-      <header className="dashboard-header glass">
-        <div className="dashboard-brand" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
-          <div className="dashboard-brand-icon">🌱</div>
-          <h1 className="dashboard-title">FarmTrace</h1>
-          <span className="dashboard-role-badge">{roleLabel}</span>
-        </div>
-
-        <div className="header-search-global">
-          <div className="global-search-box">
-            <Search size={16} />
-            <input 
-              type="text" 
-              placeholder="Any Lot ID #001..." 
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = e.target.value.trim();
-                  if (val) navigate(`/verify/${val}`);
-                }
-              }}
-            />
-            <kbd>Enter</kbd>
-          </div>
-        </div>
-
-        <div className="dashboard-header-actions">
-          <LanguageToggle />
-          <button onClick={logout} className="btn-logout">
-            <LogOut size={18} />
-            <span className="logout-text">Logout</span>
+          <button className="fd-sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+            <X size={18} />
           </button>
         </div>
-      </header>
 
-      <div className="dash-inner">
-        {/* ── GREETING HERO ── */}
-        <section className="dash-greeting ft-anim-slide-up">
-          <div className="dash-greeting-emoji">🌿</div>
-          <div className="dash-greeting-hello">NAMASTE 🙏</div>
-          <h2 className="dash-greeting-name">{user.name}</h2>
-          <p className="dash-greeting-sub">
-            {user.role === 'FARMER' ? 'Your farm, verified on the blockchain. See your harvest details below.' : 'Track agricultural produce across the supply chain with immutable proof.'}
-          </p>
-          <div className="dash-greeting-chips">
-            <span className="dash-chip">Role: {roleLabel}</span>
-            {user.city && <span className="dash-chip">📍 {user.city}</span>}
-            {user.state && <span className="dash-chip">🗺️ {user.state}</span>}
-            <span className="dash-chip">📅 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+        <div className="fd-sidebar-user-card">
+          <div className="fd-sidebar-avatar">{user.name?.charAt(0)?.toUpperCase() || 'U'}</div>
+          <div className="fd-sidebar-user-info">
+            <div className="fd-sidebar-user-name">{user.name}</div>
+            <div className="fd-sidebar-user-role">{roleLabel}</div>
           </div>
-        </section>
+        </div>
 
-        {/* ── QUICK ACTIONS ── */}
-        <p className="dash-section-title">⚡ मुख्य कार्य</p>
-        <div className="dashboard-actions-row">
-          {user.role === 'FARMER' && (
-            <button onClick={() => navigate('/register-produce')} className="action-card primary">
-              <div className="action-card-icon-wrap">
-                <Sprout className="action-card-icon" />
+        <nav className="fd-sidebar-nav">
+          {sidebarSections.map((section) => {
+            const visibleItems = section.items.filter(item => item.show);
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.title} className="fd-nav-section">
+                <p className="fd-nav-section-title">{section.title}</p>
+                {visibleItems.map((item) => (
+                  <button
+                    key={item.path}
+                    className={`fd-nav-item ${location.pathname === item.path ? 'fd-nav-active' : ''}`}
+                    onClick={() => { navigate(item.path); if (window.innerWidth < 1024) setSidebarOpen(false); }}
+                  >
+                    <span className="fd-nav-icon">{item.icon}</span>
+                    <span className="fd-nav-label">{item.label}</span>
+                    {item.badge > 0 && (
+                      <span className="fd-nav-badge">{item.badge > 99 ? '99+' : item.badge}</span>
+                    )}
+                  </button>
+                ))}
               </div>
-              <span className="action-card-label">{t('dash_action_register')}</span>
-            </button>
-          )}
-          {user.role !== 'CONSUMER' && (
-            <button onClick={() => navigate('/transfer')} className="action-card">
-              <div className="action-card-icon-wrap" style={{ background: '#f0f9ff' }}>
-                <Truck className="action-card-icon" color="#0369a1" />
-              </div>
-              <span className="action-card-label">{t('dash_action_transfer')}</span>
-            </button>
-          )}
-          {user.role !== 'FARMER' && (
-            <button onClick={() => navigate('/payment')} className={`action-card ${pendingCount > 0 ? 'action-card-alert-pending' : ''}`}>
-              <div className="action-card-icon-wrap" style={{ background: '#fffbeb' }}>
-                <Coins className="action-card-icon" color="#d97706" />
-              </div>
-              <span className="action-card-label">
-                {t('dash_action_pending')}
-                {pendingCount > 0 && <span className="notif-badge notif-badge-pending">{pendingCount > 99 ? '99+' : pendingCount}</span>}
-              </span>
-            </button>
-          )}
-          <button onClick={() => navigate('/transactions')} className={`action-card ${unreadNotifs > 0 ? 'action-card-alert-history' : ''}`}>
-            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
-              <History className="action-card-icon" color="#4f46e5" />
-            </div>
-            <span className="action-card-label">
-              {t('dash_action_history')}
-              {unreadNotifs > 0 && <span className="notif-badge notif-badge-history">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>}
+            );
+          })}
+        </nav>
+
+        <button onClick={logout} className="fd-sidebar-logout">
+          <LogOut size={16} />
+          <span>Logout</span>
+        </button>
+      </aside>
+
+      {/* ── MAIN WRAPPER ── */}
+      <div
+        className="fd-main-wrap"
+        style={{ marginLeft: sidebarOpen && window.innerWidth >= 1024 ? '240px' : '0' }}
+      >
+
+        {/* ── KYC BANNER ── */}
+        {kycStatus !== 'VERIFIED' && (
+          <div onClick={() => navigate('/kyc')} className="fd-kyc-banner">
+            <AlertTriangle size={16} />
+            <span>
+              {kycStatus === 'SUBMITTED'
+                ? 'KYC review mein hai — 24 ghante mein verify ho jaayega'
+                : 'Account verify karo — Aadhaar / PAN / eShram — Transfer & Payment ke liye zaroori hai'}
             </span>
-          </button>
-          {user.role !== 'FARMER' && (
-            <button onClick={() => navigate('/marketplace')} className="action-card">
-              <div className="action-card-icon-wrap" style={{ background: '#ecfdf5' }}>
-                <ShoppingCart className="action-card-icon" color="#059669" />
-              </div>
-              <span className="action-card-label">AgriMarket</span>
-            </button>
-          )}
-          <button onClick={() => navigate('/profile')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f0fdfa' }}>
-              <User className="action-card-icon" color="#0f766e" />
-            </div>
-            <span className="action-card-label">{t('dash_action_profile')}</span>
-          </button>
-          <button onClick={() => navigate('/lot-ops')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
-              <Layers className="action-card-icon" color="#7c3aed" />
-            </div>
-            <span className="action-card-label">Lot Management</span>
-          </button>
-          {user.role !== 'CONSUMER' && (
-            <button onClick={() => navigate('/dispatch-logistics')} className="action-card">
-              <div className="action-card-icon-wrap" style={{ background: '#eff6ff' }}>
-                <PackageCheck className="action-card-icon" color="#1d4ed8" />
-              </div>
-              <span className="action-card-label">Dispatch</span>
-            </button>
-          )}
-          <button onClick={() => navigate('/escrow')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#fff7ed' }}>
-              <ShieldCheck className="action-card-icon" color="#ea580c" />
-            </div>
-            <span className="action-card-label">Milestone Pay</span>
-          </button>
-          {user.role === 'FARMER' && (
-            <button onClick={() => navigate('/crop-disease')} className="action-card">
-              <div className="action-card-icon-wrap" style={{ background: '#F1F8E9' }}>
-                <Microscope className="action-card-icon" color="#33691E" />
-              </div>
-              <span className="action-card-label">Bimari Scanner</span>
-            </button>
-          )}
-          {user.role === 'FARMER' && (
-            <button onClick={() => navigate('/ai')} className="action-card ai-card">
-              <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
-                <Bot className="action-card-icon" color="#16a34a" />
-              </div>
-              <span className="action-card-label">{t('dash_action_ai')}</span>
-            </button>
-          )}
-        </div>
-
-        {/* ── eNAM FEATURES ── */}
-        <p className="dash-section-title">🌾 eNAM-Inspired Features</p>
-        <div className="dashboard-actions-row">
-          <button onClick={() => navigate('/mandi-prices')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
-              <span style={{ fontSize: '1.4rem' }}>📊</span>
-            </div>
-            <span className="action-card-label">Mandi Prices</span>
-          </button>
-          <button onClick={() => navigate('/auction')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#fef3c7' }}>
-              <span style={{ fontSize: '1.4rem' }}>🏷</span>
-            </div>
-            <span className="action-card-label">Live Auction</span>
-          </button>
-          <button onClick={() => navigate('/quality-grading')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f0f9ff' }}>
-              <span style={{ fontSize: '1.4rem' }}>🔬</span>
-            </div>
-            <span className="action-card-label">Quality Grade</span>
-          </button>
-          <button onClick={() => navigate('/warehouse')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#fff7ed' }}>
-              <span style={{ fontSize: '1.4rem' }}>🏭</span>
-            </div>
-            <span className="action-card-label">Warehouse</span>
-          </button>
-          <button onClick={() => navigate('/finance')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f5f3ff' }}>
-              <span style={{ fontSize: '1.4rem' }}>💳</span>
-            </div>
-            <span className="action-card-label">Agri Credit</span>
-          </button>
-          <button onClick={() => navigate('/dispute')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#fff1f2' }}>
-              <span style={{ fontSize: '1.4rem' }}>⚖️</span>
-            </div>
-            <span className="action-card-label">Dispute</span>
-          </button>
-          <button onClick={() => navigate('/market-advisory')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#ecfdf5' }}>
-              <span style={{ fontSize: '1.4rem' }}>📈</span>
-            </div>
-            <span className="action-card-label">Market Advisory</span>
-          </button>
-          <button onClick={() => navigate('/buyer-ratings')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#fffbeb' }}>
-              <span style={{ fontSize: '1.4rem' }}>⭐</span>
-            </div>
-            <span className="action-card-label">Buyer Ratings</span>
-          </button>
-          <button onClick={() => navigate('/govt-schemes')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f0fdf4' }}>
-              <span style={{ fontSize: '1.4rem' }}>🏛️</span>
-            </div>
-            <span className="action-card-label">Govt Schemes</span>
-          </button>
-          <button onClick={() => navigate('/gst-invoice')} className="action-card">
-            <div className="action-card-icon-wrap" style={{ background: '#f8fafc' }}>
-              <span style={{ fontSize: '1.4rem' }}>🧾</span>
-            </div>
-            <span className="action-card-label">GST Invoice</span>
-          </button>
-        </div>
-
-        {/* ── STATS ── */}
-        {!loading && (
-          <>
-            <p className="dash-section-title">📊 आपका विवरण</p>
-            <div className="dashboard-stats-grid">
-              {quickStats.map((stat, idx) => (
-                <div key={stat.label} className={`dashboard-stat-card stat-${stat.tone}`} style={{ animationDelay: `${idx * 0.1}s` }}>
-                  <span className="stat-icon-wrap">{stat.icon}</span>
-                  <p className="dashboard-stat-label">{stat.label}</p>
-                  <p className="dashboard-stat-value">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-          </>
+            <span className="fd-kyc-banner-cta">
+              {kycStatus === 'SUBMITTED' ? 'Status Dekho →' : 'Verify Karo →'}
+            </span>
+          </div>
         )}
 
-        {/* ── FARMER WIDGETS (Weather + Mandi) ── */}
-        {!loading && user.role === 'FARMER' && (
-          <>
-            <p className="dash-section-title">🌤️ लाइव जानकारी</p>
-            <div className="dashboard-widgets-grid ft-anim-slide-up">
-              {/* Weather */}
-              <div className="widget-card weather-widget">
-                <h3 className="widget-header"><Thermometer size={18} /> आज का तापमान</h3>
+        {/* ── HEADER ── */}
+        <header className="fd-header">
+          <button className="fd-hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu size={22} />
+          </button>
+
+          <div className="fd-header-search">
+            <Search size={15} />
+            <input
+              type="text"
+              placeholder="Koi bhi Lot ID search karein..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.target.value.trim()) navigate(`/verify/${e.target.value.trim()}`);
+              }}
+            />
+            <kbd>↵</kbd>
+          </div>
+
+          <div className="fd-header-right">
+            <LanguageToggle />
+            <button className="fd-notif-btn" onClick={() => navigate('/transactions')} title="Notifications">
+              <Bell size={20} />
+              {unreadNotifs > 0 && (
+                <span className="fd-notif-dot">{unreadNotifs > 99 ? '99+' : unreadNotifs}</span>
+              )}
+            </button>
+            <button className="fd-profile-btn" onClick={() => navigate('/profile')}>
+              <div className="fd-header-avatar">{user.name?.charAt(0)?.toUpperCase() || 'U'}</div>
+              <div className="fd-profile-info">
+                <span className="fd-profile-name">{user.name}</span>
+                <span className="fd-profile-role">{roleLabel}</span>
+              </div>
+            </button>
+          </div>
+        </header>
+
+        {/* ── QR / TRACEABILITY MODAL ── */}
+        {qrModal && (
+          <div className="ft-modal-overlay" onClick={() => setQrModal(null)}>
+            <div className="ft-modal dashboard-qr-trace-modal" onClick={e => e.stopPropagation()} style={{ width: 'min(850px, 95%)', maxHeight: '90vh' }}>
+              <button type="button" className="dashboard-modal-close" onClick={() => setQrModal(null)}
+                style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', border: 'none', background: 'var(--ft-bg)', padding: '10px', borderRadius: '50%', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={20} strokeWidth={2.5} />
+              </button>
+              <div className="modal-inner-grid" style={{ display: 'flex', minHeight: '520px' }}>
+                <div className="modal-qr-section" style={{ width: '320px', flexShrink: 0, padding: '3.5rem 2.5rem', borderRight: '1.5px solid rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div className="modal-header-mini">
+                    <div className="dashboard-brand-icon" style={{ width: 32, height: 32, fontSize: '1rem' }}>🌱</div>
+                    <h3 className="ft-modal-title">Product Passport</h3>
+                  </div>
+                  <div style={{ background: '#fff', padding: '2rem', borderRadius: '32px', boxShadow: '0 15px 40px rgba(0,0,0,0.05)', marginBottom: '2rem', border: '1px solid rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <QRCodeSVG value={qrModal.url} size={200} style={{ borderRadius: '12px' }} />
+                    <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--ft-text-muted)', marginTop: '1.25rem', textAlign: 'center' }}>Scan to trace on blockchain</p>
+                  </div>
+                  <div className="produce-info-mini">
+                    <h4 className="mini-crop-name">{getCropEmoji(qrModal.details.cropType)} {qrModal.details.cropType}</h4>
+                    <div className="mini-details-row">
+                      <span><Info size={16} /> {qrModal.details.origin}</span>
+                      <span><Layers size={16} /> {qrModal.details.quantity}kg</span>
+                    </div>
+                    <div className="mini-id-badge">LOT ID: {qrModal.details._id.slice(-8).toUpperCase()}</div>
+                  </div>
+                </div>
+                <div className="modal-trace-section" style={{ flex: 1, padding: '4rem', display: 'flex', flexDirection: 'column' }}>
+                  <h4 className="trace-section-title">Timeline — Journey to You</h4>
+                  <div className="trace-timeline">
+                    <div className="trace-step">
+                      <div className="trace-marker green"></div>
+                      <div className="trace-content">
+                        <p className="trace-step-title">Farm Origin — {qrModal.details.farmerName}</p>
+                        <p className="trace-step-sub">{qrModal.details.origin}</p>
+                        <p className="trace-step-price">₹{qrModal.details.farmPrice}/kg</p>
+                      </div>
+                    </div>
+                    {(qrModal.details.dbTransfers || []).map((tr, i) => (
+                      <div key={i} className="trace-step">
+                        <div className="trace-marker blue"></div>
+                        <div className="trace-content">
+                          <p className="trace-step-title">{tr.transferType.replace(/_/g, ' ')}</p>
+                          <p className="trace-step-sub">{tr.location}</p>
+                          <p className="trace-step-price">₹{tr.price}/kg</p>
+                          {tr.txHash && <a href={`https://sepolia.etherscan.io/tx/${tr.txHash}`} target="_blank" rel="noreferrer" className="trace-proof-link">Verify Proof <ExternalLink size={12} /></a>}
+                        </div>
+                      </div>
+                    ))}
+                    {(!qrModal.details.dbTransfers || qrModal.details.dbTransfers.length === 0) && (
+                      <p className="trace-empty-note">Awaiting shipment transfers...</p>
+                    )}
+                  </div>
+                  {qrModal.details.isBlockchainVerified && (
+                    <div className="modal-blockchain-verified"><ShieldCheck size={16} /> Immutable Blockchain Verified</div>
+                  )}
+                </div>
+              </div>
+              <div className="modal-footer" style={{ padding: '2.5rem 4rem 3.5rem', display: 'flex', gap: '1.5rem', background: '#fff' }}>
+                <button onClick={() => setQrModal(null)} className="ft-btn ft-btn-ghost ft-btn-full">Close</button>
+                <button onClick={() => window.open(qrModal.url, '_blank')} className="ft-btn ft-btn-primary ft-btn-full">Go to History Page</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MAIN CONTENT ── */}
+        <main className="fd-content">
+
+          {/* ROW 1: GREETING + WEATHER */}
+          <div className="fd-top-row">
+            {/* Greeting Card */}
+            <div className="fd-greeting-card ft-anim-slide-up">
+              <p className="fd-greeting-hello">NAMASTE 🙏</p>
+              <h1 className="fd-greeting-name">{user.name}</h1>
+              <p className="fd-greeting-sub">
+                {user.role === 'FARMER'
+                  ? 'Aapki fasal, blockchain par verified. Neeche apni harvest details dekhein.'
+                  : 'Track agricultural produce across the supply chain with immutable proof.'}
+              </p>
+              <div className="fd-chips-row">
+                <span className="fd-chip">🏷 {roleLabel}</span>
+                {user.city && <span className="fd-chip">📍 {user.city}</span>}
+                {user.state && <span className="fd-chip">🗺️ {user.state}</span>}
+                <span className="fd-chip">📅 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+              </div>
+
+              {/* Quick Stats inside greeting */}
+              {!loading && (
+                <div className="fd-mini-stats-row">
+                  {quickStats.map((stat) => (
+                    <div key={stat.label} className={`fd-mini-stat fd-stat-${stat.tone}`}>
+                      <span className="fd-mini-stat-icon">{stat.icon}</span>
+                      <span className="fd-mini-stat-val">{stat.value}</span>
+                      <span className="fd-mini-stat-label">{stat.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Weather Panel (Farmer only) */}
+            {user.role === 'FARMER' && (
+              <div className="fd-weather-panel ft-anim-slide-up">
+                <h3 className="fd-weather-title"><Thermometer size={18} /> Aaj Ka Mausam</h3>
                 {weather ? (
                   <>
-                    <div className="weather-main">
-                      {weather.code > 50 ? <CloudRain size={44} /> : (weather.code > 1 ? <Cloud size={44} /> : <Sun size={44} />)}
-                      <span className="weather-temp">{weather.temp}°C</span>
+                    <div className="fd-weather-main">
+                      {weather.code > 50 ? <CloudRain size={48} /> : (weather.code > 1 ? <Cloud size={48} /> : <Sun size={48} />)}
+                      <span className="fd-weather-temp">{weather.temp}°C</span>
                     </div>
-                    <div className="weather-details">
+                    <div className="fd-weather-details">
                       <p>📍 <strong>{weather.location}</strong></p>
                       <p>💨 Hawa: {weather.windspeed} km/h</p>
                     </div>
-                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
+                    {weatherPromptMessage && <p className="fd-weather-note">{weatherPromptMessage}</p>}
                   </>
                 ) : weatherLoading ? (
-                  <p style={{ opacity: 0.7, fontWeight: 600 }} className="ft-loading-pulse">Mausam aa raha hai...</p>
-                ) : locationPermission === 'denied' || locationPermission === 'prompt' || locationPermission === 'checking' ? (
-                  <div className="weather-permission-box">
-                    <p className="weather-permission-title">Location enable karo tab live weather dikh sakta hai.</p>
-                    <p className="weather-permission-sub">Tap karke permission allow karein. Agar pehle deny kiya hai to browser site settings me Location ko Allow karna hoga.</p>
-                    <button type="button" className="weather-enable-btn" onClick={handleEnableLocationWeather}>
-                      Enable Location
-                    </button>
-                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
-                  </div>
+                  <p className="ft-loading-pulse">Mausam aa raha hai...</p>
                 ) : (
-                  <div className="weather-permission-box">
-                    <p className="weather-permission-title">Live location weather available nahi hai.</p>
-                    <button type="button" className="weather-enable-btn" onClick={handleEnableLocationWeather}>
-                      Retry Location Weather
-                    </button>
-                    {weatherPromptMessage && <p className="weather-inline-note">{weatherPromptMessage}</p>}
+                  <div className="fd-weather-permission">
+                    <p>Location enable karo tab live weather dikhega.</p>
+                    <button type="button" className="fd-weather-enable-btn" onClick={handleEnableLocationWeather}>Enable Location</button>
+                    {weatherPromptMessage && <p className="fd-weather-note">{weatherPromptMessage}</p>}
                   </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Mandi */}
-              <div className="widget-card msp-widget" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                  <h3 className="widget-header" style={{ margin: 0 }}><Info size={18} /> मंडी दर</h3>
+          {/* ── IMPORTANT FEATURE BANNER ── */}
+          <div className="fd-feature-banner ft-anim-slide-up">
+            {user.role === 'FARMER' ? (
+              baseList.length === 0 ? (
+                <div className="fd-banner-inner fd-banner-register" onClick={() => navigate('/register-produce')}>
+                  <div className="fd-banner-icon">🌱</div>
+                  <div className="fd-banner-text">
+                    <h3>Apni Pehli Fasal Register Karein</h3>
+                    <p>Blockchain par apni fasal ko secure karein — traceability aur better prices ke liye</p>
+                  </div>
+                  <button className="fd-banner-cta">
+                    Register Karein <ArrowRight size={18} />
+                  </button>
+                </div>
+              ) : (
+                <div className="fd-banner-inner fd-banner-ai" onClick={() => navigate('/ai')}>
+                  <div className="fd-banner-icon">🤖</div>
+                  <div className="fd-banner-text">
+                    <h3>AI Kisan Mitra — Kheti Mein Sahayta</h3>
+                    <p>Bimari diagnosis, mausam salah, mandi tips — sabkuch ek jagah</p>
+                  </div>
+                  <button className="fd-banner-cta">
+                    Chat Karein <ArrowRight size={18} />
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="fd-banner-inner fd-banner-market" onClick={() => navigate('/marketplace')}>
+                <div className="fd-banner-icon">🛒</div>
+                <div className="fd-banner-text">
+                  <h3>AgriMarket — Fresh Produce Khareeden</h3>
+                  <p>Seedhe kisan se, blockchain-verified quality ke saath</p>
+                </div>
+                <button className="fd-banner-cta">
+                  Dekhein <ArrowRight size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── GOVERNMENT SCHEMES ── */}
+          <div className="fd-section">
+            <div className="fd-section-header">
+              <h2 className="fd-section-title">🏛️ Sarkar Ki Yojnayein</h2>
+              <button className="fd-see-all-btn" onClick={() => navigate('/govt-schemes')}>
+                Sabhi Dekhein <ChevronRight size={16} />
+              </button>
+            </div>
+            <div className="fd-schemes-grid">
+              {GOVT_SCHEMES.map((scheme) => (
+                <div key={scheme.name} className="fd-scheme-card" onClick={() => navigate('/govt-schemes')}>
+                  <span className="fd-scheme-icon">{scheme.icon}</span>
+                  <div>
+                    <div className="fd-scheme-name">{scheme.name}</div>
+                    <div className="fd-scheme-desc">{scheme.desc}</div>
+                  </div>
+                  <ChevronRight size={16} className="fd-scheme-arrow" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── MANDI RATES (Farmer only) ── */}
+          {user.role === 'FARMER' && (
+            <div className="fd-section">
+              <div className="fd-section-header">
+                <h2 className="fd-section-title">📊 Aaj Ki Mandi Daren</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <select
                     value={cropFilter}
                     onChange={(e) => setCropFilter(e.target.value)}
-                    style={{ padding: '0.35rem 0.5rem', borderRadius: '8px', border: '1.5px solid #fcd34d', background: 'rgba(255,255,255,0.85)', color: '#78350f', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', outline: 'none' }}
+                    className="fd-mandi-filter"
                   >
                     <option value="">Sabhi Fasalein</option>
-                    <option value="Wheat">🌾 Gehu (Wheat)</option>
-                    <option value="Paddy(Dhaan)(Common)">🌾 Dhaan (Paddy)</option>
+                    <option value="Wheat">🌾 Gehu</option>
+                    <option value="Paddy(Dhaan)(Common)">🌾 Dhaan</option>
                     <option value="Tomato">🍅 Tamatar</option>
                     <option value="Potato">🥔 Aloo</option>
                     <option value="Onion">🧅 Pyaaz</option>
                     <option value="Apple">🍎 Seb</option>
                     <option value="Cotton">🪴 Kapas</option>
-                    <option value="Soyabean">🫛 Soyabean</option>
                     <option value="Mustard">🌻 Sarson</option>
-                    <option value="Bhindi(Ladies Finger)">🥬 Bhindi</option>
                   </select>
-                </div>
-                {mandiLoading ? (
-                  <p style={{ opacity: 0.7, fontWeight: 600, textAlign: 'center' }} className="ft-loading-pulse">Rate aa rahe hain...</p>
-                ) : mandiRates.length > 0 ? (
-                  <div className="msp-list">
-                    {mandiRates.map((record, i) => (
-                      <div key={i} className="msp-item">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
-                          <span className="msp-crop">{record.commodity}</span>
-                          <span className="msp-price">₹{(record.modal_price / 100).toFixed(2)}/kg</span>
-                        </div>
-                        <span style={{ fontSize: '0.76rem', color: '#92400e', marginTop: '0.2rem', display: 'block' }}>
-                          {record.market}, {record.state}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ opacity: 0.7, fontWeight: 600, textAlign: 'center' }}>Is fasal ka rate abhi nahi mila</p>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ── SEARCH & FILTER SECTION ── */}
-        {!loading && (
-          <div className="dashboard-filter-card ft-anim-slide-up">
-            <div className="dashboard-filter-top">
-              <div className="search-container">
-                <Search className="search-icon" size={20} />
-                <input 
-                  className="dashboard-filter-input main-search" 
-                  placeholder={t('dash_filter_search_placeholder') || "Search crop, location, grade..."} 
-                  value={searchText} 
-                  onChange={(e) => setSearchText(e.target.value)} 
-                />
-              </div>
-              
-              <button 
-                className="filter-toggle-btn"
-                onClick={() => setIsFilterOpen(!isFilterOpen)}
-              >
-                <SlidersHorizontal size={18} />
-                {isFilterOpen ? 'Hide Filters' : 'Advanced Filters'}
-                {isFilterOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-
-              {(searchText || statusFilter !== 'ALL' || dateFrom || dateTo || minPrice || maxPrice) && (
-                <button type="button" className="dashboard-clear-btn" onClick={resetFilters}>
-                  ✕ Reset
-                </button>
-              )}
-            </div>
-
-            {isFilterOpen && (
-              <div className="advanced-filters-section ft-anim-slide-up">
-                <div className="filters-grid">
-                  {/* Status & Sort */}
-                  <div className="filter-group-main">
-                    <h5 className="input-group-header">Management</h5>
-                    <div className="input-group">
-                      <label className="input-label">Produce Status</label>
-                      <div className="input-with-icon">
-                        <Filter className="input-field-icon" size={16} />
-                        <select className="dashboard-filter-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                          <option value="ALL">Sabhi Status (All)</option>
-                          <option value="VERIFIED">Verified Only</option>
-                          <option value="PENDING">Pending Only</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Sort Order</label>
-                      <div className="input-with-icon">
-                        <ArrowUpDown className="input-field-icon" size={16} />
-                        <select className="dashboard-filter-input" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                          {SORT_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Date Range */}
-                  <div className="filter-group-range">
-                    <h5 className="input-group-header">Timeline</h5>
-                    <div className="input-group">
-                      <label className="input-label">Date From</label>
-                      <div className="input-with-icon">
-                        <Calendar className="input-field-icon" size={16} />
-                        <input type="date" className="dashboard-filter-input" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Date To</label>
-                      <div className="input-with-icon">
-                        <Calendar className="input-field-icon" size={16} />
-                        <input type="date" className="dashboard-filter-input" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price Range */}
-                  <div className="filter-group-range">
-                    <h5 className="input-group-header">Financials</h5>
-                    <div className="input-group">
-                      <label className="input-label">Min Price</label>
-                      <div className="input-with-icon">
-                        <IndianRupee className="input-field-icon" size={16} />
-                        <input type="number" className="dashboard-filter-input" placeholder="0" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-                      </div>
-                    </div>
-
-                    <div className="input-group">
-                      <label className="input-label">Max Price</label>
-                      <div className="input-with-icon">
-                        <IndianRupee className="input-field-icon" size={16} />
-                        <input type="number" className="dashboard-filter-input" placeholder="No limit" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── PRODUCE LIST ── */}
-        {loading ? (
-          <p className="dashboard-loading ft-loading-pulse">🌱 लोड हो रहा है...</p>
-        ) : (
-          <>
-            <p className="dash-section-title">
-              {user.role === 'FARMER' ? '🌾 मेरी फसल' : '📦 प्राप्त उत्पाद'}
-            </p>
-            <div className="dashboard-grid">
-              {/* FARMER — empty */}
-              {user.role === 'FARMER' && myProduces.length === 0 && (
-                <div className="dashboard-empty ft-anim-slide-up">
-                  <div className="dashboard-empty-icon">🌱</div>
-                  <h3>No Produce Registered</h3>
-                  <p className="dashboard-empty-sub">Your harvest is the heart of the supply chain. Start by registering your first batch.</p>
-                  <button onClick={() => navigate('/register-produce')} className="dashboard-empty-cta dashboard-empty-cta-farmer">
-                    <Sprout size={20} /> Register Your Harvest
+                  <button className="fd-see-all-btn" onClick={() => navigate('/mandi-prices')}>
+                    Sabhi Dekhein <ChevronRight size={16} />
                   </button>
                 </div>
-              )}
-              {user.role === 'FARMER' && myProduces.length > 0 && filteredList.length === 0 && (
-                <div className="dashboard-empty">
-                  <h3>🔍 No matches found</h3>
-                  <p>Try adjusting your search or filters.</p>
+              </div>
+              {mandiLoading ? (
+                <p className="ft-loading-pulse">Rate aa rahe hain...</p>
+              ) : mandiRates.length > 0 ? (
+                <div className="fd-mandi-grid">
+                  {mandiRates.map((record, i) => (
+                    <div key={i} className="fd-mandi-card">
+                      <div className="fd-mandi-crop">{getCropEmoji(record.commodity)} {record.commodity}</div>
+                      <div className="fd-mandi-price">₹{(record.modal_price / 100).toFixed(2)}<span>/kg</span></div>
+                      <div className="fd-mandi-location">{record.market}, {record.state}</div>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p style={{ color: 'var(--ft-text-muted)', fontWeight: 600, padding: '1rem 0' }}>Is fasal ka rate abhi nahi mila</p>
               )}
+            </div>
+          )}
 
-              {/* FARMER — cards */}
-              {user.role === 'FARMER' && paginatedList.map((p, idx) => (
-                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                  <div className="produce-header-area">
-                    <div className="produce-meta-row">
-                      <div className="mini-id-badge">LOTID: {p._id.slice(-6).toUpperCase()}</div>
-                      <span className={`ft-badge ${p.blockchainStatus === 'CONFIRMED' ? 'ft-badge-success' : 'ft-badge-pending'}`}>
-                        {p.blockchainStatus === 'CONFIRMED' ? '✓ VERIFIED' : '⏳ PENDING'}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.25rem' }}>
-                      <div style={{ fontSize: '2.5rem' }}>{getCropEmoji(p.cropType)}</div>
-                      <h3 className="produce-name">{p.cropType}</h3>
-                    </div>
-                  </div>
-                  
-                  <div className="produce-details">
-                    <div className="produce-detail">
-                      <span className="detail-label">Origin</span>
-                      <span className="detail-val">{p.origin}</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Quantity</span>
-                      <span className="detail-val">{p.quantity} KG</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Quality</span>
-                      <span className="detail-val">Grade {p.qualityGrade}</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Price/KG</span>
-                      <span className="detail-val">₹{p.farmPrice}</span>
-                    </div>
-                  </div>
-
-                  <div className="produce-footer-area">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm" style={{ padding: '0.6rem' }}>
-                        <QrCode size={18} /> QR Trace
-                      </button>
-                      <button onClick={() => copyId(p._id)} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ padding: '0.6rem' }}>
-                        <Copy size={16} /> Copy ID
-                      </button>
-                    </div>
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="ft-btn ft-btn-ghost ft-btn-full" style={{ padding: '0.6rem' }}>
-                      <Eye size={18} /> Full History
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {/* DISTRIBUTOR/RETAILER — empty */}
-              {user.role !== 'FARMER' && receivedProduces.length === 0 && (
-                <div className="dashboard-empty">
-                  <div className="dashboard-empty-icon">📦</div>
-                  <p>{t('dash_empty_received')}</p>
-                  <p className="dashboard-empty-sub">{t('dash_empty_received_sub')}</p>
-                  {user.role !== 'CONSUMER' && (
-                    <button onClick={() => navigate('/transfer')} className="ft-btn ft-btn-primary">
-                      <Truck size={18} /> {t('dash_empty_transfer_cta')}
-                    </button>
-                  )}
-                </div>
-              )}
-              {user.role !== 'FARMER' && receivedProduces.length > 0 && filteredList.length === 0 && (
-                <div className="dashboard-empty"><p>🔍 {t('dash_empty_filter')}</p></div>
-              )}
-
-              {/* DISTRIBUTOR/RETAILER — cards */}
-              {user.role !== 'FARMER' && paginatedList.map((p, idx) => (
-                <div key={p._id} className="produce-card" style={{ animationDelay: `${idx * 0.08}s` }}>
-                  <div className="produce-header-area">
-                    <div className="produce-meta-row">
-                      <div className="mini-id-badge">LOTID: {p._id.slice(-6).toUpperCase()}</div>
-                      <span className="ft-badge ft-badge-success">📦 RECEIVED</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.25rem' }}>
-                      <div style={{ fontSize: '2.5rem' }}>{getCropEmoji(p.cropType)}</div>
-                      <h3 className="produce-name">{p.cropType}</h3>
-                    </div>
-                  </div>
-
-                  <div className="produce-details">
-                    <div className="produce-detail">
-                      <span className="detail-label">Farmer</span>
-                      <span className="detail-val">{p.farmerName}</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Quantity</span>
-                      <span className="detail-val">{p.quantity} KG</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Origin</span>
-                      <span className="detail-val">{p.origin}</span>
-                    </div>
-                    <div className="produce-detail">
-                      <span className="detail-label">Price/KG</span>
-                      <span className="detail-val">₹{p.receivedPrice || p.farmPrice}</span>
-                    </div>
-                  </div>
-
-                  <div className="produce-footer-area">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                      <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm" style={{ padding: '0.6rem' }}>
-                        <QrCode size={18} /> QR Trace
-                      </button>
-                      <button onClick={() => copyId(p._id)} className="ft-btn ft-btn-ghost ft-btn-sm" style={{ padding: '0.6rem' }}>
-                        <Copy size={16} /> Copy ID
-                      </button>
-                    </div>
-                    <button onClick={() => navigate(`/verify/${p._id}`)} className="ft-btn ft-btn-ghost ft-btn-full" style={{ padding: '0.6rem' }}>
-                      <Eye size={18} /> Full History
-                    </button>
-                  </div>
-                </div>
-              ))}
+          {/* ── RECENT PRODUCE ── */}
+          <div className="fd-section">
+            <div className="fd-section-header">
+              <h2 className="fd-section-title">
+                {user.role === 'FARMER' ? '🌾 Meri Fasal — Haaliyon Ki' : '📦 Prapt Utpaad — Haaliyon Ka'}
+              </h2>
+              <button className="fd-see-all-btn" onClick={() => navigate('/produce-list')}>
+                Sabhi Dekhein <ChevronRight size={16} />
+              </button>
             </div>
 
-            {filteredList.length > produceDisplayLimit && (
-              <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                <button
-                  onClick={() => setProduceDisplayLimit(prev => prev + PRODUCE_PAGE_SIZE)}
-                  className="ft-btn ft-btn-ghost"
-                  style={{ padding: '0.75rem 2rem', fontWeight: 700 }}
-                >
-                  Load More ({filteredList.length - produceDisplayLimit} remaining)
-                </button>
+            {loading ? (
+              <p className="ft-loading-pulse">🌱 Load ho raha hai...</p>
+            ) : recentProduces.length === 0 ? (
+              <div className="fd-empty-state">
+                <div className="fd-empty-icon">{user.role === 'FARMER' ? '🌱' : '📦'}</div>
+                <p className="fd-empty-title">
+                  {user.role === 'FARMER' ? 'Koi fasal register nahi ki abhi tak' : 'Koi produce prapt nahi hua abhi tak'}
+                </p>
+                {user.role === 'FARMER' && (
+                  <button className="ft-btn ft-btn-primary" onClick={() => navigate('/register-produce')}>
+                    <Sprout size={18} /> Pehli Fasal Register Karein
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="fd-recent-produce-grid">
+                {recentProduces.map((p, idx) => (
+                  <div key={p._id} className="fd-produce-card" style={{ animationDelay: `${idx * 0.1}s` }}>
+                    <div className="fd-produce-card-header">
+                      <div className="fd-produce-meta-row">
+                        <span className="mini-id-badge">LOT: {p._id.slice(-6).toUpperCase()}</span>
+                        <span className={`ft-badge ${p.blockchainStatus === 'CONFIRMED' ? 'ft-badge-success' : 'ft-badge-pending'}`}>
+                          {p.blockchainStatus === 'CONFIRMED' ? '✓ Verified' : '⏳ Pending'}
+                        </span>
+                      </div>
+                      <div className="fd-produce-title-row">
+                        <span className="fd-produce-emoji">{getCropEmoji(p.cropType)}</span>
+                        <h3 className="fd-produce-name">{p.cropType}</h3>
+                      </div>
+                    </div>
+                    <div className="fd-produce-card-details">
+                      <div className="fd-produce-detail">
+                        <span className="detail-label">Origin</span>
+                        <span className="detail-val">{p.origin}</span>
+                      </div>
+                      <div className="fd-produce-detail">
+                        <span className="detail-label">Quantity</span>
+                        <span className="detail-val">{p.quantity} KG</span>
+                      </div>
+                      <div className="fd-produce-detail">
+                        <span className="detail-label">Grade</span>
+                        <span className="detail-val">{p.qualityGrade}</span>
+                      </div>
+                      <div className="fd-produce-detail">
+                        <span className="detail-label">Price/KG</span>
+                        <span className="detail-val">₹{user.role === 'FARMER' ? p.farmPrice : (p.receivedPrice || p.farmPrice)}</span>
+                      </div>
+                    </div>
+                    <div className="fd-produce-card-footer">
+                      <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm">
+                        <QrCode size={16} /> QR
+                      </button>
+                      <button onClick={() => copyId(p._id)} className="ft-btn ft-btn-ghost ft-btn-sm">
+                        <Copy size={14} /> Copy
+                      </button>
+                      <button onClick={() => navigate(`/verify/${p._id}`)} className="ft-btn ft-btn-ghost ft-btn-sm">
+                        <Eye size={14} /> History
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </>
-        )}
+
+            {/* View All Button */}
+            <button className="fd-view-all-btn" onClick={() => navigate('/produce-list')}>
+              Sabhi Produce aur Transfers Dekhein
+              <ArrowRight size={18} />
+            </button>
+          </div>
+
+        </main>
       </div>
     </div>
   );

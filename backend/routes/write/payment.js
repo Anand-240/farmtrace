@@ -580,12 +580,14 @@ router.post('/verify', auth, async (req, res) => {
         process.env.PLATFORM_PRIVATE_KEY
       ).address;
 
-      const job = await blockchainQueue.add('transfer', {
-        type: 'TRANSFER',
-        data: { produceId: chainProduceId, toAddress, price: transfer.price, location: transfer.location },
-        transferMongoId: transfer._id
-      });
-      jobId = job.id;
+      if (blockchainQueue) {
+        const job = await blockchainQueue.add('transfer', {
+          type: 'TRANSFER',
+          data: { produceId: chainProduceId, toAddress, price: transfer.price, location: transfer.location },
+          transferMongoId: transfer._id
+        });
+        jobId = job.id;
+      }
     }
 
     await transfer.save();

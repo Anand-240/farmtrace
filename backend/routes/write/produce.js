@@ -95,11 +95,14 @@ router.post('/register', auth, async (req, res) => {
       await produce.save();
     }
 
-    const job = await blockchainQueue.add('register', {
-      type: 'REGISTER',
-      data: { farmerName, cropType, origin, farmPrice },
-      produceMongoId: produce._id
-    });
+    let job = null;
+    if (blockchainQueue) {
+      job = await blockchainQueue.add('register', {
+        type: 'REGISTER',
+        data: { farmerName, cropType, origin, farmPrice },
+        produceMongoId: produce._id
+      });
+    }
 
     const verifyUrl = `${getFrontendBaseUrl(req)}/verify/${produce._id}`;
     const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl);
@@ -108,7 +111,7 @@ router.post('/register', auth, async (req, res) => {
       success: true,
       produce,
       qrCodeDataUrl,
-      jobId: job.id,
+      jobId: job?.id || null,
       message: 'Blockchain registration queued for processing!'
     });
 

@@ -30,6 +30,8 @@ import MarketAdvisory from './pages/MarketAdvisory';
 import BuyerRatings from './pages/BuyerRatings';
 import GovtSchemes from './pages/GovtSchemes';
 import GSTInvoice from './pages/GSTInvoice';
+import LandingPage from './pages/LandingPage';
+import ProduceList from './pages/ProduceList';
 import { Toaster } from 'react-hot-toast';
 import { SentryErrorBoundary } from './lib/sentry';
 import { identifyUser } from './lib/posthog';
@@ -37,6 +39,11 @@ import { identifyUser } from './lib/posthog';
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/login" />;
+}
+
+function HomeRoute() {
+  const token = localStorage.getItem('token');
+  return token ? <Navigate to="/dashboard" /> : <LandingPage />;
 }
 
 function App() {
@@ -80,9 +87,10 @@ function App() {
             <Route path="/buyer-ratings" element={<PrivateRoute><BuyerRatings /></PrivateRoute>} />
             <Route path="/govt-schemes" element={<PrivateRoute><GovtSchemes /></PrivateRoute>} />
             <Route path="/gst-invoice" element={<PrivateRoute><GSTInvoice /></PrivateRoute>} />
+            <Route path="/produce-list" element={<PrivateRoute><ProduceList /></PrivateRoute>} />
 
             <Route path="/admin" element={<AdminKyc />} />
-            <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/" element={<HomeRoute />} />
           </Routes>
         </BrowserRouter>
       </NotificationProvider>

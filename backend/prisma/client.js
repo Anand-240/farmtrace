@@ -11,12 +11,14 @@ if (!connectionString) {
 const pool = new Pool({
   connectionString,
   max: 5,
-  idleTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 8000,
 });
 
-pool.on('error', (err) => {
-  console.error('❌ Unexpected error on idle client', err);
+pool.on('error', (err, client) => {
+  // 57P01 = admin_shutdown: Supabase pooler cycles connections — safe to ignore
+  if (err.code === '57P01') return;
+  console.error('❌ Unexpected pg pool error:', err.message);
 });
 
 const adapter = new PrismaPg(pool);
