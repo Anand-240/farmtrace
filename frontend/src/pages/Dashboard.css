@@ -1130,16 +1130,170 @@
 }
 
 /* ══════════════════════════════════════════
+   MINI SIDEBAR (desktop collapsed state)
+   ══════════════════════════════════════════ */
+
+.fd-mini-sidebar {
+  display: none; /* hidden by default, shown only on desktop */
+}
+
+@media (min-width: 1024px) {
+  /* Full sidebar: only visible when open on desktop */
+  .fd-sidebar-overlay { display: none !important; }
+
+  .fd-sidebar-closed {
+    /* Slide off-screen — mini sidebar takes over */
+    transform: translateX(-100%);
+  }
+
+  /* Mini sidebar — always visible on desktop when full sidebar is closed */
+  .fd-mini-sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 56px;
+    min-width: 56px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    background: #fff;
+    border-right: 1.5px solid var(--ft-border);
+    z-index: 1100;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.04);
+    padding: 0.6rem 0;
+    gap: 0;
+  }
+
+  /* Main wrap margin — driven by inline style in JSX */
+  .fd-main-wrap {
+    transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* ── MINI HAMBURGER ── */
+.fd-mini-hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--ft-text-muted);
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.fd-mini-hamburger:hover {
+  background: var(--ft-sage-light);
+  color: var(--ft-forest);
+}
+
+/* ── MINI NAV ── */
+.fd-mini-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+  padding: 0.25rem 0;
+}
+
+.fd-mini-nav-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--ft-text-muted);
+  transition: all 0.2s ease;
+}
+
+.fd-mini-nav-btn:hover {
+  background: var(--ft-sage-light);
+  color: var(--ft-forest);
+}
+
+.fd-mini-active {
+  background: var(--ft-sage-light);
+  color: var(--ft-forest);
+}
+
+/* Tooltip on hover */
+.fd-mini-nav-btn::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+  border-radius: 7px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+
+.fd-mini-nav-btn:hover::after {
+  opacity: 1;
+}
+
+.fd-mini-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 900;
+  padding: 0.1rem 0.28rem;
+  border-radius: 999px;
+  min-width: 14px;
+  text-align: center;
+  border: 1.5px solid #fff;
+}
+
+/* ── MINI LOGOUT ── */
+.fd-mini-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #dc2626;
+  transition: all 0.2s ease;
+  margin-top: 0.25rem;
+}
+
+.fd-mini-logout:hover {
+  background: #fee2e2;
+}
+
+/* ══════════════════════════════════════════
    RESPONSIVE
    ══════════════════════════════════════════ */
 
-/* Desktop: sidebar overlay hidden; margin driven by inline JS state */
-@media (min-width: 1024px) {
-  .fd-sidebar-overlay { display: none !important; }
-  .fd-main-wrap { transition: margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-}
-
+/* ── TABLET ── */
 @media (max-width: 1023px) {
+  .fd-mini-sidebar { display: none !important; }
   .fd-top-row { grid-template-columns: 1fr; }
   .fd-weather-panel { min-height: 180px; }
   .fd-recent-produce-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1148,6 +1302,7 @@
   .fd-schemes-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── MOBILE ── */
 @media (max-width: 640px) {
   .fd-content { padding: 1.25rem 1rem 3rem; }
   .fd-greeting-name { font-size: 2rem; }

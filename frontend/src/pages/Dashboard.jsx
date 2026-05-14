@@ -368,15 +368,34 @@ export default function Dashboard() {
     }
   ];
 
+  // ── 5 MINI NAV ITEMS (features NOT on dashboard page) ──
+  const miniNavItems = user.role === 'FARMER' ? [
+    { label: 'Register Produce', icon: <Sprout size={22} />, path: '/register-produce' },
+    { label: 'Transfer', icon: <Truck size={22} />, path: '/transfer' },
+    { label: 'Live Auction', icon: <Gavel size={22} />, path: '/auction' },
+    { label: 'Bimari Scanner', icon: <Microscope size={22} />, path: '/crop-disease' },
+    { label: 'Transactions', icon: <History size={22} />, path: '/transactions', badge: unreadNotifs },
+  ] : [
+    { label: 'Pending Payments', icon: <Coins size={22} />, path: '/payment', badge: pendingCount },
+    { label: 'Transfer', icon: <Truck size={22} />, path: '/transfer' },
+    { label: 'AgriMarket', icon: <ShoppingCart size={22} />, path: '/marketplace' },
+    { label: 'Warehouse', icon: <Building2 size={22} />, path: '/warehouse' },
+    { label: 'Transactions', icon: <History size={22} />, path: '/transactions', badge: unreadNotifs },
+  ];
+
+  // Margin driven by state — reliable since sidebar is position:fixed
+  const isDesktop = window.innerWidth >= 1024;
+  const mainMargin = isDesktop ? (sidebarOpen ? '240px' : '56px') : '0';
+
   return (
     <div className="fd-layout">
 
-      {/* ── SIDEBAR OVERLAY (mobile) ── */}
+      {/* ── SIDEBAR OVERLAY (mobile only, when fully open) ── */}
       {sidebarOpen && (
         <div className="fd-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* ── SIDEBAR ── */}
+      {/* ══ FULL SIDEBAR (open state) ══ */}
       <aside className={`fd-sidebar ${sidebarOpen ? 'fd-sidebar-open' : 'fd-sidebar-closed'}`}>
         <div className="fd-sidebar-header">
           <div className="fd-sidebar-brand">
@@ -406,6 +425,7 @@ export default function Dashboard() {
                 {visibleItems.map((item) => (
                   <button
                     key={item.path}
+                    title={item.label}
                     className={`fd-nav-item ${location.pathname === item.path ? 'fd-nav-active' : ''}`}
                     onClick={() => { navigate(item.path); if (window.innerWidth < 1024) setSidebarOpen(false); }}
                   >
@@ -427,11 +447,40 @@ export default function Dashboard() {
         </button>
       </aside>
 
+      {/* ══ MINI SIDEBAR (desktop only, collapsed state) ══ */}
+      {!sidebarOpen && (
+        <aside className="fd-mini-sidebar">
+          {/* Hamburger to expand */}
+          <button className="fd-mini-hamburger" onClick={() => setSidebarOpen(true)} title="Menu Kholein">
+            <Menu size={20} />
+          </button>
+
+          {/* 5 key nav icons */}
+          <nav className="fd-mini-nav">
+            {miniNavItems.map((item) => (
+              <button
+                key={item.path}
+                title={item.label}
+                className={`fd-mini-nav-btn ${location.pathname === item.path ? 'fd-mini-active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                {item.icon}
+                {item.badge > 0 && (
+                  <span className="fd-mini-badge">{item.badge > 99 ? '99+' : item.badge}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Logout */}
+          <button className="fd-mini-logout" onClick={logout} title="Logout">
+            <LogOut size={20} />
+          </button>
+        </aside>
+      )}
+
       {/* ── MAIN WRAPPER ── */}
-      <div
-        className="fd-main-wrap"
-        style={{ marginLeft: sidebarOpen && window.innerWidth >= 1024 ? '240px' : '0' }}
-      >
+      <div className="fd-main-wrap" style={{ marginLeft: mainMargin }}>
 
         {/* ── KYC BANNER ── */}
         {kycStatus !== 'VERIFIED' && (
