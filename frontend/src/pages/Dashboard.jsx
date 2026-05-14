@@ -468,6 +468,16 @@ export default function Dashboard() {
 
           <div className="fd-header-right">
             <LanguageToggle />
+            {user.role === 'FARMER' && (
+              <button
+                className="fd-create-btn"
+                onClick={() => navigate('/register-produce')}
+                title="Nayi Fasal Register Karein"
+              >
+                <Sprout size={15} />
+                <span>+</span>
+              </button>
+            )}
             <button className="fd-notif-btn" onClick={() => navigate('/transactions')} title="Notifications">
               <Bell size={20} />
               {unreadNotifs > 0 && (
