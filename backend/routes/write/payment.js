@@ -1260,9 +1260,10 @@ router.get('/docs/:transferId/invoice', auth, async (req, res) => {
     const checksum = createChecksum(invoicePayload);
     const buffer = await buildInvoicePdf(invoicePayload);
 
-    docRecord.checksum = checksum;
-    docRecord.generatedAt = new Date();
-    await docRecord.save();
+    await prisma.complianceDocument.update({
+      where: { id: docRecord.id },
+      data: { checksum, generatedAt: new Date() }
+    });
 
     await createComplianceAudit({
       req,
@@ -1312,9 +1313,10 @@ router.get('/docs/:transferId/challan', auth, async (req, res) => {
     const checksum = createChecksum(challanPayload);
     const buffer = await buildChallanPdf(challanPayload);
 
-    docRecord.checksum = checksum;
-    docRecord.generatedAt = new Date();
-    await docRecord.save();
+    await prisma.complianceDocument.update({
+      where: { id: docRecord.id },
+      data: { checksum, generatedAt: new Date() }
+    });
 
     await createComplianceAudit({
       req,
@@ -1363,9 +1365,10 @@ router.get('/docs/:transferId/settlement', auth, async (req, res) => {
     const checksum = createChecksum(settlementPayload);
     const buffer = await buildSettlementPdf(settlementPayload);
 
-    docRecord.checksum = checksum;
-    docRecord.generatedAt = new Date();
-    await docRecord.save();
+    await prisma.complianceDocument.update({
+      where: { id: docRecord.id },
+      data: { checksum, generatedAt: new Date() }
+    });
 
     await createComplianceAudit({
       req,
