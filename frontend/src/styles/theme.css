@@ -142,6 +142,13 @@ h1, h2, h3, h4, h5 {
 .ft-btn-full {
   width: 100%;
 }
+
+.ft-btn-sm {
+  padding: 0.45rem 0.85rem !important;
+  font-size: 0.8rem !important;
+  border-radius: 8px !important;
+  gap: 0.4rem !important;
+}
 .ft-btn:active:not(:disabled) {
   transform: translateY(1px) scale(0.99) !important;
   transition: all 0.1s;
@@ -248,6 +255,30 @@ h1, h2, h3, h4, h5 {
   position: relative;
   overflow: hidden;
   animation: ft-reveal-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ══════════ SPINNER & ANIMATIONS ══════════ */
+@keyframes ft-spin { to { transform: rotate(360deg); } }
+
+.ft-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--ft-border);
+  border-top-color: var(--ft-forest);
+  border-radius: 50%;
+  animation: ft-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.ft-spinner-sm {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.ft-anim-spin {
+  animation: ft-spin 1s linear infinite;
+  display: inline-block;
 }
 
 /* ══════════ UTILS ══════════ */

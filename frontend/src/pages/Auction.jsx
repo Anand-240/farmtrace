@@ -4,8 +4,6 @@ import { ArrowLeft, Gavel, Clock, TrendingUp, PlusCircle, X, ChevronDown, Chevro
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
-const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-
 function Countdown({ endTime }) {
   const [timeLeft, setTimeLeft] = useState('');
   useEffect(() => {
@@ -142,6 +140,7 @@ function BidModal({ auction, onClose, onBid }) {
 
 export default function AuctionPage() {
   const navigate = useNavigate();
+  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const [auctions, setAuctions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ACTIVE');

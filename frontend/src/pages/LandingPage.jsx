@@ -65,11 +65,15 @@ function Section({ id, children, style }) {
 export default function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
-  const [videoError, setVideoError] = useState(false);
+  const [videoError, setVideoError] = useState(true); // default true: use gradient instead of external video
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 60);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 60);
+      if (window.scrollY > 60) setMobileMenuOpen(false);
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -92,9 +96,9 @@ export default function LandingPage() {
       {/* ── NAVBAR ── */}
       <nav style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
-        background: scrolled ? 'rgba(255,255,255,0.96)' : 'transparent',
-        backdropFilter: scrolled ? 'blur(12px)' : 'none',
-        borderBottom: scrolled ? '1px solid rgba(0,0,0,0.08)' : 'none',
+        background: scrolled || mobileMenuOpen ? 'rgba(255,255,255,0.97)' : 'transparent',
+        backdropFilter: scrolled || mobileMenuOpen ? 'blur(12px)' : 'none',
+        borderBottom: scrolled || mobileMenuOpen ? '1px solid rgba(0,0,0,0.08)' : 'none',
         transition: 'all 0.3s ease',
         padding: '0 2rem',
       }}>
@@ -102,11 +106,11 @@ export default function LandingPage() {
           {/* Logo */}
           <div onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.6rem', flexShrink: 0 }}>
             <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #0d3319, #16a34a)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem' }}>🌾</div>
-            <span style={{ fontWeight: 900, fontSize: '1.25rem', color: scrolled ? '#0d3319' : '#fff', letterSpacing: '-0.03em' }}>FARMTRACE</span>
+            <span style={{ fontWeight: 900, fontSize: '1.25rem', color: scrolled || mobileMenuOpen ? '#0d3319' : '#fff', letterSpacing: '-0.03em' }}>FARMTRACE</span>
           </div>
 
-          {/* Nav Links */}
-          <div style={{ display: 'flex', gap: '0.25rem', flex: 1, justifyContent: 'center' }}>
+          {/* Nav Links — hidden on mobile */}
+          <div className="lp-nav-links" style={{ display: 'flex', gap: '0.25rem', flex: 1, justifyContent: 'center' }}>
             {NAV_LINKS.map(link => (
               <button key={link.label} onClick={() => smoothScroll(link.href)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem 0.85rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.92rem', color: scrolled ? '#374151' : 'rgba(255,255,255,0.88)', transition: 'all 0.2s', fontFamily: 'inherit' }}
                 onMouseOver={e => { e.currentTarget.style.background = scrolled ? '#f3f4f6' : 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = scrolled ? '#0d3319' : '#fff'; }}
@@ -116,19 +120,39 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Search */}
-          <form onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', background: scrolled ? '#f8f9fa' : 'rgba(255,255,255,0.15)', borderRadius: '999px', padding: '0.4rem 1rem', border: scrolled ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)', gap: '0.5rem' }}>
+          {/* Search — hidden on mobile */}
+          <form className="lp-search-form" onSubmit={handleSearch} style={{ display: 'flex', alignItems: 'center', background: scrolled ? '#f8f9fa' : 'rgba(255,255,255,0.15)', borderRadius: '999px', padding: '0.4rem 1rem', border: scrolled ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.9rem', color: scrolled ? '#9ca3af' : 'rgba(255,255,255,0.7)' }}>🔍</span>
             <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search crops, mandis..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '0.88rem', color: scrolled ? '#374151' : '#fff', width: '160px', fontFamily: 'inherit' }} />
           </form>
 
-          {/* Login */}
-          <button onClick={() => navigate('/login')} style={{ padding: '0.55rem 1.4rem', background: scrolled ? '#0d3319' : '#fff', color: scrolled ? '#fff' : '#0d3319', border: 'none', borderRadius: '999px', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit', flexShrink: 0 }}
+          {/* Login — always visible */}
+          <button onClick={() => navigate('/login')} style={{ padding: '0.55rem 1.4rem', background: scrolled || mobileMenuOpen ? '#0d3319' : '#fff', color: scrolled || mobileMenuOpen ? '#fff' : '#0d3319', border: 'none', borderRadius: '999px', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit', flexShrink: 0 }}
             onMouseOver={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
             onMouseOut={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
             Login
           </button>
+
+          {/* Hamburger — mobile only */}
+          <button className="lp-hamburger" onClick={() => setMobileMenuOpen(v => !v)} style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '8px', color: scrolled || mobileMenuOpen ? '#0d3319' : '#fff', flexShrink: 0, fontFamily: 'inherit' }}>
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div style={{ background: 'rgba(255,255,255,0.98)', borderTop: '1px solid rgba(0,0,0,0.06)', padding: '1rem 2rem 1.5rem' }}>
+            {NAV_LINKS.map(link => (
+              <button key={link.label} onClick={() => { smoothScroll(link.href); setMobileMenuOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '0.75rem 0', fontWeight: 700, fontSize: '1rem', color: '#374151', borderBottom: '1px solid #f3f4f6', fontFamily: 'inherit' }}>
+                {link.label}
+              </button>
+            ))}
+            <form onSubmit={e => { handleSearch(e); setMobileMenuOpen(false); }} style={{ display: 'flex', alignItems: 'center', marginTop: '1rem', background: '#f8f9fa', borderRadius: '999px', padding: '0.5rem 1rem', border: '1px solid #e5e7eb', gap: '0.5rem' }}>
+              <span>🔍</span>
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search crops, mandis..." style={{ background: 'none', border: 'none', outline: 'none', fontSize: '0.9rem', color: '#374151', flex: 1, fontFamily: 'inherit' }} />
+            </form>
+          </div>
+        )}
       </nav>
 
       {/* ── HERO ── */}
@@ -186,9 +210,9 @@ export default function LandingPage() {
 
       {/* ── STATS BAR ── */}
       <div style={{ background: '#0d3319', padding: '1.5rem 2rem' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-          {STATS.map(s => (
-            <div key={s.label} style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem' }}>
+        <div className="lp-stats-grid" style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+          {STATS.map((s, i) => (
+            <div key={s.label} style={{ textAlign: 'center', borderRight: i < STATS.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none', padding: '0.5rem' }}>
               <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#4ade80' }}>{s.value}</div>
               <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginTop: '0.2rem' }}>{s.icon} {s.label}</div>
             </div>
@@ -206,7 +230,7 @@ export default function LandingPage() {
           </div>
 
           {/* Steps */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0', position: 'relative' }}>
+          <div className="lp-supply-steps" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0', position: 'relative' }}>
             {/* Connecting Line */}
             <div style={{ position: 'absolute', top: '40px', left: '12.5%', right: '12.5%', height: '2px', background: 'linear-gradient(90deg, #16a34a, #d97706, #3b82f6, #9ca3af)', zIndex: 0 }} />
 
@@ -234,7 +258,7 @@ export default function LandingPage() {
           </div>
 
           {/* Journey Detail Card */}
-          <div style={{ marginTop: '3rem', background: '#fff', borderRadius: '20px', border: '1px solid #e5e7eb', padding: '2rem', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
+          <div className="lp-journey-detail" style={{ marginTop: '3rem', background: '#fff', borderRadius: '20px', border: '1px solid #e5e7eb', padding: '2rem', boxShadow: '0 8px 30px rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2rem' }}>
             <div>
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem' }}>Batch ID</div>
               <div style={{ fontWeight: 800, fontSize: '1.05rem', fontFamily: 'monospace', color: '#0d3319' }}>#FT-9842-AG</div>
@@ -289,7 +313,7 @@ export default function LandingPage() {
 
       {/* ── CARBON FOOTPRINT + TRUST CERTS ── */}
       <Section id="market" style={{ padding: '5rem 2rem', background: '#f8fdf8' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '2rem', alignItems: 'start' }}>
+        <div className="lp-carbon-row" style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '2rem', alignItems: 'start' }}>
           {/* Carbon Footprint */}
           <div style={{ background: '#fff', borderRadius: '20px', padding: '2rem', border: '1px solid #e5e7eb', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
@@ -379,7 +403,7 @@ export default function LandingPage() {
           </div>
 
           {/* Scheme Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem' }}>
+          <div className="lp-schemes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.25rem' }}>
             {GOVT_SCHEMES_TEASER.map(s => (
               <div key={s.title} style={{ background: '#fff', borderRadius: '16px', padding: '1.5rem', border: '1.5px solid #e5e7eb', boxShadow: '0 2px 12px rgba(0,0,0,0.04)', transition: 'all 0.2s' }}
                 onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.08)'; }}
@@ -411,7 +435,7 @@ export default function LandingPage() {
               Start Free — No Credit Card
             </button>
             <button onClick={() => smoothScroll('#supply-chain')} style={{ padding: '0.95rem 2.5rem', background: 'transparent', color: '#fff', border: '1.5px solid rgba(255,255,255,0.4)', borderRadius: '999px', fontWeight: 700, fontSize: '1.05rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-              Watch Demo
+              See How It Works ↓
             </button>
           </div>
         </div>
@@ -420,7 +444,7 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer id="contact" style={{ background: '#0d3319', color: 'rgba(255,255,255,0.7)', padding: '3rem 2rem 2rem' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '3rem', marginBottom: '2.5rem' }}>
+          <div className="lp-footer-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '3rem', marginBottom: '2.5rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
                 <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg, #16a34a, #4ade80)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🌾</div>
@@ -447,9 +471,9 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <span style={{ fontSize: '0.82rem' }}>© 2024 FarmTrace. Cultivating Transparency through Digital Craftsmanship.</span>
-            <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.82rem' }}>
+          <div className="lp-footer-bottom" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <span style={{ fontSize: '0.82rem' }}>© {new Date().getFullYear()} FarmTrace. Cultivating Transparency through Digital Craftsmanship.</span>
+            <div className="lp-footer-partners" style={{ display: 'flex', gap: '1.5rem', fontSize: '0.82rem' }}>
               {['Ministry of Agriculture', 'AGMARKNET', 'NABARD', 'eNAM'].map(p => (
                 <span key={p} style={{ opacity: 0.5 }}>{p}</span>
               ))}
@@ -468,8 +492,47 @@ export default function LandingPage() {
           50% { opacity: 1; transform: scaleY(1); transform-origin: top; }
           100% { opacity: 0; transform: scaleY(1); transform-origin: bottom; }
         }
+
+        /* ── Mobile Nav ── */
         @media (max-width: 768px) {
-          nav button:not(:last-child) { display: none; }
+          .lp-nav-links { display: none !important; }
+          .lp-search-form { display: none !important; }
+          .lp-hamburger { display: flex !important; align-items: center; justify-content: center; font-size: 1.4rem; }
+        }
+
+        /* ── Stats Bar ── */
+        @media (max-width: 640px) {
+          .lp-stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 0 !important; }
+          .lp-stats-grid > div { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.1); padding: 0.85rem !important; }
+        }
+
+        /* ── Supply Chain steps ── */
+        @media (max-width: 640px) {
+          .lp-supply-steps { grid-template-columns: repeat(2, 1fr) !important; gap: 2rem !important; }
+          .lp-journey-detail { grid-template-columns: 1fr !important; }
+        }
+
+        /* ── Carbon footprint row ── */
+        @media (max-width: 768px) {
+          .lp-carbon-row { grid-template-columns: 1fr !important; }
+        }
+
+        /* ── Footer ── */
+        @media (max-width: 768px) {
+          .lp-footer-grid { grid-template-columns: 1fr 1fr !important; gap: 2rem !important; }
+        }
+        @media (max-width: 480px) {
+          .lp-footer-grid { grid-template-columns: 1fr !important; }
+          .lp-footer-bottom { flex-direction: column !important; gap: 0.75rem !important; text-align: center; }
+          .lp-footer-partners { flex-wrap: wrap !important; justify-content: center !important; }
+        }
+
+        /* ── Govt Schemes ── */
+        @media (max-width: 640px) {
+          .lp-schemes-grid { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (max-width: 400px) {
+          .lp-schemes-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

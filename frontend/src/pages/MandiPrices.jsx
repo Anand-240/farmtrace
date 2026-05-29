@@ -125,7 +125,7 @@ export default function MandiPrices() {
         </div>
 
         {/* Controls row */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div className="mp-controls" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#fff', border: '1.5px solid var(--ft-border)', borderRadius: '10px', padding: '0.45rem 0.9rem' }}>
             <MapPin size={15} style={{ color: 'var(--ft-forest)' }} />
             <select value={state} onChange={e => { setState(e.target.value); setCommodity(''); }} style={{ border: 'none', outline: 'none', fontSize: '0.9rem', fontWeight: 600, background: 'transparent', cursor: 'pointer' }}>
@@ -141,7 +141,7 @@ export default function MandiPrices() {
 
         {/* Top Movers */}
         {!loading && allCommodities.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div className="mp-movers" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem' }}>
             {/* Top Priced */}
             <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid var(--ft-border)', padding: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
@@ -276,11 +276,11 @@ export default function MandiPrices() {
               </div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table className="mp-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#fafcfa' }}>
                       {['Mandi / Market', 'District', 'Min', 'Modal', 'Max', 'Range', ''].map((h, i) => (
-                        <th key={i} style={{ padding: '0.7rem 1rem', textAlign: i >= 2 ? 'right' : 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-text-muted)', textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{h}</th>
+                        <th key={i} className={h === 'Range' ? 'mp-hide-mobile' : ''} style={{ padding: '0.7rem 1rem', textAlign: i >= 2 ? 'right' : 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--ft-text-muted)', textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -289,7 +289,8 @@ export default function MandiPrices() {
                       const modal = Number(r.modal_price) / 100;
                       const min = Number(r.min_price) / 100;
                       const max = Number(r.max_price) / 100;
-                      const isUp = modal >= (min + max) / 2;
+                      const range = max - min;
+                      const isUp = range > 0 ? modal >= min + range * 0.6 : true;
                       return (
                         <tr key={i} style={{ borderTop: '1px solid var(--ft-border)' }}
                           onMouseOver={e => e.currentTarget.style.background = '#f8fdf8'}
@@ -299,7 +300,7 @@ export default function MandiPrices() {
                           <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#dc2626', fontWeight: 600, fontSize: '0.85rem' }}>₹{min.toFixed(0)}</td>
                           <td style={{ padding: '0.75rem 1rem', textAlign: 'right', fontWeight: 900, color: 'var(--ft-forest)', fontSize: '0.95rem' }}>₹{modal.toFixed(0)}</td>
                           <td style={{ padding: '0.75rem 1rem', textAlign: 'right', color: '#16a34a', fontWeight: 600, fontSize: '0.85rem' }}>₹{max.toFixed(0)}</td>
-                          <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}><PriceRangeBar min={min} modal={modal} max={max} /></td>
+                          <td className="mp-hide-mobile" style={{ padding: '0.75rem 1rem', textAlign: 'right' }}><PriceRangeBar min={min} modal={modal} max={max} /></td>
                           <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                             {isUp ? <TrendingUp size={16} style={{ color: '#16a34a' }} /> : <TrendingDown size={16} style={{ color: '#dc2626' }} />}
                           </td>
@@ -317,6 +318,17 @@ export default function MandiPrices() {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+        /* Mobile: hide Range column, shrink table */
+        @media (max-width: 600px) {
+          .mp-hide-mobile { display: none !important; }
+          .mp-table td, .mp-table th { padding: 0.55rem 0.5rem !important; font-size: 0.78rem !important; }
+        }
+        @media (max-width: 480px) {
+          .mp-controls { flex-direction: column !important; }
+          .mp-controls > div { width: 100% !important; }
+          .mp-movers { grid-template-columns: 1fr !important; }
+        }
       `}</style>
     </div>
   );

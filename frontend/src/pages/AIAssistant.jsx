@@ -82,6 +82,7 @@ export default function AIAssistant() {
   const [sellMarketFloor, setSellMarketFloor] = useState(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
+  const freeChatEndRef = useRef(null);
   // Free-form chat state
   const [chatMode, setChatMode] = useState('wizard'); // 'wizard' | 'freeChat'
   const [chatHistory, setChatHistory] = useState([]); // { role: 'user'|'assistant', content: string }[]
@@ -131,6 +132,16 @@ export default function AIAssistant() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, submitting]);
+
+  useEffect(() => {
+    freeChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
+  // Scroll to bottom when switching modes
+  useEffect(() => {
+    if (chatMode === 'wizard') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    else freeChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMode]);
 
   useEffect(() => {
     const loadAssistant = async () => {
@@ -962,7 +973,7 @@ export default function AIAssistant() {
                 </div>
               </div>
             )}
-            <div ref={chatEndRef} />
+            <div ref={freeChatEndRef} />
           </div>
 
           <div className="chat-input-area">

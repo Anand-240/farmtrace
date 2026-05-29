@@ -48,7 +48,18 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktop(desktop);
+      if (desktop && !sidebarOpen) setSidebarOpen(false);
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [myProduces, setMyProduces] = useState([]);
   const [receivedProduces, setReceivedProduces] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -383,8 +394,7 @@ export default function Dashboard() {
     { label: 'Transactions', icon: <History size={22} />, path: '/transactions', badge: unreadNotifs },
   ];
 
-  // Margin driven by state — reliable since sidebar is position:fixed
-  const isDesktop = window.innerWidth >= 1024;
+  // Margin driven by state — sidebar is position:fixed
   const mainMargin = isDesktop ? (sidebarOpen ? '240px' : '56px') : '0';
 
   return (

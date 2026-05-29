@@ -128,8 +128,9 @@ export default function Marketplace() {
                 style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', borderRadius: '999px', border: '1.5px solid var(--ft-border)', fontSize: '1.05rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', outline: 'none', transition: 'all 0.2s' }}
               />
             </div>
-            <button className="ft-btn ft-btn-ghost" style={{ borderRadius: '999px', padding: '0 1.5rem', border: '1.5px solid var(--ft-border)', background: '#fff' }}>
+            <button className="ft-btn ft-btn-ghost" title="Advanced filters — coming soon" disabled style={{ borderRadius: '999px', padding: '0 1.5rem', border: '1.5px solid var(--ft-border)', background: '#fff', opacity: 0.5, cursor: 'not-allowed' }}>
               <Filter size={18} />
+              <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Filters</span>
             </button>
           </div>
         </div>
