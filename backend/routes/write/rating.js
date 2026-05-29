@@ -2,7 +2,43 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../../middleware/authMiddleware');
 const BuyerRating = require('../../models/BuyerRating');
+const User = require('../../models/User');
+const { normalizePhone } = require('../../utils/phoneUtils');
 const logger = require('../../utils/logger').child({ module: 'rating' });
+
+// Lookup a user by email or phone to get their ID before rating
+router.get('/lookup', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 3) return res.status(400).json({ message: 'Enter at least 3 characters to search' });
+
+    const query = q.trim();
+    const isEmail = query.includes('@');
+    let user = null;
+
+    if (isEmail) {
+      user = await User.findOne({ email: query.toLowerCase() }).select('_id name email phone role avatar');
+    } else {
+      const normalized = normalizePhone(query);
+      user = await User.findOne({ phone: normalized }).select('_id name email phone role avatar');
+    }
+
+    if (!user) return res.status(404).json({ message: 'No user found with that email or phone number' });
+    if (String(user._id) === String(req.user.id)) return res.status(400).json({ message: 'You cannot rate yourself' });
+
+    return res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      avatar: user.avatar || null
+    });
+  } catch (err) {
+    logger.error({ err }, 'User lookup error');
+    return res.status(500).json({ message: 'Server error during lookup' });
+  }
+});
 
 // Submit rating
 router.post('/', auth, async (req, res) => {
