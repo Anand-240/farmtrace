@@ -205,12 +205,6 @@ export default function AIAssistant() {
       return;
     }
 
-    if (!distributorOptions.length) {
-      pushAiMessage('Abhi koi distributor available nahi mila. Thodi der baad dobara try karo.');
-      askAction();
-      return;
-    }
-
     setFlow('sell');
     setForm({ produceId: '', receiverEmail: '', pricePerKg: '', location: '', transferType: 'FARM_TO_DISTRIBUTOR' });
     setSellMarketFloor(null);
@@ -323,9 +317,8 @@ export default function AIAssistant() {
     if (!nextForm.receiverEmail) {
       setPrompt({
         key: 'receiverEmail',
-        type: 'option',
-        text: 'Kis distributor ko bechna hai?',
-        options: distributorOptions
+        type: 'text',
+        text: 'Distributor ki email ID ya unique ID dalein.'
       });
       return;
     }
@@ -362,14 +355,14 @@ export default function AIAssistant() {
     }
 
     const selectedProduce = bootstrapData.produces.find((produce) => produce._id === nextForm.produceId);
-    const selectedDistributor = bootstrapData.distributors.find(
+    const knownDistributor = bootstrapData.distributors.find(
       (distributor) => distributor.email === nextForm.receiverEmail
     );
 
     setPrompt({
       key: 'sellConfirm',
       type: 'option',
-      text: `Ye transfer bhej du?\nFasal: ${selectedProduce?.cropType || '-'}\nMaatra: ${selectedProduce?.quantity || '-'} kg\nDistributor: ${selectedDistributor?.name || nextForm.receiverEmail}\nEmail: ${selectedDistributor?.email || nextForm.receiverEmail}\nPrice: ₹${nextForm.pricePerKg}/kg\nLocation: ${nextForm.location}`,
+      text: `Ye transfer bhej du?\nFasal: ${selectedProduce?.cropType || '-'}\nMaatra: ${selectedProduce?.quantity || '-'} kg\nDistributor: ${knownDistributor?.name || nextForm.receiverEmail}\nEmail: ${nextForm.receiverEmail}\nPrice: ₹${nextForm.pricePerKg}/kg\nLocation: ${nextForm.location}`,
       options: [
         { value: 'confirm_sell', label: 'Haan, bhejo' },
         { value: 'restart_sell', label: 'Dobara bharo' }
@@ -548,15 +541,13 @@ export default function AIAssistant() {
     }
 
     if (currentPrompt.key === 'receiverEmail') {
-      const selected = distributorOptions.find(
-        (item) => item.value === value || item.label.toLowerCase() === String(value).toLowerCase()
-      );
-      if (!selected) {
-        pushAiMessage('Distributor list mein se ek chuno.');
+      const trimmed = String(value).trim().toLowerCase();
+      if (!trimmed || !trimmed.includes('@')) {
+        pushAiMessage('Valid email ID dalein. Jaise: distributor@example.com');
         setPrompt({ ...currentPrompt });
         return;
       }
-      nextForm.receiverEmail = selected.value;
+      nextForm.receiverEmail = trimmed;
     }
 
     if (currentPrompt.key === 'pricePerKg') {
@@ -794,6 +785,7 @@ export default function AIAssistant() {
   };
 
   return (
+    <div className="chat-page-shell">
     <div className="chat-container">
       <header className="chat-header">
         <button onClick={() => navigate('/dashboard')} className="chat-back-btn">
@@ -994,6 +986,7 @@ export default function AIAssistant() {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }
