@@ -76,7 +76,8 @@ router.post('/:id/bid', auth, async (req, res) => {
     if (String(auction.sellerId) === String(req.user.id)) {
       return res.status(403).json({ message: 'Aap apni khud ki auction mein bid nahi kar sakte' });
     }
-    const minBid = (auction.currentBid || auction.basePrice) + auction.incrementAmount;
+    const isFirstBid = auction.bids.length === 0;
+    const minBid = isFirstBid ? auction.basePrice : auction.currentBid + auction.incrementAmount;
     if (Number(amount) < minBid) {
       return res.status(400).json({ message: `Minimum bid ₹${minBid} hona chahiye` });
     }
