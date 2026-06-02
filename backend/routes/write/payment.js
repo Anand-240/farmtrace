@@ -1157,12 +1157,14 @@ router.get('/escrow/my/all', auth, async (req, res) => {
 });
 
 // Helper: Calculate escrow progress percentage
+// Uses actual stored amounts so 20/0/80 and 100/0/0 strategies are correct too
 function calculateEscrowProgress(escrow) {
-  let released = 0;
-  if (escrow.bookingPaid) released += 40;
-  if (escrow.dispatchReleased) released += 30;
-  if (escrow.deliveryReleased) released += 30;
-  return released;
+  if (!escrow.totalAmount) return 0;
+  let releasedAmount = 0;
+  if (escrow.bookingPaid) releasedAmount += escrow.bookingAmount || 0;
+  if (escrow.dispatchReleased) releasedAmount += escrow.dispatchAmount || 0;
+  if (escrow.deliveryReleased) releasedAmount += escrow.deliveryAmount || 0;
+  return Math.round((releasedAmount / escrow.totalAmount) * 100);
 }
 
 // Escrow - Request refund for failed/rejected delivery

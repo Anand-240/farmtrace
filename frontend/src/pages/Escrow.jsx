@@ -165,6 +165,10 @@ function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefun
 
   const milestones = buildMilestones(escrow);
   const completedMilestones = milestones.filter(m => m.done).length;
+  const releasedAmount = (escrow.bookingPaid ? (escrow.bookingAmount || 0) : 0)
+    + (escrow.dispatchReleased ? (escrow.dispatchAmount || 0) : 0)
+    + (escrow.deliveryReleased ? (escrow.deliveryAmount || 0) : 0);
+  const releasePercent = escrow.totalAmount ? Math.round((releasedAmount / escrow.totalAmount) * 100) : 0;
 
   return (
     <div
@@ -227,7 +231,7 @@ function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefun
               {completedMilestones}/{milestones.length} Milestones
             </p>
             <p style={{ margin: '2px 0 0', fontSize: '1rem', fontWeight: 800, color: '#4ade80' }}>
-              {Math.round((completedMilestones / milestones.length) * 100)}% Released
+              {releasePercent}% Released
             </p>
           </div>
         </div>
@@ -235,7 +239,7 @@ function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefun
         {/* Progress Bar */}
         <div style={{ marginTop: '1rem', height: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '99px', overflow: 'hidden' }}>
           <div style={{
-            width: `${Math.round((completedMilestones / milestones.length) * 100)}%`,
+            width: `${releasePercent}%`,
             height: '100%', background: 'linear-gradient(90deg, #4ade80, #86efac)',
             borderRadius: '99px', transition: 'width 0.6s cubic-bezier(0.34,1.56,0.64,1)'
           }} />
