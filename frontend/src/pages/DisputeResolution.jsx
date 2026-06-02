@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldAlert, Plus, X, Send, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, Plus, X, Send, MessageSquare, Paperclip, FileImage, ExternalLink } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,9 @@ export default function DisputeResolution() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [form, setForm] = useState({ category: 'QUALITY', description: '', againstName: '', priority: 'MEDIUM' });
   const [saving, setSaving] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const evidenceRef = useRef();
 
   const load = async () => {
     setLoading(true);
@@ -55,6 +58,21 @@ export default function DisputeResolution() {
 
   const loadDetail = async (id) => {
     try { const r = await api.get(`/dispute/${id}`); setSelected(r.data.dispute); } catch { toast.error('Load failed'); }
+  };
+
+  const uploadEvidence = async (files) => {
+    if (!selected || !files.length) return;
+    setUploadingEvidence(true);
+    try {
+      const fd = new FormData();
+      Array.from(files).forEach(f => fd.append('files', f));
+      const r = await api.post(`/dispute/${selected._id}/evidence`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setSelected(prev => ({ ...prev, evidence: r.data.evidence }));
+      setDisputes(prev => prev.map(d => d._id === selected._id ? { ...d, evidence: r.data.evidence } : d));
+      toast.success(`${Array.from(files).length} file(s) upload ho gaya`);
+    } catch (err) { toast.error(err.response?.data?.message || 'Upload failed'); }
+    setUploadingEvidence(false);
+    evidenceRef.current && (evidenceRef.current.value = '');
   };
 
   return (
@@ -135,12 +153,34 @@ export default function DisputeResolution() {
                 ))}
               </div>
 
+              {/* Evidence files */}
+              {selected.evidence?.length > 0 && (
+                <div style={{ padding: '0.75rem 1.5rem', borderTop: '1px solid var(--ft-border)', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ft-text-muted)', width: '100%' }}>Evidence ({selected.evidence.length})</span>
+                  {selected.evidence.map((e, i) => (
+                    <a key={i} href={e.url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.7rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', fontSize: '0.78rem', color: 'var(--ft-forest)', fontWeight: 600, textDecoration: 'none' }}>
+                      <FileImage size={12} />{e.name}<ExternalLink size={10} />
+                    </a>
+                  ))}
+                </div>
+              )}
+
               {!['RESOLVED', 'CLOSED'].includes(selected.status) && (
-                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--ft-border)', display: 'flex', gap: '0.75rem' }}>
-                  <input value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Message type karein..." style={{ flex: 1, padding: '0.65rem 1rem', borderRadius: '999px', border: '1.5px solid var(--ft-border)', fontSize: '0.9rem' }} />
-                  <button onClick={sendMessage} disabled={sendingMsg || !message.trim()} style={{ padding: '0.65rem 1.25rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
-                    <Send size={16} />
-                  </button>
+                <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--ft-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <input value={message} onChange={e => setMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Message type karein..." style={{ flex: 1, padding: '0.65rem 1rem', borderRadius: '999px', border: '1.5px solid var(--ft-border)', fontSize: '0.9rem' }} />
+                    <button onClick={sendMessage} disabled={sendingMsg || !message.trim()} style={{ padding: '0.65rem 1.25rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '999px', cursor: 'pointer' }}>
+                      <Send size={16} />
+                    </button>
+                  </div>
+                  <div>
+                    <input type="file" multiple accept="image/*,application/pdf" ref={evidenceRef} style={{ display: 'none' }} onChange={e => uploadEvidence(e.target.files)} />
+                    <button type="button" onClick={() => evidenceRef.current?.click()} disabled={uploadingEvidence}
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.85rem', border: '1.5px solid var(--ft-border)', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#555', fontWeight: 600 }}>
+                      <Paperclip size={13} /> {uploadingEvidence ? 'Uploading...' : 'Evidence attach karo (max 3 files)'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

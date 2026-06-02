@@ -1,9 +1,32 @@
 const express = require('express');
 const router = express.Router();
 const { z } = require('zod');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const auth = require('../../middleware/authMiddleware');
 const Dispute = require('../../models/Dispute');
 const logger = require('../../utils/logger').child({ module: 'dispute' });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype.startsWith('image/') && file.mimetype !== 'application/pdf') {
+      return cb(new Error('Sirf image ya PDF allowed hai'));
+    }
+    cb(null, true);
+  }
+});
+
+async function uploadEvidenceToCloudinary(buffer, filename) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'farmtrace_disputes', public_id: filename, resource_type: 'auto' },
+      (err, result) => { if (err) return reject(err); resolve(result.secure_url); }
+    );
+    stream.end(buffer);
+  });
+}
 
 const disputeSchema = z.object({
   category: z.enum(['PAYMENT', 'QUALITY', 'QUANTITY', 'DELIVERY', 'FRAUD', 'OTHER']),
@@ -111,6 +134,41 @@ router.get('/all', auth, async (req, res) => {
     return res.json({ disputes });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Upload evidence files to an existing dispute (parties only, max 3 files)
+router.post('/:id/evidence', auth, upload.array('files', 3), async (req, res) => {
+  try {
+    const dispute = await Dispute.findById(req.params.id);
+    if (!dispute) return res.status(404).json({ message: 'Dispute not found' });
+
+    const isRaiser = String(dispute.raisedById) === String(req.user.id);
+    const isAccused = dispute.againstId && String(dispute.againstId) === String(req.user.id);
+    if (!isRaiser && !isAccused) {
+      return res.status(403).json({ message: 'Sirf dispute ke parties evidence upload kar sakte hain' });
+    }
+    if (['RESOLVED', 'CLOSED'].includes(dispute.status)) {
+      return res.status(400).json({ message: 'Closed dispute mein evidence nahi add ho sakta' });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'Koi file nahi mili' });
+    }
+
+    const uploaded = await Promise.all(
+      req.files.map(async (file) => {
+        const filename = `dispute_${dispute._id}_${Date.now()}_${file.originalname.replace(/\s+/g, '_')}`;
+        const url = await uploadEvidenceToCloudinary(file.buffer, filename);
+        return { name: file.originalname, url };
+      })
+    );
+
+    dispute.evidence.push(...uploaded);
+    await dispute.save();
+    return res.json({ message: `${uploaded.length} file(s) upload ho gaya`, evidence: dispute.evidence });
+  } catch (err) {
+    logger.error({ err }, 'Evidence upload error');
+    return res.status(500).json({ message: 'Evidence upload failed' });
   }
 });
 
