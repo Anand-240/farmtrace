@@ -53,15 +53,33 @@ router.post('/:id/message', auth, async (req, res) => {
   }
 });
 
-// Resolve dispute (admin/arbiter)
+// Resolve dispute — only parties involved can act
+// Raiser can withdraw (CLOSED); accused party can resolve (RESOLVED/UNDER_REVIEW)
 router.patch('/:id/resolve', auth, async (req, res) => {
   try {
     const { resolution, status } = req.body;
     const dispute = await Dispute.findById(req.params.id);
     if (!dispute) return res.status(404).json({ message: 'Dispute not found' });
 
+    const isRaiser = String(dispute.raisedById) === String(req.user.id);
+    const isAccused = dispute.againstId && String(dispute.againstId) === String(req.user.id);
+
+    if (!isRaiser && !isAccused) {
+      return res.status(403).json({ message: 'Sirf dispute ke parties hi isko resolve kar sakte hain' });
+    }
+
+    // Raiser can only withdraw their own dispute
+    if (isRaiser && status && status !== 'CLOSED') {
+      return res.status(400).json({ message: 'Raiser sirf dispute withdraw (CLOSED) kar sakta hai' });
+    }
+
+    // Accused party can mark RESOLVED or UNDER_REVIEW only
+    if (isAccused && status && !['RESOLVED', 'UNDER_REVIEW'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. RESOLVED ya UNDER_REVIEW allowed hai' });
+    }
+
     dispute.resolution = resolution;
-    dispute.status = status || 'RESOLVED';
+    dispute.status = status || (isRaiser ? 'CLOSED' : 'RESOLVED');
     dispute.resolvedById = req.user.id;
     dispute.resolvedByName = req.user.name;
     dispute.resolvedAt = new Date();
