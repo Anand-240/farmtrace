@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../../middleware/authMiddleware');
 const Invoice = require('../../models/Invoice');
+const User = require('../../models/User');
 const logger = require('../../utils/logger').child({ module: 'invoice' });
 
 function computeGst(lineItems, isInterState) {
@@ -20,14 +21,59 @@ function computeGst(lineItems, isInterState) {
   return { lineItems: computed, subtotal, totalCgst, totalSgst, totalIgst, totalTax, grandTotal: subtotal + totalTax };
 }
 
+// Search registered users to link as buyer
+router.get('/buyer-search', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ users: [] });
+    const query = q.trim();
+    const isGstin = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i.test(query);
+    const isPhone = /^[6-9]\d{9}$/.test(query.replace(/\D/g, ''));
+
+    let filter;
+    if (isGstin) {
+      filter = { gstin: query.toUpperCase(), _id: { $ne: req.user.id } };
+    } else if (isPhone) {
+      filter = { phone: { $regex: query.replace(/\D/g, '') }, _id: { $ne: req.user.id } };
+    } else {
+      filter = {
+        _id: { $ne: req.user.id },
+        $or: [
+          { name: { $regex: query, $options: 'i' } },
+          { email: { $regex: query, $options: 'i' } },
+          { businessName: { $regex: query, $options: 'i' } }
+        ]
+      };
+    }
+    const users = await User.find(filter).select('name email phone gstin pan businessName state city role').limit(8);
+    return res.json({ users });
+  } catch (err) {
+    logger.error({ err }, 'Buyer search error');
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Check if a GSTIN is already registered in the system
+router.get('/gstin-check', auth, async (req, res) => {
+  try {
+    const { gstin } = req.query;
+    if (!gstin) return res.json({ found: false });
+    const user = await User.findOne({ gstin: gstin.toUpperCase().trim(), _id: { $ne: req.user.id } }).select('name email role businessName');
+    return res.json({ found: !!user, user: user || null });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Create invoice
 router.post('/', auth, async (req, res) => {
   try {
-    const { buyerName, buyerGstin, buyerAddress, buyerState, buyerId, produceId, lineItems, sellerGstin, sellerAddress, notes, dueDate } = req.body;
+    const { buyerName, buyerGstin, buyerPhone, buyerEmail, buyerAddress, buyerState, buyerId, produceId, lineItems, sellerGstin, sellerAddress, notes, dueDate } = req.body;
     if (!buyerName || !lineItems || !lineItems.length) return res.status(400).json({ message: 'Buyer name and line items required' });
 
     const sellerState = req.body.sellerState || '';
     const isInterState = sellerState && buyerState && sellerState.toLowerCase() !== buyerState.toLowerCase();
+    const buyerVerified = !!buyerId;
 
     const gstCalc = computeGst(lineItems, isInterState);
 
@@ -35,7 +81,7 @@ router.post('/', auth, async (req, res) => {
       sellerId: req.user.id,
       sellerName: req.user.name,
       sellerGstin, sellerAddress, sellerState,
-      buyerId, buyerName, buyerGstin, buyerAddress, buyerState,
+      buyerId, buyerName, buyerGstin, buyerPhone, buyerEmail, buyerAddress, buyerState, buyerVerified,
       produceId,
       ...gstCalc,
       isInterState,

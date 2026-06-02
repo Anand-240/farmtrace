@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Plus, X, Printer, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, Plus, X, Printer, CheckCircle2, Search, ShieldCheck, AlertTriangle, User as UserIcon } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -89,14 +89,101 @@ function InvoicePreview({ invoice, onClose }) {
   );
 }
 
+function BuyerSearch({ onSelect }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const search = (val) => {
+    setQuery(val);
+    clearTimeout(debounceRef.current);
+    if (val.trim().length < 2) { setResults([]); setOpen(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const r = await api.get(`/invoice/buyer-search?q=${encodeURIComponent(val.trim())}`);
+        setResults(r.data.users || []);
+        setOpen(true);
+      } catch { setResults([]); }
+      setSearching(false);
+    }, 350);
+  };
+
+  const pick = (user) => {
+    onSelect(user);
+    setQuery('');
+    setResults([]);
+    setOpen(false);
+  };
+
+  const ROLE_LABEL = { FARMER: 'Farmer', DISTRIBUTOR: 'Distributor', RETAILER: 'Retailer' };
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', marginBottom: '0.75rem' }}>
+      <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>Search FarmTrace User</label>
+      <div style={{ position: 'relative', marginTop: '0.2rem' }}>
+        <Search size={15} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+        <input
+          type="text"
+          value={query}
+          onChange={e => search(e.target.value)}
+          placeholder="Name, phone, email, or GSTIN..."
+          style={{ width: '100%', padding: '0.6rem 0.6rem 0.6rem 2rem', borderRadius: '8px', border: '1.5px solid var(--ft-border)', fontSize: '0.85rem', boxSizing: 'border-box' }}
+        />
+        {searching && <div className="ft-spinner-sm" style={{ position: 'absolute', right: '0.65rem', top: '50%', transform: 'translateY(-50%)' }} />}
+      </div>
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid var(--ft-border)', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 999, marginTop: '2px', overflow: 'hidden' }}>
+          {results.map(u => (
+            <button key={u._id} type="button" onClick={() => pick(u)} style={{ width: '100%', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left', borderBottom: '1px solid #f0f0f0' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#f8fdf8'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--ft-forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.85rem', flexShrink: 0 }}>
+                {(u.name || '?')[0].toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.businessName || u.name}</div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span>{ROLE_LABEL[u.role] || u.role}</span>
+                  {u.gstin && <span style={{ fontFamily: 'monospace' }}>GSTIN: {u.gstin}</span>}
+                  {u.phone && <span>{u.phone}</span>}
+                  {u.city && <span>{u.city}, {u.state}</span>}
+                </div>
+              </div>
+              <ShieldCheck size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
+            </button>
+          ))}
+        </div>
+      )}
+      {open && results.length === 0 && !searching && query.length >= 2 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid var(--ft-border)', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.85rem', color: '#6b7280', zIndex: 999, marginTop: '2px' }}>
+          No registered user found — fill details manually below
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateInvoiceModal({ onClose, onCreated }) {
   const [form, setForm] = useState({
-    buyerName: '', buyerGstin: '', buyerAddress: '', buyerState: '',
+    buyerName: '', buyerGstin: '', buyerPhone: '', buyerEmail: '', buyerAddress: '', buyerState: '',
     sellerGstin: '', sellerAddress: '', sellerState: '',
-    notes: '', dueDate: ''
+    notes: '', dueDate: '', buyerId: ''
   });
+  const [buyerVerified, setBuyerVerified] = useState(false);
+  const [gstinWarning, setGstinWarning] = useState(null);
   const [lineItems, setLineItems] = useState([{ description: '', hsnCode: '0801', quantity: 1, unit: 'Kg', rate: 0, gstRate: 5 }]);
   const [saving, setSaving] = useState(false);
+  const gstinCheckRef = useRef(null);
 
   const addLine = () => setLineItems(prev => [...prev, { description: '', hsnCode: '', quantity: 1, unit: 'Kg', rate: 0, gstRate: 5 }]);
   const removeLine = (i) => setLineItems(prev => prev.filter((_, idx) => idx !== i));
@@ -113,6 +200,46 @@ function CreateInvoiceModal({ onClose, onCreated }) {
   const subtotal = computedItems.reduce((s, i) => s + i.amount, 0);
   const totalTax = computedItems.reduce((s, i) => s + (i.cgst + i.sgst + i.igst), 0);
   const grandTotal = subtotal + totalTax;
+
+  const selectBuyer = (user) => {
+    setForm(p => ({
+      ...p,
+      buyerId: user._id,
+      buyerName: user.businessName || user.name,
+      buyerGstin: user.gstin || '',
+      buyerPhone: user.phone || '',
+      buyerEmail: user.email || '',
+      buyerAddress: [user.city, user.district, user.state].filter(Boolean).join(', '),
+      buyerState: user.state || ''
+    }));
+    setBuyerVerified(true);
+    setGstinWarning(null);
+    toast.success(`Buyer linked: ${user.businessName || user.name}`);
+  };
+
+  const clearBuyer = () => {
+    setForm(p => ({ ...p, buyerId: '', buyerName: '', buyerGstin: '', buyerPhone: '', buyerEmail: '', buyerAddress: '', buyerState: '' }));
+    setBuyerVerified(false);
+    setGstinWarning(null);
+  };
+
+  const handleGstinChange = (val) => {
+    setForm(p => ({ ...p, buyerGstin: val }));
+    if (buyerVerified) return;
+    clearTimeout(gstinCheckRef.current);
+    const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i;
+    if (!GSTIN_RE.test(val.trim())) { setGstinWarning(null); return; }
+    gstinCheckRef.current = setTimeout(async () => {
+      try {
+        const r = await api.get(`/invoice/gstin-check?gstin=${encodeURIComponent(val.trim())}`);
+        if (r.data.found) {
+          setGstinWarning({ type: 'match', user: r.data.user });
+        } else {
+          setGstinWarning({ type: 'ok' });
+        }
+      } catch { setGstinWarning(null); }
+    }, 500);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -136,6 +263,7 @@ function CreateInvoiceModal({ onClose, onCreated }) {
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {/* Seller */}
             <div style={{ background: '#f8fdf8', borderRadius: '12px', padding: '1rem' }}>
               <div style={{ fontWeight: 800, color: 'var(--ft-forest)', marginBottom: '0.75rem', fontSize: '0.9rem', textTransform: 'uppercase' }}>Seller (You)</div>
               {[{ label: 'GSTIN', key: 'sellerGstin', placeholder: '22AAAAA0000A1Z5' }, { label: 'Address', key: 'sellerAddress', placeholder: 'Your full address' }, { label: 'State', key: 'sellerState', placeholder: 'e.g. Punjab' }].map(f => (
@@ -145,18 +273,76 @@ function CreateInvoiceModal({ onClose, onCreated }) {
                 </div>
               ))}
             </div>
-            <div style={{ background: '#fff5f5', borderRadius: '12px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, color: '#dc2626', marginBottom: '0.75rem', fontSize: '0.9rem', textTransform: 'uppercase' }}>Buyer *</div>
-              {[{ label: 'Buyer Name *', key: 'buyerName', placeholder: 'Full name / Company' }, { label: 'GSTIN', key: 'buyerGstin', placeholder: 'Buyer GSTIN (optional)' }, { label: 'Address', key: 'buyerAddress', placeholder: 'Buyer address' }, { label: 'State', key: 'buyerState', placeholder: 'e.g. Maharashtra' }].map(f => (
+
+            {/* Buyer */}
+            <div style={{ background: buyerVerified ? '#f0fdf4' : '#fff5f5', borderRadius: '12px', padding: '1rem', border: buyerVerified ? '1.5px solid #86efac' : 'none', transition: 'all 0.2s' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <div style={{ fontWeight: 800, color: buyerVerified ? '#16a34a' : '#dc2626', fontSize: '0.9rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {buyerVerified ? <ShieldCheck size={15} /> : null}
+                  Buyer *
+                </div>
+                {buyerVerified && (
+                  <button type="button" onClick={clearBuyer} style={{ fontSize: '0.72rem', color: '#6b7280', background: 'none', border: '1px solid #d1d5db', borderRadius: '6px', padding: '0.2rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <X size={11} /> Change
+                  </button>
+                )}
+              </div>
+
+              {/* Verified badge */}
+              {buyerVerified && (
+                <div style={{ background: '#dcfce7', borderRadius: '8px', padding: '0.5rem 0.75rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#15803d', fontWeight: 700 }}>
+                  <ShieldCheck size={14} />
+                  Verified FarmTrace User · ID: {form.buyerId?.slice(-8).toUpperCase()}
+                </div>
+              )}
+
+              {/* Search only shown when not yet verified */}
+              {!buyerVerified && <BuyerSearch onSelect={selectBuyer} />}
+
+              {/* Buyer fields */}
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>Buyer Name *</label>
+                <input type="text" placeholder="Full name / Company" value={form.buyerName} onChange={e => setForm(p => ({ ...p, buyerName: e.target.value }))} readOnly={buyerVerified}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1.5px solid var(--ft-border)', marginTop: '0.2rem', fontSize: '0.88rem', boxSizing: 'border-box', background: buyerVerified ? '#f9fafb' : '#fff' }} />
+              </div>
+
+              {/* GSTIN with check */}
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>GSTIN</label>
+                <div style={{ position: 'relative' }}>
+                  <input type="text" placeholder="Buyer GSTIN (optional)" value={form.buyerGstin} onChange={e => handleGstinChange(e.target.value)} readOnly={buyerVerified}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1.5px solid ${gstinWarning?.type === 'match' ? '#f59e0b' : gstinWarning?.type === 'ok' ? '#86efac' : 'var(--ft-border)'}`, marginTop: '0.2rem', fontSize: '0.88rem', boxSizing: 'border-box', background: buyerVerified ? '#f9fafb' : '#fff' }} />
+                </div>
+                {gstinWarning?.type === 'match' && (
+                  <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#b45309', display: 'flex', alignItems: 'flex-start', gap: '0.3rem', background: '#fef3c7', padding: '0.4rem 0.6rem', borderRadius: '6px' }}>
+                    <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span>This GSTIN is registered to <strong>{gstinWarning.user?.name}</strong> ({gstinWarning.user?.role}) on FarmTrace. Use the search above to link them directly.</span>
+                  </div>
+                )}
+                {gstinWarning?.type === 'ok' && !buyerVerified && (
+                  <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: '#15803d', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <CheckCircle2 size={13} /> Valid GSTIN format — not yet registered on FarmTrace
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>Phone</label>
+                <input type="text" placeholder="10-digit mobile" value={form.buyerPhone} onChange={e => setForm(p => ({ ...p, buyerPhone: e.target.value }))} readOnly={buyerVerified}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1.5px solid var(--ft-border)', marginTop: '0.2rem', fontSize: '0.88rem', boxSizing: 'border-box', background: buyerVerified ? '#f9fafb' : '#fff' }} />
+              </div>
+
+              {[{ label: 'Address', key: 'buyerAddress', placeholder: 'Buyer address' }, { label: 'State', key: 'buyerState', placeholder: 'e.g. Maharashtra' }].map(f => (
                 <div key={f.key} style={{ marginBottom: '0.5rem' }}>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>{f.label}</label>
-                  <input type="text" placeholder={f.placeholder} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1.5px solid var(--ft-border)', marginTop: '0.2rem', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+                  <input type="text" placeholder={f.placeholder} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} readOnly={buyerVerified}
+                    style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: '1.5px solid var(--ft-border)', marginTop: '0.2rem', fontSize: '0.88rem', boxSizing: 'border-box', background: buyerVerified ? '#f9fafb' : '#fff' }} />
                 </div>
               ))}
             </div>
           </div>
 
-          {isInterState && <div style={{ background: '#fef3c7', borderRadius: '10px', padding: '0.75rem 1rem', color: '#d97706', fontWeight: 600, fontSize: '0.88rem' }}>⚠️ Inter-State supply detected — IGST will be applied instead of CGST+SGST</div>}
+          {isInterState && <div style={{ background: '#fef3c7', borderRadius: '10px', padding: '0.75rem 1rem', color: '#d97706', fontWeight: 600, fontSize: '0.88rem' }}>Inter-State supply detected — IGST will be applied instead of CGST+SGST</div>}
 
           {/* Line Items */}
           <div>
@@ -264,9 +450,13 @@ export default function GSTInvoice() {
                     <span style={{ padding: '0.2rem 0.6rem', borderRadius: '999px', background: `${STATUS_COLORS[inv.status]}15`, color: STATUS_COLORS[inv.status], fontWeight: 700, fontSize: '0.75rem' }}>{inv.status}</span>
                     {inv.isInterState && <span style={{ padding: '0.2rem 0.6rem', borderRadius: '6px', background: '#fef3c7', color: '#d97706', fontWeight: 700, fontSize: '0.72rem' }}>IGST</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.88rem' }}>
-                    <span>To: <strong>{inv.buyerName}</strong></span>
-                    {inv.buyerGstin && <span>GSTIN: <strong>{inv.buyerGstin}</strong></span>}
+                  <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.88rem', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      To: <strong>{inv.buyerName}</strong>
+                      {inv.buyerVerified && <span title="Verified FarmTrace User" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', background: '#dcfce7', color: '#15803d', fontSize: '0.7rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '999px' }}><ShieldCheck size={11} /> Verified</span>}
+                    </span>
+                    {inv.buyerGstin && <span>GSTIN: <strong style={{ fontFamily: 'monospace' }}>{inv.buyerGstin}</strong></span>}
+                    {inv.buyerPhone && <span>Ph: <strong>{inv.buyerPhone}</strong></span>}
                     <span>Date: <strong>{new Date(inv.invoiceDate).toLocaleDateString('hi-IN')}</strong></span>
                     {inv.dueDate && <span>Due: <strong style={{ color: new Date(inv.dueDate) < new Date() && inv.status !== 'PAID' ? '#dc2626' : 'inherit' }}>{new Date(inv.dueDate).toLocaleDateString('hi-IN')}</strong></span>}
                   </div>
