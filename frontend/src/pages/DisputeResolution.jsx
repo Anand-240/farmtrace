@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldAlert, Plus, X, Send, MessageSquare, Paperclip, FileImage, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, Plus, X, Send, MessageSquare, Paperclip, FileImage, ExternalLink, Search, ShieldCheck } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -16,11 +16,16 @@ export default function DisputeResolution() {
   const [selected, setSelected] = useState(null);
   const [message, setMessage] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
-  const [form, setForm] = useState({ category: 'QUALITY', description: '', againstName: '', priority: 'MEDIUM' });
+  const [form, setForm] = useState({ category: 'QUALITY', description: '', againstId: '', againstName: '', priority: 'MEDIUM' });
+  const [partyQuery, setPartyQuery] = useState('');
+  const [partyResults, setPartyResults] = useState([]);
+  const [partyLinked, setPartyLinked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const evidenceRef = useRef();
+  const partyDebounceRef = useRef();
+  const partyWrapRef = useRef();
 
   const load = async () => {
     setLoading(true);
@@ -39,7 +44,8 @@ export default function DisputeResolution() {
       setDisputes(prev => [res.data.dispute, ...prev]);
       toast.success(`Dispute raise ho gaya! Ticket: ${res.data.dispute.ticketNo}`);
       setShowForm(false);
-      setForm({ category: 'QUALITY', description: '', againstName: '', priority: 'MEDIUM' });
+      setForm({ category: 'QUALITY', description: '', againstId: '', againstName: '', priority: 'MEDIUM' });
+      setPartyQuery(''); setPartyLinked(false); setPartyResults([]);
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
     setSaving(false);
   };
@@ -58,6 +64,34 @@ export default function DisputeResolution() {
 
   const loadDetail = async (id) => {
     try { const r = await api.get(`/dispute/${id}`); setSelected(r.data.dispute); } catch { toast.error('Load failed'); }
+  };
+
+  const searchParty = (val) => {
+    setPartyQuery(val);
+    setPartyLinked(false);
+    setForm(f => ({ ...f, againstName: val, againstId: '' }));
+    clearTimeout(partyDebounceRef.current);
+    if (val.trim().length < 2) { setPartyResults([]); return; }
+    partyDebounceRef.current = setTimeout(async () => {
+      try {
+        const r = await api.get(`/dispute/party-search?q=${encodeURIComponent(val.trim())}`);
+        setPartyResults(r.data.users || []);
+      } catch { setPartyResults([]); }
+    }, 350);
+  };
+
+  const selectParty = (user) => {
+    setForm(f => ({ ...f, againstId: user._id, againstName: user.businessName || user.name }));
+    setPartyQuery(user.businessName || user.name);
+    setPartyLinked(true);
+    setPartyResults([]);
+  };
+
+  const clearParty = () => {
+    setForm(f => ({ ...f, againstId: '', againstName: '' }));
+    setPartyQuery('');
+    setPartyLinked(false);
+    setPartyResults([]);
   };
 
   const uploadEvidence = async (files) => {
@@ -215,9 +249,46 @@ export default function DisputeResolution() {
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>Against (Party Name)</label>
-                <input type="text" value={form.againstName} onChange={e => setForm(f => ({ ...f, againstName: e.target.value }))} placeholder="Name of the other party" style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1.5px solid var(--ft-border)', marginTop: '0.35rem', fontSize: '0.95rem', boxSizing: 'border-box' }} />
+              <div ref={partyWrapRef} style={{ position: 'relative' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ft-text-muted)' }}>Against (Party) *</label>
+                {partyLinked ? (
+                  <div style={{ marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#fef2f2', border: '1.5px solid #fca5a5', borderRadius: '10px', padding: '0.6rem 0.9rem' }}>
+                    <ShieldCheck size={15} style={{ color: '#dc2626', flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', flex: 1 }}>{form.againstName}</span>
+                    <button type="button" onClick={clearParty} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={15} /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ position: 'relative', marginTop: '0.35rem' }}>
+                      <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+                      <input
+                        type="text"
+                        value={partyQuery}
+                        onChange={e => searchParty(e.target.value)}
+                        placeholder="Name, phone ya email se search karo..."
+                        style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.2rem', borderRadius: '10px', border: '1.5px solid var(--ft-border)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    {partyResults.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1.5px solid var(--ft-border)', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 999, marginTop: '2px', overflow: 'hidden' }}>
+                        {partyResults.map(u => (
+                          <button key={u._id} type="button" onClick={() => selectParty(u)}
+                            style={{ width: '100%', padding: '0.65rem 1rem', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', textAlign: 'left', borderBottom: '1px solid #f0f0f0' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>
+                              {(u.name || '?')[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{u.businessName || u.name}</div>
+                              <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{u.role} · {u.phone} {u.city ? `· ${u.city}` : ''}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               <div>

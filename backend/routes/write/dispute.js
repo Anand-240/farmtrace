@@ -5,6 +5,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const auth = require('../../middleware/authMiddleware');
 const Dispute = require('../../models/Dispute');
+const User = require('../../models/User');
 const logger = require('../../utils/logger').child({ module: 'dispute' });
 
 const upload = multer({
@@ -36,6 +37,30 @@ const disputeSchema = z.object({
   againstId: z.string().optional(),
   againstName: z.string().optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional()
+});
+
+// Search FarmTrace users to link as the against-party
+router.get('/party-search', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ users: [] });
+    const query = q.trim();
+    const isPhone = /^[6-9]\d{9}$/.test(query.replace(/\D/g, ''));
+    const filter = isPhone
+      ? { phone: { $regex: query.replace(/\D/g, '') }, _id: { $ne: req.user.id } }
+      : {
+          _id: { $ne: req.user.id },
+          $or: [
+            { name: { $regex: query, $options: 'i' } },
+            { email: { $regex: query, $options: 'i' } },
+            { businessName: { $regex: query, $options: 'i' } }
+          ]
+        };
+    const users = await User.find(filter).select('name email phone role businessName city state').limit(6);
+    return res.json({ users });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Raise dispute
