@@ -4,13 +4,21 @@ const produceSchema = new mongoose.Schema({
   farmerName: { type: String, required: true },
   cropType:   { type: String, required: true },
   origin:     { type: String, required: true },
-  quantity:   { type: Number, required: true },
+  quantity: {
+    type: Number,
+    required: true,
+    min: [0.001, 'Quantity 0 se zyada honi chahiye']
+  },
   qualityGrade: {
     type: String,
     enum: ['A', 'B', 'C'],
     required: true
   },
-  farmPrice:  { type: Number, required: true },
+  farmPrice: {
+    type: Number,
+    required: true,
+    min: [1, 'Farm price kam se kam ₹1 hona chahiye']
+  },
   imageUrl:   { type: String },
   farmerPhone: { type: String, required: true },
   currentOwner: { type: String },
