@@ -26,8 +26,9 @@ router.post('/', auth, async (req, res) => {
 
     const produce = await Produce.findById(produceId);
     if (!produce) return res.status(404).json({ message: 'Produce not found' });
-    if (produce.currentOwner && produce.currentOwner !== req.user.id && String(produce._id) !== produceId) {
-      return res.status(403).json({ message: 'You are not the owner of this produce' });
+    const ownerPhone = produce.currentOwner || produce.farmerPhone;
+    if (ownerPhone !== req.user.phone) {
+      return res.status(403).json({ message: 'Aap is produce ke owner nahi hain' });
     }
 
     const existing = await Auction.findOne({ produceId, status: 'ACTIVE' });
