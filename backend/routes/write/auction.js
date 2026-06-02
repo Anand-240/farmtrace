@@ -64,37 +64,57 @@ router.post('/:id/bid', auth, async (req, res) => {
   try {
     const { amount } = req.body;
     if (!amount || isNaN(amount)) return res.status(400).json({ message: 'Valid bid amount required' });
+    const bidAmount = Number(amount);
 
-    const auction = await Auction.findById(req.params.id);
-    if (!auction) return res.status(404).json({ message: 'Auction not found' });
-    if (auction.status !== 'ACTIVE') return res.status(400).json({ message: 'Auction active nahi hai' });
-    if (new Date() > auction.endTime) {
-      auction.status = 'CLOSED';
-      await auction.save();
-      return res.status(400).json({ message: 'Auction ka time khatam ho gaya' });
-    }
-    if (String(auction.sellerId) === String(req.user.id)) {
-      return res.status(403).json({ message: 'Aap apni khud ki auction mein bid nahi kar sakte' });
-    }
-    const isFirstBid = auction.bids.length === 0;
-    const minBid = isFirstBid ? auction.basePrice : auction.currentBid + auction.incrementAmount;
-    if (Number(amount) < minBid) {
-      return res.status(400).json({ message: `Minimum bid ₹${minBid} hona chahiye` });
+    // Atomic update: bid validity conditions are in the query filter itself.
+    // If two requests race, only the one whose conditions still hold after the lock wins.
+    const auction = await Auction.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        status: 'ACTIVE',
+        endTime: { $gt: new Date() },
+        sellerId: { $ne: req.user._id },
+        $or: [
+          // First bid: no bids yet, amount must be >= basePrice
+          { bids: { $size: 0 }, currentBid: { $lte: bidAmount } },
+          // Subsequent bid: amount must be >= currentBid + incrementAmount
+          { $expr: { $lte: [{ $add: ['$currentBid', '$incrementAmount'] }, bidAmount] } }
+        ]
+      },
+      {
+        $set: { currentBid: bidAmount, currentWinner: req.user._id, currentWinnerName: req.user.name },
+        $push: { bids: { bidderId: req.user._id, bidderName: req.user.name, bidderRole: req.user.role, amount: bidAmount } }
+      },
+      { new: true }
+    );
+
+    if (!auction) {
+      // Explain why it failed
+      const existing = await Auction.findById(req.params.id);
+      if (!existing) return res.status(404).json({ message: 'Auction not found' });
+      if (existing.status !== 'ACTIVE') return res.status(400).json({ message: 'Auction active nahi hai' });
+      if (new Date() > existing.endTime) {
+        existing.status = 'CLOSED';
+        await existing.save();
+        return res.status(400).json({ message: 'Auction ka time khatam ho gaya' });
+      }
+      if (String(existing.sellerId) === String(req.user._id)) {
+        return res.status(403).json({ message: 'Aap apni khud ki auction mein bid nahi kar sakte' });
+      }
+      const isFirstBid = existing.bids.length === 0;
+      const minBid = isFirstBid ? existing.basePrice : existing.currentBid + existing.incrementAmount;
+      return res.status(400).json({ message: `Minimum bid ₹${minBid} hona chahiye (ya kisi aur ne pehle bid kar diya)` });
     }
 
-    auction.bids.push({ bidderId: req.user.id, bidderName: req.user.name, bidderRole: req.user.role, amount: Number(amount) });
-    auction.currentBid = Number(amount);
-    auction.currentWinner = req.user.id;
-    auction.currentWinnerName = req.user.name;
-
-    if (auction.autoAcceptPrice && Number(amount) >= auction.autoAcceptPrice) {
+    // Auto-accept check after atomic bid placement
+    if (auction.autoAcceptPrice && bidAmount >= auction.autoAcceptPrice) {
       auction.status = 'SOLD';
-      auction.winnerId = req.user.id;
+      auction.winnerId = req.user._id;
       auction.winnerName = req.user.name;
-      auction.finalPrice = Number(amount);
+      auction.finalPrice = bidAmount;
+      await auction.save();
     }
 
-    await auction.save();
     return res.json({ message: 'Bid place ho gaya', currentBid: auction.currentBid, status: auction.status });
   } catch (err) {
     logger.error({ err }, 'Place bid error');
