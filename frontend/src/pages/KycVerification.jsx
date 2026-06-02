@@ -459,15 +459,25 @@ export default function KycVerification() {
             </button>
           )}
 
-          {/* Skip option */}
-          <button
-            type="button"
-            className="ft-btn ft-btn-ghost ft-btn-full"
-            style={{ marginTop: '0.75rem', color: '#999' }}
-            onClick={() => navigate('/dashboard')}
-          >
-            Baad mein karna hai — Dashboard jao
-          </button>
+          {/* Locked features warning — replaces the old skip button */}
+          <div style={{ marginTop: '1rem', background: '#fef9c3', border: '1.5px solid #fde047', borderRadius: '14px', padding: '1rem 1.25rem' }}>
+            <p style={{ margin: '0 0 0.5rem', fontWeight: 800, fontSize: '0.9rem', color: '#854d0e' }}>
+              ⚠️ KYC ke bina ye features band rahenge:
+            </p>
+            <ul style={{ margin: '0 0 0.75rem', paddingLeft: '1.25rem', fontSize: '0.84rem', color: '#713f12', lineHeight: 1.7 }}>
+              <li>Produce transfer (farmer → distributor → retailer)</li>
+              <li>Payment & escrow</li>
+              <li>Auction bidding</li>
+              <li>GST invoice generation</li>
+            </ul>
+            <button
+              type="button"
+              style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.82rem', color: '#92400e', cursor: 'pointer', textDecoration: 'underline' }}
+              onClick={() => navigate('/dashboard')}
+            >
+              Dashboard pe jao (restricted access)
+            </button>
+          </div>
         </form>
       </div>
     </div>
