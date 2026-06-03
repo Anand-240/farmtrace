@@ -242,7 +242,7 @@ const s = {
   tabActive: { background: 'var(--ft-forest)', color: '#fff', boxShadow: 'var(--ft-shadow)' },
   badge: { background: 'var(--ft-error)', color: '#fff', borderRadius: 999, minWidth: 20, height: 20, fontSize: 11, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, padding: '0 4px' },
   loadingWrap: { textAlign: 'center', marginTop: '6rem' },
-  loadingDot: { width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--ft-border)', borderTopColor: 'var(--ft-forest)', margin: '0 auto 1.25rem' },
+  loadingDot: { width: 44, height: 44, borderRadius: '50%', border: '3px solid var(--ft-border)', borderTopColor: 'var(--ft-forest)', margin: '0 auto 1.25rem', animation: 'ft-spin 0.75s linear infinite' },
   loadingText: { color: 'var(--ft-text-muted)', fontWeight: 600 },
   empty: { textAlign: 'center', padding: '4rem 2rem', background: 'var(--ft-white)', borderRadius: 'var(--ft-radius-lg)', border: '1px dashed var(--ft-sage)', marginTop: '0.5rem' },
   emptyTitle: { fontSize: '1.25rem', fontWeight: 800, color: 'var(--ft-forest)', margin: '0 0 0.5rem' },
