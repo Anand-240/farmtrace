@@ -200,13 +200,22 @@ export default function AuctionPage() {
 
         {loading ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-            {[1, 2, 3].map(i => <div key={i} style={{ height: '300px', background: '#f0f4f0', borderRadius: '16px', animation: 'pulse 1.5s infinite' }} />)}
+            {[1, 2, 3].map(i => <div key={i} className="ft-loading-pulse" style={{ height: '300px', borderRadius: '16px' }} />)}
           </div>
         ) : auctions.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem', background: '#fff', borderRadius: '16px', border: '1px solid var(--ft-border)' }}>
             <p style={{ fontSize: '3rem' }}>🏷</p>
             <p style={{ fontWeight: 700, color: 'var(--ft-text-muted)' }}>Koi auction nahi hai abhi</p>
-            <button onClick={() => setShowCreate(true)} style={{ marginTop: '1rem', padding: '0.75rem 2rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>Create First Auction</button>
+            {user.role === 'FARMER' && (
+              <button onClick={() => setShowCreate(true)} style={{ marginTop: '1rem', padding: '0.75rem 2rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                Create First Auction
+              </button>
+            )}
+            {user.role !== 'FARMER' && (
+              <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', color: 'var(--ft-text-muted)' }}>
+                Jab farmers auction create karenge, yahan dikhenge
+              </p>
+            )}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
