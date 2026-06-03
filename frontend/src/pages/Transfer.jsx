@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 import { useNotification } from '../context/NotificationContext';
 import { getMandiFloorForProduce } from '../lib/market';
@@ -163,7 +164,7 @@ export default function Transfer() {
     return (
       <div style={s.page}>
         <div style={s.topbar}>
-          <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+          <button onClick={() => navigate('/dashboard')} style={s.backBtn}><ArrowLeft size={20} /></button>
           <span style={s.topbarText}>🚛 Transfer Request</span>
         </div>
         <div style={s.inner}>

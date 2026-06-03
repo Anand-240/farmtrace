@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 
 export default function Transactions() {
@@ -84,7 +85,7 @@ export default function Transactions() {
     <div style={s.page}>
       {/* TOP BAR */}
       <div style={s.topbar}>
-        <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+        <button onClick={() => navigate('/dashboard')} style={s.backBtn}><ArrowLeft size={20} /></button>
         <div style={s.topbarTitle}>
           <span style={{ fontSize: '1.2rem' }}>📋</span>
           <span style={s.topbarText}>History & Notifications</span>
