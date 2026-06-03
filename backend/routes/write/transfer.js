@@ -79,10 +79,19 @@ router.post('/', auth, async (req, res) => {
         transfer.txHash = result.txHash;
         transfer.blockchainStatus = 'CONFIRMED';
         await transfer.save();
+      } else {
+        // Blockchain failed — mark the transfer and bail out without changing ownership
+        transfer.blockchainStatus = 'FAILED';
+        await transfer.save();
+        return res.status(502).json({
+          success: false,
+          message: 'Blockchain transfer fail ho gaya — ownership change nahi hua. Dobara try karo.',
+          transfer
+        });
       }
     }
 
-    // Current owner update karo
+    // Only update owner after confirmed blockchain record (or when no chain ID — offline produce)
     produce.currentOwner = receiver.phone;
     await produce.save();
 
