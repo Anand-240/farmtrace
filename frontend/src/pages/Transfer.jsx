@@ -301,7 +301,7 @@ export default function Transfer() {
 
                 <label style={s.label}>💰 Aapka Price (₹/kg)</label>
                 <input
-                  style={s.input}
+                  style={{ ...s.input, ...(priceError ? { border: '1.5px solid #dc2626', background: '#fff5f5' } : {}) }}
                   type="number"
                   placeholder="Price per kg"
                   value={form.price}
