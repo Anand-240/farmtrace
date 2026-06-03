@@ -274,11 +274,22 @@
   font-weight: 700;
 }
 
+.fd-kyc-banner:hover {
+  background: #ffe0b2;
+  border-bottom-color: #e64a19;
+  box-shadow: 0 2px 8px rgba(230, 74, 25, 0.15);
+}
+
+.fd-kyc-banner:hover .fd-kyc-banner-cta {
+  text-decoration: underline;
+}
+
 .fd-kyc-banner-cta {
   margin-left: auto;
   font-weight: 900;
   font-size: 0.85rem;
   white-space: nowrap;
+  transition: text-decoration 0.15s;
 }
 
 /* ── HEADER ── */
