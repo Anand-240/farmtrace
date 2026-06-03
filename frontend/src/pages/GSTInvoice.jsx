@@ -442,12 +442,19 @@ export default function GSTInvoice() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {invoices.map(inv => (
-              <div key={inv._id} style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', border: '1px solid var(--ft-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            {invoices.map(inv => {
+              const isOverdue = inv.dueDate && new Date(inv.dueDate) < new Date() && inv.status !== 'PAID' && inv.status !== 'CANCELLED';
+              return (
+              <div key={inv._id} style={{ background: '#fff', borderRadius: '14px', padding: '1.5rem', border: `1px solid ${isOverdue ? '#fca5a5' : 'var(--ft-border)'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', boxShadow: isOverdue ? '0 2px 12px rgba(220,38,38,0.08)' : '0 2px 8px rgba(0,0,0,0.04)' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                     <span style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--ft-forest)', fontSize: '0.95rem' }}>{inv.invoiceNo}</span>
                     <span style={{ padding: '0.2rem 0.6rem', borderRadius: '999px', background: `${STATUS_COLORS[inv.status]}15`, color: STATUS_COLORS[inv.status], fontWeight: 700, fontSize: '0.75rem' }}>{inv.status}</span>
+                    {isOverdue && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.6rem', borderRadius: '999px', background: '#fee2e2', color: '#dc2626', fontWeight: 800, fontSize: '0.72rem' }}>
+                        <AlertTriangle size={11} /> OVERDUE
+                      </span>
+                    )}
                     {inv.isInterState && <span style={{ padding: '0.2rem 0.6rem', borderRadius: '6px', background: '#fef3c7', color: '#d97706', fontWeight: 700, fontSize: '0.72rem' }}>IGST</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.88rem', alignItems: 'center' }}>
@@ -471,7 +478,8 @@ export default function GSTInvoice() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
