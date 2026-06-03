@@ -51,6 +51,15 @@ export default function Transactions() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
+  const TX_STATUS_STYLES = {
+    COMPLETED:    { background: '#dcfce7', color: '#166534' },
+    BOOKING_PAID: { background: '#dbeafe', color: '#1e40af' },
+    PENDING:      { background: '#fef9c3', color: '#854d0e' },
+    FAILED:       { background: '#fee2e2', color: '#991b1b' },
+    CANCELLED:    { background: '#f3f4f6', color: '#6b7280' },
+  };
+  const statusStyle = (status) => TX_STATUS_STYLES[status] || { background: '#f3f4f6', color: '#374151' };
+
   const filteredTransactions = transactions.filter(t => {
     if (txStatusFilter === 'ALL') return true;
     return t.status === txStatusFilter;
@@ -160,7 +169,7 @@ export default function Transactions() {
                           <div style={{ ...s.txAmount, color: isSent ? '#dc2626' : '#16a34a' }}>
                             {isSent ? '-' : '+'}₹{t.amount?.toLocaleString()}
                           </div>
-                          <span style={s.txStatus}>{t.status}</span>
+                          <span style={{ ...s.txStatus, ...statusStyle(t.status) }}>{t.status}</span>
                         </div>
                       </div>
                     );
@@ -248,7 +257,7 @@ const s = {
   txLink: { display: 'inline-block', marginTop: '0.5rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--ft-forest)', textDecoration: 'underline' },
   txRight: { textAlign: 'right', flexShrink: 0 },
   txAmount: { fontWeight: 800, fontSize: '1.25rem', marginBottom: '0.25rem', letterSpacing: '-0.02em' },
-  txStatus: { background: 'var(--ft-sage-light)', color: 'var(--ft-forest)', padding: '0.25rem 0.75rem', borderRadius: 999, fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
+  txStatus: { padding: '0.25rem 0.75rem', borderRadius: 999, fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' },
   filterRow: { display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' },
   filterBtn: { border: '1px solid var(--ft-border)', background: 'var(--ft-white)', color: 'var(--ft-text-muted)', padding: '0.5rem 1.25rem', borderRadius: 999, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', transition: 'var(--ft-transition)' },
   filterBtnActive: { background: 'var(--ft-sage-light)', borderColor: 'var(--ft-forest)', color: 'var(--ft-forest)' },
