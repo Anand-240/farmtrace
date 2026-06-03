@@ -181,7 +181,9 @@ export default function ProduceList() {
         >
           {user.role === 'FARMER' ? <Sprout size={18} /> : <Layers size={18} />}
           {user.role === 'FARMER' ? 'Meri Fasal' : 'Prapt Utpaad'}
-          <span className="pl-tab-count">{produces.length}</span>
+          <span className="pl-tab-count">
+            {hasActiveFilters ? `${filteredList.length} / ${produces.length}` : produces.length}
+          </span>
         </button>
         <button
           className={`pl-tab ${activeTab === 'transfers' ? 'pl-tab-active' : ''}`}
