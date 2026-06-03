@@ -10,6 +10,7 @@ const PRIORITY_COLORS = { LOW: '#6b7280', MEDIUM: '#d97706', HIGH: '#dc2626' };
 
 export default function DisputeResolution() {
   const navigate = useNavigate();
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -178,13 +179,26 @@ export default function DisputeResolution() {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {selected.messages?.length === 0 && <p style={{ textAlign: 'center', color: 'var(--ft-text-muted)', fontSize: '0.9rem' }}>Abhi tak koi message nahi</p>}
-                {selected.messages?.map((m, i) => (
-                  <div key={i} style={{ maxWidth: '80%', alignSelf: 'flex-start' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-muted)', marginBottom: '0.25rem' }}>{m.senderName} · {m.senderRole}</div>
-                    <div style={{ background: '#f0fdf4', borderRadius: '10px 10px 10px 0', padding: '0.7rem 1rem', fontSize: '0.9rem' }}>{m.text}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', marginTop: '0.2rem' }}>{new Date(m.timestamp).toLocaleTimeString('hi-IN')}</div>
-                  </div>
-                ))}
+                {selected.messages?.map((m, i) => {
+                  const isOwn = String(m.senderId) === String(currentUser._id || currentUser.id);
+                  return (
+                    <div key={i} style={{ maxWidth: '78%', alignSelf: isOwn ? 'flex-end' : 'flex-start' }}>
+                      {!isOwn && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--ft-text-muted)', marginBottom: '0.25rem' }}>{m.senderName} · {m.senderRole}</div>
+                      )}
+                      <div style={{
+                        background: isOwn ? '#dbeafe' : '#f0fdf4',
+                        borderRadius: isOwn ? '10px 10px 0 10px' : '10px 10px 10px 0',
+                        padding: '0.7rem 1rem',
+                        fontSize: '0.9rem',
+                        color: isOwn ? '#1e3a8a' : '#14532d'
+                      }}>{m.text}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--ft-text-muted)', marginTop: '0.2rem', textAlign: isOwn ? 'right' : 'left' }}>
+                        {isOwn ? 'You' : m.senderName} · {new Date(m.timestamp).toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Evidence files */}
