@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ChangePassword() {
@@ -46,7 +47,7 @@ export default function ChangePassword() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <button onClick={() => navigate('/profile')} style={styles.backBtn}>← Profile</button>
+        <button onClick={() => navigate('/profile')} style={styles.backBtn}><ArrowLeft size={18} /> Profile</button>
         <h2 style={styles.title}>Change Password</h2>
 
         {error && <p style={styles.error}>{error}</p>}

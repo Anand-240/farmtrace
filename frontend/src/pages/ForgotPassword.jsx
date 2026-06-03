@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ForgotPassword() {
@@ -29,7 +30,7 @@ export default function ForgotPassword() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <button onClick={() => navigate('/login')} style={styles.backBtn}>← Login</button>
+        <button onClick={() => navigate('/login')} style={styles.backBtn}><ArrowLeft size={18} /> Login</button>
         <h2 style={styles.title}>Forgot Password</h2>
 
         {error && <p style={styles.error}>{error}</p>}

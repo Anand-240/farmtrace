@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ResetPassword() {
@@ -45,7 +46,7 @@ export default function ResetPassword() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <button onClick={() => navigate('/login')} style={styles.backBtn}>← Login</button>
+        <button onClick={() => navigate('/login')} style={styles.backBtn}><ArrowLeft size={18} /> Login</button>
         <h2 style={styles.title}>Reset Password</h2>
 
         {error && <p style={styles.error}>{error}</p>}

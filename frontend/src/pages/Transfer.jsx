@@ -195,7 +195,7 @@ export default function Transfer() {
   return (
     <div style={s.page}>
       <div style={s.topbar}>
-        <button onClick={() => navigate('/dashboard')} style={s.backBtn}>←</button>
+        <button onClick={() => navigate('/dashboard')} style={s.backBtn}><ArrowLeft size={20} /></button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
           <span style={{ fontSize: '1.2rem' }}>🚛</span>
           <span style={s.topbarText}>Transfer Request Bhejo</span>
