@@ -14,7 +14,7 @@ function StarRating({ value, onChange, size = 24 }) {
           fill={(hover || value) >= s ? '#f59e0b' : 'none'}
           stroke="#f59e0b" strokeWidth="1.8"
           style={{ cursor: onChange ? 'pointer' : 'default', transition: 'transform 0.1s', transform: hover === s ? 'scale(1.2)' : 'scale(1)' }}
-          onClick={() => onChange?.(s)}
+          onClick={() => onChange?.(s === value ? 0 : s)}
           onMouseOver={() => setHover(s)}
           onMouseOut={() => setHover(0)}
         >
