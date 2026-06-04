@@ -24,6 +24,7 @@ export default function Marketplace() {
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [apiError, setApiError] = useState(false);
   const fetchingMoreRef = useRef(false);
   const navigate = useNavigate();
@@ -56,7 +57,9 @@ export default function Marketplace() {
   }, []);
 
   useEffect(() => {
+    setSearching(true);
     const delayDebounceFn = setTimeout(() => {
+      setSearching(false);
       loadInitial();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
@@ -125,8 +128,11 @@ export default function Marketplace() {
                 placeholder="Search crops, regions, grades..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                style={{ width: '100%', padding: '1rem 1rem 1rem 3.5rem', borderRadius: '999px', border: '1.5px solid var(--ft-border)', fontSize: '1.05rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', outline: 'none', transition: 'all 0.2s' }}
+                style={{ width: '100%', padding: '1rem 3.5rem 1rem 3.5rem', borderRadius: '999px', border: `1.5px solid ${searching ? 'var(--ft-forest)' : 'var(--ft-border)'}`, fontSize: '1.05rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', outline: 'none', transition: 'all 0.2s' }}
               />
+              {searching && (
+                <div className="ft-spinner-sm" style={{ position: 'absolute', right: '1.2rem', top: '50%', transform: 'translateY(-50%)' }} />
+              )}
             </div>
             <button className="ft-btn ft-btn-ghost" title="Advanced filters — coming soon" disabled style={{ borderRadius: '999px', padding: '0 1.5rem', border: '1.5px solid var(--ft-border)', background: '#fff', opacity: 0.5, cursor: 'not-allowed' }}>
               <Filter size={18} />
