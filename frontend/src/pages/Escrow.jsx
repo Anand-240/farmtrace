@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../lib/api';
 
 const STATUS_META = {
@@ -41,6 +42,7 @@ export default function Escrow() {
   const [expandedId, setExpandedId] = useState(null);
   const [refundData, setRefundData] = useState({});
   const [downloading, setDownloading] = useState({});
+  const [downloaded, setDownloaded] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => { fetchEscrows(); }, []);
@@ -86,8 +88,10 @@ export default function Escrow() {
       const response = await api.get(`/payment/docs/${transferId}/${type}${query}`, { responseType: 'blob' });
       const ext = type === 'audit-trail' ? (format === 'csv' ? 'csv' : 'json') : 'pdf';
       triggerBrowserDownload(response.data, `${type}-${String(transferId).slice(-6)}.${ext}`);
+      setDownloaded(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setDownloaded(prev => ({ ...prev, [key]: false })), 2500);
     } catch (err) {
-      alert(`Download failed: ${err?.response?.data?.message || err.message}`);
+      toast.error(`Download failed: ${err?.response?.data?.message || err.message}`);
     } finally {
       setDownloading(prev => ({ ...prev, [key]: false }));
     }
@@ -144,6 +148,7 @@ export default function Escrow() {
                   refundData={refundData}
                   setRefundData={setRefundData}
                   downloading={downloading}
+                  downloaded={downloaded}
                   handleDocDownload={handleDocDownload}
                   handleRefundRequest={handleRefundRequest}
                 />
@@ -156,7 +161,7 @@ export default function Escrow() {
   );
 }
 
-function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefundData, downloading, handleDocDownload, handleRefundRequest }) {
+function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefundData, downloading, downloaded, handleDocDownload, handleRefundRequest }) {
   const { transfer, escrow, produce } = item;
   const id = transfer._id;
   const statusMeta = getStatusMeta(escrow.status);
@@ -287,15 +292,16 @@ function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefun
           ].map(doc => {
             const key = `${id}-${doc.type}-${doc.format || 'default'}`;
             const busy = Boolean(downloading[key]);
+            const done = Boolean(downloaded?.[key]);
             return (
               <button
                 key={doc.type}
                 onClick={() => handleDocDownload(id, doc.type, doc.format || '')}
                 disabled={busy}
-                style={docBtnStyle(busy)}
+                style={{ ...docBtnStyle(busy), ...(done ? { borderColor: '#16a34a', color: '#16a34a', background: '#f0fdf4' } : {}) }}
               >
-                <span>{doc.icon}</span>
-                <span>{busy ? 'Downloading…' : doc.label}</span>
+                <span>{done ? '✓' : doc.icon}</span>
+                <span>{busy ? 'Downloading…' : done ? 'Downloaded' : doc.label}</span>
               </button>
             );
           })}
