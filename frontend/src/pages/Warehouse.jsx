@@ -155,14 +155,14 @@ export default function WarehousePage() {
                   </div>
                   <div style={{ padding: '1.5rem' }}>
                     <div style={{ marginBottom: '1.25rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-                        <span style={{ color: 'var(--ft-text-muted)', fontWeight: 600 }}>Storage Used</span>
-                        <span style={{ fontWeight: 800 }}>{w.currentStock.toLocaleString()} / {w.capacity.toLocaleString()} kg</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '0.85rem', marginBottom: '0.5rem', gap: '0.5rem' }}>
+                        <span style={{ color: 'var(--ft-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>Storage Used</span>
+                        <span style={{ fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{w.currentStock.toLocaleString()} / {w.capacity.toLocaleString()} kg</span>
+                        <span style={{ fontWeight: 800, whiteSpace: 'nowrap', color: fillPct > 80 ? '#dc2626' : fillPct > 60 ? '#d97706' : '#16a34a' }}>{fillPct}%</span>
                       </div>
                       <div style={{ height: '8px', background: '#f0f0f0', borderRadius: '999px', overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${fillPct}%`, background: fillPct > 80 ? '#dc2626' : fillPct > 60 ? '#d97706' : '#16a34a', borderRadius: '999px', transition: 'width 0.5s' }} />
                       </div>
-                      <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--ft-text-muted)', marginTop: '0.25rem' }}>{fillPct}% full</div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
