@@ -152,7 +152,10 @@ export default function Transactions() {
                         <div style={s.txBody}>
                           <div style={s.txTitle}>{t.cropType}</div>
                           <div style={s.txSub}>
-                            {isSent ? `→ ${t.toName || t.toPhone}` : `← ${t.fromName || t.fromPhone}`}
+                            {isSent
+                              ? <><span style={{ color: '#9ca3af', fontWeight: 700 }}>To: </span>{t.toName || t.toPhone}</>
+                              : <><span style={{ color: '#9ca3af', fontWeight: 700 }}>From: </span>{t.fromName || t.fromPhone}</>
+                            }
                           </div>
                           {t.pricePerKg && (
                             <div style={s.txSub}>₹{t.pricePerKg}/kg × {t.quantity}kg</div>

@@ -371,7 +371,13 @@ export default function Register() {
                   </p>
                 )}
               </div>
-              <button className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" type="submit" disabled={loading} style={{ height: '64px', fontSize: '1.1rem' }}>
+              {priceWarning && (
+                <div style={{ background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.88rem', color: '#991b1b', fontWeight: 600 }}>
+                  <span style={{ flexShrink: 0 }}>⚠️</span>
+                  <span>{priceWarning}</span>
+                </div>
+              )}
+              <button className="ft-btn ft-btn-primary ft-btn-full ft-btn-lg" type="submit" disabled={loading || !isFormValid} style={{ height: '64px', fontSize: '1.1rem', opacity: !isFormValid ? 0.5 : 1, cursor: !isFormValid ? 'not-allowed' : 'pointer' }}>
                 {loading ? <div className="ft-spinner" style={{ margin: '0 auto' }} /> : 'Register & Write to Blockchain'}
               </button>
             </div>
