@@ -509,10 +509,6 @@ export default function Dashboard() {
 
         {/* ── HEADER ── */}
         <header className="fd-header">
-          <button className="fd-hamburger" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            <Menu size={22} />
-          </button>
-
           <div className="fd-header-search">
             <Search size={15} />
             <input
