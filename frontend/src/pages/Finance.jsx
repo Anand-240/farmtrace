@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Banknote, Plus, X, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Banknote, Plus, X, Clock, CheckCircle2, XCircle, AlertCircle, Upload, FileText, ExternalLink } from 'lucide-react';
 import api from '../lib/api';
 import toast from 'react-hot-toast';
 
@@ -85,6 +85,63 @@ function ApplyModal({ onClose, onApplied }) {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+function DocUploadSection({ loanId, existingDocs, onUploaded }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    const fd = new FormData();
+    files.forEach(f => fd.append('docs', f));
+    try {
+      const res = await api.post(`/finance/${loanId}/documents`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      toast.success(`${files.length} document(s) upload ho gaye!`);
+      onUploaded(res.data.documents);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  return (
+    <div style={{ borderTop: '1px solid var(--ft-border)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'none', border: 'none', cursor: 'pointer', color: '#1d4ed8', fontWeight: 700, fontSize: '0.85rem', padding: 0 }}
+      >
+        <FileText size={15} /> Documents {existingDocs.length > 0 ? `(${existingDocs.length} uploaded)` : '(required)'} {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {existingDocs.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              {existingDocs.map((d, i) => (
+                <a key={i} href={d.url} target="_blank" rel="noreferrer"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: '#eff6ff', color: '#1d4ed8', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700 }}>
+                  <FileText size={12} /> {d.name} <ExternalLink size={10} />
+                </a>
+              ))}
+            </div>
+          )}
+          <p style={{ fontSize: '0.78rem', color: 'var(--ft-text-muted)', marginBottom: '0.25rem' }}>
+            Upload: Aadhaar, PAN, Land Record, Bank Passbook (JPG/PNG/PDF, max 5MB each)
+          </p>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.2rem', background: uploading ? '#d1fae5' : '#fff', border: '1.5px dashed #16a34a', borderRadius: '10px', cursor: uploading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem', color: '#166534', width: 'fit-content' }}>
+            {uploading ? <><div className="ft-spinner-sm" /> Uploading...</> : <><Upload size={15} /> Choose Files</>}
+            <input ref={fileRef} type="file" multiple accept="image/*,.pdf" onChange={handleUpload} disabled={uploading} style={{ display: 'none' }} />
+          </label>
+        </div>
+      )}
     </div>
   );
 }
@@ -181,6 +238,15 @@ export default function Finance() {
                     </span>
                     <p style={{ margin: '0.4rem 0 0', fontSize: '0.8rem', color: 'var(--ft-text-muted)' }}>{new Date(loan.createdAt).toLocaleDateString('hi-IN')}</p>
                   </div>
+                  {['SUBMITTED', 'UNDER_REVIEW', 'DRAFT'].includes(loan.status) && (
+                    <div style={{ width: '100%' }}>
+                      <DocUploadSection
+                        loanId={loan._id}
+                        existingDocs={loan.documents || []}
+                        onUploaded={(docs) => setLoans(prev => prev.map(l => l._id === loan._id ? { ...l, documents: docs } : l))}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}

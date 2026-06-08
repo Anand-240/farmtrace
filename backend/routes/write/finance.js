@@ -1,9 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const { z } = require('zod');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 const auth = require('../../middleware/authMiddleware');
 const LoanApplication = require('../../models/LoanApplication');
 const logger = require('../../utils/logger').child({ module: 'finance' });
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPG, PNG, WEBP or PDF allowed'));
+  }
+});
 
 const loanSchema = z.object({
   loanType: z.enum(['CROP_LOAN', 'KISAN_CREDIT_CARD', 'INVOICE_DISCOUNTING', 'WAREHOUSE_RECEIPT_LOAN', 'EQUIPMENT_LOAN']),
@@ -63,6 +80,33 @@ router.get('/all', auth, async (req, res) => {
     return res.json({ loans });
   } catch (err) {
     return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Upload documents for a loan application
+router.post('/:id/documents', auth, upload.array('docs', 5), async (req, res) => {
+  try {
+    const loan = await LoanApplication.findOne({ _id: req.params.id, farmerId: req.user.id });
+    if (!loan) return res.status(404).json({ message: 'Application not found' });
+    if (!req.files?.length) return res.status(400).json({ message: 'Koi file nahi mili' });
+
+    const uploaded = await Promise.all(req.files.map((file) =>
+      new Promise((resolve, reject) => {
+        const resourceType = file.mimetype === 'application/pdf' ? 'raw' : 'image';
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: 'farmtrace_loan_docs', resource_type: resourceType },
+          (err, result) => err ? reject(err) : resolve({ name: file.originalname, url: result.secure_url })
+        );
+        stream.end(file.buffer);
+      })
+    ));
+
+    loan.documents.push(...uploaded);
+    await loan.save();
+    return res.json({ message: `${uploaded.length} document(s) upload ho gaye`, documents: loan.documents });
+  } catch (err) {
+    logger.error({ err }, 'Document upload error');
+    return res.status(500).json({ message: err.message || 'Upload failed' });
   }
 });
 
