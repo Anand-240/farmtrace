@@ -249,6 +249,11 @@ function EscrowCard({ item, idx, expandedId, setExpandedId, refundData, setRefun
             borderRadius: '99px', transition: 'width 0.6s cubic-bezier(0.34,1.56,0.64,1)'
           }} />
         </div>
+        {releasePercent === 0 && (
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
+            ⏳ Pehla milestone complete hone par payment release hogi
+          </p>
+        )}
       </div>
 
       {/* ── Milestone Steps ── */}

@@ -573,8 +573,8 @@
 /* ── STATS ROW ── */
 .fd-stats-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
 
@@ -1466,11 +1466,15 @@
    RESPONSIVE
    ══════════════════════════════════════════ */
 
+/* ── DESKTOP (scale up from mobile-first 2-col) ── */
+@media (min-width: 1024px) {
+  .fd-stats-row { grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+}
+
 /* ── TABLET ── */
 @media (max-width: 1023px) {
   .fd-mini-sidebar { display: none !important; }
   .fd-top-row { grid-template-columns: 1fr; }
-  .fd-stats-row { grid-template-columns: repeat(2, 1fr); }
   .fd-recent-produce-grid { grid-template-columns: repeat(2, 1fr); }
   .fd-profile-info { display: none; }
   .fd-profile-btn { padding: 0.35rem; border-radius: 50%; }
@@ -1481,7 +1485,7 @@
 @media (max-width: 640px) {
   .fd-content { padding: 1.25rem 1rem 3rem; }
   .fd-greeting-name { font-size: 1.9rem; }
-  .fd-stats-row { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+  .fd-stats-row { gap: 0.75rem; }
   .fd-recent-produce-grid { grid-template-columns: 1fr; }
   .fd-mandi-grid { grid-template-columns: repeat(2, 1fr); }
   .fd-schemes-grid { grid-template-columns: 1fr; }

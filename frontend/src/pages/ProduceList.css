@@ -594,4 +594,10 @@
   .pl-tabs { padding: 1rem 1rem 0; }
   .pl-transfer-row { flex-direction: column; align-items: flex-start; }
   .pl-transfer-row-right { width: 100%; justify-content: flex-end; }
+
+  /* Timeline strip: hide text labels on mobile, show dots + lines only */
+  .pl-timeline-strip { padding: 0.6rem 1rem; }
+  .pl-tl-label { display: none; }
+  .pl-tl-dot { width: 12px; height: 12px; }
+  .pl-tl-step { gap: 0; }
 }

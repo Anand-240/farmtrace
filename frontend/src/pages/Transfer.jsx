@@ -272,7 +272,7 @@ export default function Transfer() {
                 onClick={() => setShowSplitForm(!showSplitForm)}
                 style={{ ...s.splitToggle, background: showSplitForm ? '#7c3aed' : '#ede9fe', color: showSplitForm ? '#fff' : '#7c3aed' }}
               >
-                ✂️ {showSplitForm ? 'Split Form Band Karo' : 'Quantity Split Karni Hai?'}
+                ✂️ {showSplitForm ? 'Band Karo' : 'Lot Split Karein'}
               </button>
 
               {showSplitForm && (
@@ -432,7 +432,7 @@ const s = {
   produceDetail: { display: 'flex', flexDirection: 'column', gap: '0.2rem' },
   detailLabel: { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ft-text-muted)', fontWeight: 700 },
   detailVal: { fontSize: '1rem', fontWeight: 700, color: 'var(--ft-forest)' },
-  splitToggle: { width: '100%', padding: '0.85rem', border: '2px solid var(--ft-border)', borderRadius: '12px', cursor: 'pointer', fontWeight: 800, fontSize: '0.95rem', transition: 'var(--ft-transition)', background: 'var(--ft-white)' },
+  splitToggle: { width: '100%', padding: '0.75rem', border: '2px solid var(--ft-border)', borderRadius: '12px', cursor: 'pointer', fontWeight: 800, fontSize: '0.88rem', transition: 'var(--ft-transition)', background: 'var(--ft-white)', whiteSpace: 'nowrap' },
   successCard: { background: 'var(--ft-white)', borderRadius: 'var(--ft-radius-lg)', padding: '3rem 2rem', textAlign: 'center', border: '1px solid var(--ft-border)', boxShadow: 'var(--ft-shadow-lg)' },
   successTitle: { fontWeight: 800, fontSize: '1.75rem', color: 'var(--ft-forest)', margin: '0 0 1.25rem', letterSpacing: '-0.03em' },
   successInfo: { background: 'var(--ft-bg)', borderRadius: '20px', padding: '1.5rem', textAlign: 'left', marginBottom: '1.5rem', lineHeight: 2, fontSize: '1rem', color: 'var(--ft-forest)', border: '1px solid var(--ft-border)' },
