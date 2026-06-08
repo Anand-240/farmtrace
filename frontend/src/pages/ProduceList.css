@@ -534,6 +534,56 @@
 
 @keyframes ft-fade-in { from { opacity: 0; } to { opacity: 1; } }
 
+/* Journey Timeline Strip */
+.pl-timeline-strip {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--ft-border);
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.pl-tl-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  position: relative;
+  flex: 1;
+}
+
+.pl-tl-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.pl-tl-done    { background: #16a34a; }
+.pl-tl-pending { background: #d1d5db; border: 2px dashed #9ca3af; }
+
+.pl-tl-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-align: center;
+  white-space: nowrap;
+}
+.pl-tl-label-done { color: #166534; }
+
+.pl-tl-line {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #d1d5db;
+  z-index: 0;
+}
+.pl-tl-line-done { background: #16a34a; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .pl-content { padding: 1rem; }

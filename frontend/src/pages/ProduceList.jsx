@@ -347,6 +347,22 @@ export default function ProduceList() {
                         )}
                       </div>
 
+                      {/* Journey Timeline Strip */}
+                      <div className="pl-timeline-strip">
+                        {[
+                          { label: 'Registered', done: true },
+                          { label: 'Verified', done: p.blockchainStatus === 'CONFIRMED' },
+                          { label: 'Transferred', done: user.role !== 'FARMER' || (p.dbTransfers?.length > 0) },
+                          { label: 'Delivered', done: false },
+                        ].map((step, i, arr) => (
+                          <div key={step.label} className="pl-tl-step">
+                            <div className={`pl-tl-dot ${step.done ? 'pl-tl-done' : 'pl-tl-pending'}`} />
+                            <span className={`pl-tl-label ${step.done ? 'pl-tl-label-done' : ''}`}>{step.label}</span>
+                            {i < arr.length - 1 && <div className={`pl-tl-line ${step.done && arr[i+1].done ? 'pl-tl-line-done' : ''}`} />}
+                          </div>
+                        ))}
+                      </div>
+
                       <div className="pl-card-footer">
                         <button onClick={() => showQR(p._id)} className="ft-btn ft-btn-primary ft-btn-sm">
                           <QrCode size={15} /> QR
