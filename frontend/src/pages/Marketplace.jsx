@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { Search, ShoppingCart, ArrowLeft, Filter, MapPin, Scale } from 'lucide-react';
+import { Search, ShoppingCart, ArrowLeft, Filter, MapPin, Scale, Eye, Send } from 'lucide-react';
 import api from '../lib/api';
 import { track } from '../lib/posthog';
 
@@ -195,14 +195,22 @@ export default function Marketplace() {
                       </div>
                     </div>
 
-                    <button 
-                      onClick={() => navigate(`/verify/${item.id}`)}
-                      style={{ width: '100%', padding: '0.85rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, marginTop: '1.25rem', cursor: 'pointer', transition: 'all 0.2s' }}
-                      onMouseOver={e => e.target.style.transform = 'translateY(-2px)'}
-                      onMouseOut={e => e.target.style.transform = 'translateY(0)'}
-                    >
-                      View Details
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+                      <button
+                        onClick={() => navigate(`/verify/${item.id}`)}
+                        style={{ flex: 1, padding: '0.75rem', background: '#fff', color: 'var(--ft-forest)', border: '1.5px solid var(--ft-border)', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                      >
+                        <Eye size={15} /> View
+                      </button>
+                      <button
+                        onClick={() => navigate(`/transfer?lot=${item.id}`)}
+                        style={{ flex: 2, padding: '0.75rem', background: 'var(--ft-forest)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}
+                        onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                      >
+                        <Send size={15} /> Request to Buy
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

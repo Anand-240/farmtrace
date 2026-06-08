@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import api from '../lib/api';
 import { useNotification } from '../context/NotificationContext';
@@ -9,7 +9,8 @@ import { fullLocationSuggestions } from '../lib/locationSuggestions';
 
 export default function Transfer() {
   const { showNotification } = useNotification();
-  const [produceId, setProduceId] = useState('');
+  const [searchParams] = useSearchParams();
+  const [produceId, setProduceId] = useState(searchParams.get('lot') || '');
   const [produce, setProduce] = useState(null);
 
   const [showSplitForm, setShowSplitForm] = useState(false);
@@ -37,18 +38,25 @@ export default function Transfer() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
+  useEffect(() => {
+    const lotFromUrl = searchParams.get('lot');
+    if (lotFromUrl) fetchProduce(lotFromUrl);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const getDefaultTransferType = () => {
     if (user.role === 'FARMER') return 'FARM_TO_DISTRIBUTOR';
     if (user.role === 'DISTRIBUTOR') return 'DISTRIBUTOR_TO_RETAILER';
     return 'RETAILER_TO_CONSUMER';
   };
 
-  const fetchProduce = async () => {
-    if (!produceId.trim()) { setError('ID daalo pehle'); return; }
+  const fetchProduce = async (overrideId) => {
+    const id = (overrideId || produceId).trim();
+    if (!id) { setError('ID daalo pehle'); return; }
     try {
       setError(''); setPriceError(''); setSplitError(''); setSplitResult(null); setShowSplitForm(false); setSplitQuantity(''); setTransferLotId('');
-      const res = await api.get(`/produce/${produceId.trim()}`);
+      const res = await api.get(`/produce/${id}`);
       setProduce(res.data);
+      setProduceId(res.data._id);
       setTransferLotId(res.data._id);
       const defaultTransferType = getDefaultTransferType();
       setForm((prev) => ({ ...prev, transferType: defaultTransferType, price: res.data.farmPrice || '' }));
@@ -185,7 +193,10 @@ export default function Transfer() {
               <p style={s.summaryRow}><strong>Transferred Qty:</strong> {transferredQty} kg</p>
               {remainingQty > 0 && <p style={s.summaryRow}><strong>Remaining Qty:</strong> {remainingQty} kg</p>}
             </div>
-            <button onClick={() => navigate('/dashboard')} style={s.primaryBtn}>🏠 Dashboard pe Wapas Jao</button>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button onClick={() => navigate('/dashboard')} style={{ ...s.primaryBtn, flex: 1 }}>🏠 Dashboard</button>
+              <button onClick={() => window.open(`${window.location.origin}/verify/${transferLotId}`, '_blank')} style={{ ...s.primaryBtn, flex: 1, background: '#1d4ed8' }}>🔍 View Passport</button>
+            </div>
           </div>
         </div>
       </div>
@@ -243,6 +254,13 @@ export default function Transfer() {
                   </div>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => window.open(`${window.location.origin}/verify/${produce._id}`, '_blank')}
+                style={{ marginTop: '0.75rem', background: 'none', border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.4rem 0.9rem', fontSize: '0.82rem', fontWeight: 700, color: '#374151', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                🔍 Blockchain Passport Dekho
+              </button>
             </div>
 
             {error && <div style={s.alertErr}>⚠️ {error}</div>}
