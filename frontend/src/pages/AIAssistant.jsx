@@ -4,9 +4,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import toast from 'react-hot-toast';
 import api from '../lib/api';
 import { getMandiFloorForProduce } from '../lib/market';
-import { 
-  Bot, Send, Image as ImageIcon, ArrowLeft, 
-  CheckCircle2, Sparkles, Loader2 
+import {
+  Bot, Send, Image as ImageIcon, ArrowLeft,
+  CheckCircle2, Sparkles, Loader2, Microscope
 } from 'lucide-react';
 import './AIAssistant.css';
 
@@ -807,6 +807,13 @@ export default function AIAssistant() {
           <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Connected to Agri-Expert Cloud</p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            onClick={() => navigate('/crop-disease')}
+            title="Bimari Scanner"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '4px 10px', background: '#dcfce7', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}
+          >
+            <Microscope size={14} /> Bimari Scanner
+          </button>
           <Sparkles size={20} color="#1a4a15" />
           {/* Tab toggle */}
           <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: '8px', padding: '3px', gap: '2px' }}>

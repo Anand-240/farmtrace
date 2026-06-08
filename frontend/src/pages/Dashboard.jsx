@@ -7,7 +7,7 @@ import { useLanguage } from '../lib/language';
 import { useNotification } from '../context/NotificationContext';
 import {
   Sprout, Truck, Coins, History, User, Layers,
-  PackageCheck, ShieldCheck, Bot, LogOut, Microscope,
+  PackageCheck, ShieldCheck, Bot, LogOut,
   Sun, Cloud, CloudRain, Thermometer, Info,
   QrCode, Copy, Eye, X,
   Search, ExternalLink, ShoppingCart,
@@ -324,10 +324,10 @@ export default function Dashboard() {
   }, 0);
 
   const quickStats = [
-    { label: user.role === 'FARMER' ? 'Meri Fasal' : 'Prapt Utpaad', value: baseList.length, icon: '🌾', tone: 'produce' },
-    { label: 'Pending Pay', value: pendingCount, icon: '💰', tone: 'payments' },
-    { label: 'Notifications', value: unreadNotifs, icon: '🔔', tone: 'notifs' },
-    { label: 'Total Value', value: `₹${Math.round(totalSales).toLocaleString('en-IN')}`, icon: '📈', tone: 'sales' },
+    { label: user.role === 'FARMER' ? 'Meri Fasal' : 'Prapt Utpaad', value: baseList.length, icon: '🌾', tone: 'produce', path: '/produce-list' },
+    { label: user.role === 'FARMER' ? 'Pending Pay' : 'Incoming Requests', value: pendingCount, icon: user.role === 'FARMER' ? '💰' : '📥', tone: 'payments', path: '/payment' },
+    { label: 'Notifications', value: unreadNotifs, icon: '🔔', tone: 'notifs', path: '/transactions' },
+    { label: 'Total Value', value: `₹${Math.round(totalSales).toLocaleString('en-IN')}`, icon: '📈', tone: 'sales', path: '/transactions' },
   ];
 
   const recentProduces = baseList.slice(0, 3);
@@ -352,7 +352,6 @@ export default function Dashboard() {
         { label: 'Lot Management', icon: <Layers size={18} />, path: '/lot-ops', show: true },
         { label: 'Dispatch', icon: <PackageCheck size={18} />, path: '/dispatch-logistics', show: user.role !== 'CONSUMER' },
         { label: 'Milestone Pay', icon: <ShieldCheck size={18} />, path: '/escrow', show: true },
-        { label: 'Bimari Scanner', icon: <Microscope size={18} />, path: '/crop-disease', show: user.role === 'FARMER' },
         { label: 'AI Kisan Mitra', icon: <Bot size={18} />, path: '/ai', show: user.role === 'FARMER' },
       ]
     },
@@ -384,7 +383,7 @@ export default function Dashboard() {
     { label: 'Register Produce', icon: <Sprout size={22} />, path: '/register-produce' },
     { label: 'Transfer', icon: <Truck size={22} />, path: '/transfer' },
     { label: 'Live Auction', icon: <Gavel size={22} />, path: '/auction' },
-    { label: 'Bimari Scanner', icon: <Microscope size={22} />, path: '/crop-disease' },
+    { label: 'AI Kisan Mitra', icon: <Bot size={22} />, path: '/ai' },
     { label: 'Transactions', icon: <History size={22} />, path: '/transactions', badge: unreadNotifs },
   ] : [
     { label: 'Pending Payments', icon: <Coins size={22} />, path: '/payment', badge: pendingCount },
@@ -620,13 +619,13 @@ export default function Dashboard() {
 
           {/* ROW 1: GREETING + WEATHER */}
           <div className="fd-top-row">
-            {/* Greeting Card */}
+            {/* Greeting Card — white, clean */}
             <div className="fd-greeting-card ft-anim-slide-up">
               <p className="fd-greeting-hello">NAMASTE 🙏</p>
               <h1 className="fd-greeting-name">{user.name}</h1>
               <p className="fd-greeting-sub">
                 {user.role === 'FARMER'
-                  ? 'Aapki fasal, blockchain par verified. Neeche apni harvest details dekhein.'
+                  ? 'Aapki fasal blockchain par verified hai. Neeche apni harvest details dekhein.'
                   : 'Track agricultural produce across the supply chain with immutable proof.'}
               </p>
               <div className="fd-chips-row">
@@ -635,29 +634,16 @@ export default function Dashboard() {
                 {user.state && <span className="fd-chip">🗺️ {user.state}</span>}
                 <span className="fd-chip">📅 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               </div>
-
-              {/* Quick Stats inside greeting */}
-              {!loading && (
-                <div className="fd-mini-stats-row">
-                  {quickStats.map((stat) => (
-                    <div key={stat.label} className={`fd-mini-stat fd-stat-${stat.tone}`}>
-                      <span className="fd-mini-stat-icon">{stat.icon}</span>
-                      <span className="fd-mini-stat-val">{stat.value}</span>
-                      <span className="fd-mini-stat-label">{stat.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Weather Panel (Farmer only) */}
             {user.role === 'FARMER' && (
               <div className="fd-weather-panel ft-anim-slide-up">
-                <h3 className="fd-weather-title"><Thermometer size={18} /> Aaj Ka Mausam</h3>
+                <h3 className="fd-weather-title"><Thermometer size={16} /> Aaj Ka Mausam</h3>
                 {weather ? (
                   <>
                     <div className="fd-weather-main">
-                      {weather.code > 50 ? <CloudRain size={48} /> : (weather.code > 1 ? <Cloud size={48} /> : <Sun size={48} />)}
+                      {weather.code > 50 ? <CloudRain size={44} /> : (weather.code > 1 ? <Cloud size={44} /> : <Sun size={44} />)}
                       <span className="fd-weather-temp">{weather.temp}°C</span>
                     </div>
                     <div className="fd-weather-details">
@@ -678,6 +664,41 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          {/* ROW 2: STAT CARDS */}
+          {!loading && (
+            <div className="fd-stats-row ft-anim-slide-up">
+              {quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className={`fd-stat-card fd-stat-${stat.tone} fd-stat-clickable`}
+                  onClick={() => navigate(stat.path)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && navigate(stat.path)}
+                >
+                  <div className="fd-stat-icon-bg">{stat.icon}</div>
+                  <div className="fd-stat-body">
+                    <span className="fd-stat-val">{stat.value}</span>
+                    <span className="fd-stat-label">{stat.label}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── INCOMING REQUESTS ALERT (Distributor/Retailer only) ── */}
+          {user.role !== 'FARMER' && pendingCount > 0 && (
+            <div className="fd-incoming-alert ft-anim-slide-up" onClick={() => navigate('/payment')}>
+              <span className="fd-incoming-alert-dot" />
+              <div className="fd-incoming-alert-text">
+                <strong>{pendingCount} naye transfer request{pendingCount > 1 ? 's' : ''}</strong> — kisan ne aapko produce bhejne ki request ki hai
+              </div>
+              <button className="fd-incoming-alert-cta">
+                Dekhein <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
 
           {/* ── IMPORTANT FEATURE BANNER ── */}
           <div className="fd-feature-banner ft-anim-slide-up">
@@ -720,7 +741,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── GOVERNMENT SCHEMES ── */}
-          <div className="fd-section">
+          <div className="fd-section fd-section-schemes">
             <div className="fd-section-header">
               <h2 className="fd-section-title">🏛️ Sarkar Ki Yojnayein</h2>
               <button className="fd-see-all-btn" onClick={() => navigate('/govt-schemes')}>
@@ -743,7 +764,7 @@ export default function Dashboard() {
 
           {/* ── MANDI RATES (Farmer only) ── */}
           {user.role === 'FARMER' && (
-            <div className="fd-section">
+            <div className="fd-section fd-section-mandi">
               <div className="fd-section-header">
                 <h2 className="fd-section-title">📊 Aaj Ki Mandi Daren</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -786,7 +807,7 @@ export default function Dashboard() {
           )}
 
           {/* ── RECENT PRODUCE ── */}
-          <div className="fd-section">
+          <div className="fd-section fd-section-produce">
             <div className="fd-section-header">
               <h2 className="fd-section-title">
                 {user.role === 'FARMER' ? '🌾 Meri Fasal — Haaliyon Ki' : '📦 Prapt Utpaad — Haaliyon Ka'}
@@ -813,7 +834,7 @@ export default function Dashboard() {
             ) : (
               <div className="fd-recent-produce-grid">
                 {recentProduces.map((p, idx) => (
-                  <div key={p._id} className="fd-produce-card" style={{ animationDelay: `${idx * 0.1}s` }}>
+                  <div key={p._id} className={`fd-produce-card ${p.blockchainStatus === 'CONFIRMED' ? 'fd-produce-verified' : 'fd-produce-pending'}`} style={{ animationDelay: `${idx * 0.1}s` }}>
                     <div className="fd-produce-card-header">
                       <div className="fd-produce-meta-row">
                         <span className="mini-id-badge">LOT: {p._id.slice(-6).toUpperCase()}</span>
