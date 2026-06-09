@@ -370,7 +370,7 @@ export default function Transfer() {
                     <div style={{ display: 'flex', gap: '0.75rem' }}>
                       <button
                         type="submit"
-                        style={{ ...s.primaryBtn, flex: 1, marginTop: 0, background: '#d97706' }}
+                        style={{ ...s.primaryBtn, flex: 1, marginTop: 0, background: '#16a34a' }}
                       >
                         ✅ Haan, Bhejo
                       </button>

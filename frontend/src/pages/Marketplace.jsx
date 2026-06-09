@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { Search, ShoppingCart, ArrowLeft, Filter, MapPin, Scale, Eye, Send } from 'lucide-react';
+import { Search, ShoppingCart, ArrowLeft, MapPin, Scale, Eye, Send } from 'lucide-react';
 import api from '../lib/api';
 import { track } from '../lib/posthog';
 
@@ -134,10 +134,6 @@ export default function Marketplace() {
                 <div className="ft-spinner-sm" style={{ position: 'absolute', right: '1.2rem', top: '50%', transform: 'translateY(-50%)' }} />
               )}
             </div>
-            <button className="ft-btn ft-btn-ghost" title="Advanced filters — coming soon" disabled style={{ borderRadius: '999px', padding: '0 1.5rem', border: '1.5px solid var(--ft-border)', background: '#fff', opacity: 0.5, cursor: 'not-allowed' }}>
-              <Filter size={18} />
-              <span style={{ fontSize: '0.8rem', fontWeight: 700 }}>Filters</span>
-            </button>
           </div>
         </div>
 
